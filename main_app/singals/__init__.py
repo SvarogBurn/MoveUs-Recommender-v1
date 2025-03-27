@@ -1,0 +1,1 @@
+from .privacy_settings import add_privacy_settings_handler

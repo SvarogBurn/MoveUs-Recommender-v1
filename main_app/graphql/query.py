@@ -1,0 +1,35 @@
+from inspect import getmembers, isclass
+import os, graphene, importlib
+
+class QueriesAbstract(graphene.ObjectType):
+    pass
+
+queries_base_classes = [QueriesAbstract]
+current_directory = os.path.dirname(os.path.abspath(__file__))
+subdirectories = [
+    x
+    for x in os.listdir(current_directory)
+    if os.path.isdir(os.path.join(current_directory, x)) and
+    x != '__pycache__'
+]
+
+for directory in subdirectories:
+    try:
+        module = importlib.import_module(f'main_app.graphql.{directory}.queries')
+        if module:
+            classes = [x for x in getmembers(module, isclass)]
+            queries = [x[1] for x in classes if 'Query' in x[0]]
+            queries_base_classes += queries
+    except ModuleNotFoundError:
+        pass
+
+queries_base_classes = queries_base_classes[::-1]
+properties = {}
+for base_class in queries_base_classes:
+    properties.update(base_class.__dict__['_meta'].fields)
+
+Queries = type(
+    'Queries',
+    tuple(queries_base_classes),
+    properties
+)
