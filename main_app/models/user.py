@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.db.models.fields.composite import CompositePrimaryKey
 
-from .location import BaseLocation
+from .location import Location
 from .enums import *
 from .activities import Activity
 
@@ -11,7 +11,7 @@ class MoveusUser(AbstractUser):
     bio = models.CharField(max_length=255)
     gender = models.SmallIntegerField(choices=Gender.choices(), null=True)
     date_of_birth = models.DateField(null=True)
-    location = models.ForeignKey(BaseLocation, on_delete=models.DO_NOTHING, null=True)
+    location = models.ForeignKey(Location, on_delete=models.DO_NOTHING, null=True)
     frequency_of_physical_activity = models.SmallIntegerField(choices=FrequencyOfPhycicalActivity.choices(), null=True)
     social_iteraction_importance = models.SmallIntegerField(choices=SocialInteractionImportance.choices(), null=True)
     preferred_party_size = models.SmallIntegerField(choices=PreferredPartySize.choices(), null=True)
@@ -21,11 +21,9 @@ class MoveusUser(AbstractUser):
     preferred_partned_characteristics = models.JSONField(null=True)
     matched_participation_likelihood = models.SmallIntegerField(choices=MatchedParticipationLikelihood.choices(), null=True)
     is_capeable = models.BooleanField(default=False)
-    agreed_to_toc = models.BooleanField(default=False)
     first_name = models.CharField(max_length=32)
     last_name = models.CharField(max_length=32)
     xp = models.IntegerField(default=0)
-    last_online = models.DateTimeField(null=True)
     passed_tutorial = models.BooleanField(default=False)
     img_url = models.URLField()
     verified = models.BooleanField(default=False)

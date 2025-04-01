@@ -17,7 +17,7 @@ for directory in subdirectories:
         module = importlib.import_module(f'main_app.graphql.{directory}.mutations')
         if module:
             classes = [x for x in getmembers(module, isclass)]
-            mutations = [x[1] for x in classes if 'Query' in x[0]]
+            mutations = [x[1] for x in classes if 'Mutation' == x[0]]
             mutations_base_classes += mutations
     except ModuleNotFoundError:
         pass
@@ -26,7 +26,6 @@ mutations_base_classes = mutations_base_classes[::-1]
 properties = {}
 for base_class in mutations_base_classes:
     properties.update(base_class.__dict__['_meta'].fields)
-
 Mutations = type(
     'Mutations',
     tuple(mutations_base_classes),

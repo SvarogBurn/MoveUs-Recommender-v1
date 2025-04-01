@@ -27,7 +27,8 @@ SECRET_KEY = CONFIG['SECRET_KEY']
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
+CORS_ORIGIN_ALLOW_ALL = DEBUG
 
 
 # Application definition
@@ -45,6 +46,13 @@ INSTALLED_APPS = [
     'allauth.headless',
     'graphene_django',
     'main_app'
+]
+
+AUTHENTICATION_BACKENDS = [
+    # Needed to login by username in Django admin, regardless of `allauth`
+    'django.contrib.auth.backends.ModelBackend',
+    # `allauth` specific authentication methods, such as login by email
+    'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
 MIDDLEWARE = [
@@ -136,10 +144,11 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 GRAPHENE = {
-    "SCHEMA": "main_app.schema.schema"
+    "SCHEMA": "main_app.schema.schema",
 }
 # Allauth Config
 HEADLESS_ONLY = True
 ACCOUNT_EMAIL_VERIFICATION = "none"
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
-ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_LOGIN_METHODS = ["username"]
+SESSION_SAVE_EVERY_REQUEST = True

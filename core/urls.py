@@ -21,9 +21,35 @@ from graphene_django.views import GraphQLView
 
 from .settings import DEBUG
 
+from django.contrib.sessions.models import Session
+from django.contrib.auth import get_user_model
+from django.http import HttpRequest
+from graphene_django.views import GraphQLView
+
+class CustomGraphQLView(GraphQLView):
+    def get_context(self, request: HttpRequest, *args, **kwargs):
+        # Try to get the session token from the header.
+        authorization_header = request.headers.get('authorization')
+        if authorization_header:
+            token = request.headers.get('authorization').split()[1]
+            if token:
+                try:
+                    # Retrieve the session corresponding to the token.
+                    session = Session.objects.get(session_key=token)
+                    # Optionally, set request.session to the decoded session data.
+                    request.session = session.get_decoded()
+                    # If the session contains a user id, fetch the user.
+                    user_id = request.session.get('_auth_user_id')
+                    if user_id:
+                        request.user = get_user_model().objects.get(pk=user_id)
+                except Session.DoesNotExist:
+                    pass  # Or handle invalid token appropriately.
+
+        return super().get_context(request, *args, **kwargs)
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('allauth.urls')),
     path('_allauth/', include('allauth.headless.urls')),
-    path('graphql', csrf_exempt(GraphQLView.as_view(graphiql=DEBUG)))
+    path('graphql', csrf_exempt(CustomGraphQLView.as_view(graphiql=DEBUG)))
 ]

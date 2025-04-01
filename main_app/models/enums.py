@@ -1,16 +1,21 @@
 from enum import IntEnum
 
+import graphene
+
 class BaseEnum(IntEnum):
 
     @classmethod
     def choices(self):
         return [(key.value, key.name) for key in self]
-
+    
+    @classmethod
+    def as_graphene_enum(self):
+        return graphene.Enum.from_enum(self)
+    
 class PrivacyScope(BaseEnum):
     NOONE = 0
     FRIENDS = 1
-    SAME_EVENT = 2
-    EVERYONE = 3
+    EVERYONE = 2
 
 class FrequencyOfPhycicalActivity(BaseEnum):
     DAILY = 0
@@ -98,8 +103,8 @@ class PrivacySetting(BaseEnum):
     LOCATION = 0
     AGE = 1
     FRIENDS = 2
-    NAME = 3
-    EMAIL = 4
+    EMAIL = 3
+    GENDER = 4
 
 class OtherOption(BaseEnum):
     PREFERRED_PARTNER_CHARACTHERISTICS = 0

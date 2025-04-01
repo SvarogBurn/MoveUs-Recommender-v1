@@ -2,4 +2,4 @@ from graphene import Schema
 
 from .graphql import query, mutation
 
-schema = Schema(query=query.Queries)
+schema = Schema(query=query.Queries, mutation=mutation.Mutations)

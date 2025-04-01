@@ -6,16 +6,15 @@ from .event import Event
 from .enums import ChatNotifications, RelationshipStatus
 
 class Chat(models.Model):
-    name = models.CharField(max_length=64)
-    time_created = models.DateTimeField()
-    img_url = models.URLField()
+    time_created = models.DateTimeField(auto_now_add=True)
+    img_url = models.URLField(default="default.png")
 
 class ChatMember(models.Model):
     pk = CompositePrimaryKey('user', 'chat')
     user = models.ForeignKey(MoveusUser, on_delete=models.CASCADE)
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
     nickname = models.CharField(max_length=64)
-    last_open = models.DateTimeField()
+    last_open = models.DateTimeField(null=True)
     notifications = models.SmallIntegerField(choices=ChatNotifications.choices(), default=ChatNotifications.ALL)
 
 class ChatMessage(models.Model):
@@ -27,9 +26,9 @@ class ChatMessage(models.Model):
 class Relationship(models.Model):
     user_1 = models.ForeignKey(MoveusUser, on_delete=models.CASCADE, null=False, related_name='friends_added')
     user_2 = models.ForeignKey(MoveusUser, on_delete=models.CASCADE, null=False, related_name='friends_added_by')
-    last_update = models.DateTimeField()
+    last_update = models.DateTimeField(auto_now_add=True)
     status = models.SmallIntegerField(choices=RelationshipStatus.choices())
-    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, null=False)
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, null=True)
 
 class Post(models.Model):
     title = models.CharField(max_length=128)

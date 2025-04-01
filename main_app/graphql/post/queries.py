@@ -18,9 +18,3 @@ class PostQuery(graphene.ObjectType):
     
     def resolve_global_posts(root, info, start, end):
         return Post.objects.order_by('time_posted').reverse().filter()[start:end]
-    
-class CommentQuery(graphene.ObjectType):
-    replies = graphene.List(PostCommentType, comment_id=graphene.ID())
-
-    def resolve_replies(root, info, comment_id):
-        pass

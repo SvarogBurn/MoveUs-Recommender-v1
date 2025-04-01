@@ -1,6 +1,7 @@
 import graphene
+from graphql import GraphQLError
 
-from .types import UserType
+from .types import ProfileType, UserType
 from ...models import MoveusUser, UserPrivacySetting
 from ...models.enums import PrivacySetting, PrivacyScope
 
@@ -12,12 +13,12 @@ class UserQuery(graphene.ObjectType):
         return l
 
 class ProfileQuery(graphene.ObjectType):
-    profile = graphene.Field(UserType)
+    my_profile = graphene.Field(ProfileType)
 
-    def resolve_profile(root, info, **kwargs):
+    def resolve_my_profile(root, info, **kwargs):
         if info.context.user.id:
             return info.context.user;
-        return "Need to be authenticated"
+        raise GraphQLError("Need to be authenticated")
 
 
 

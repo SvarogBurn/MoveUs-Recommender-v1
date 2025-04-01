@@ -5,10 +5,14 @@ from graphene_django import DjangoObjectType
 from ...models import Post, PostComment
 
 class PostCommentType(DjangoObjectType):
+    has_replies = graphene.Boolean()
 
     class Meta:
         model = PostComment
-        fields = "__all__"
+        include = "__all__"
+
+    def resolve_has_replies(self: PostComment, info):
+        return self.replies.count() != 0
 
 class PostType(DjangoObjectType):
     likes = graphene.Int()
@@ -16,7 +20,7 @@ class PostType(DjangoObjectType):
 
     class Meta:
         model = Post
-        fields = "__all__"
+        include = "__all__"
 
     def resolve_likes(self: Post, info, **kwargs):
         return self.liked_by.count()
