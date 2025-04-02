@@ -1,7 +1,10 @@
 import graphene
 from graphql import GraphQLError
 
-from main_app.graphql.user.types import UserType
+from main_app.graphql.user.types import ProfileType
+from main_app.validators import profile_validator
+
+from ...models.enums import Gender
 
 from ...models import MoveusUser
 from ...models.enums import (
@@ -13,6 +16,44 @@ from ...models.enums import (
     PreferredPartnerCharacteristics,
     MatchedParticipationLikelihood
 )
+
+class BasicInfoMutatuon(graphene.Mutation):
+
+    class Arguments:
+        date_of_birth = graphene.Date(required = False)
+        first_name = graphene.String(required = False)
+        last_name = graphene.String(required = False)
+        bio = graphene.String(required = False)
+        gender = Gender.as_graphene_enum()(required=False)
+
+    profile = graphene.Field(ProfileType)
+
+    @classmethod
+    def mutate(
+        cls,
+        root,
+        info,
+        date_of_birth = None,
+        first_name = None,
+        last_name = None,
+        bio = None,
+        gender = None
+    ):
+        
+        user: MoveusUser = info.context.user
+        if not user.id: raise GraphQLError("Not authentificated.")
+
+        profile_validator(first_name, last_name, date_of_birth, bio)
+
+        if first_name: user.first_name = first_name
+        if last_name: user.last_name = last_name
+        if date_of_birth: user.date_of_birth = date_of_birth
+        if bio: user.bio = bio
+        if gender: user.gender = gender
+
+        user.save()
+
+        return BasicInfoMutatuon(profile = user)
 
 class SubmitSurveyMutation(graphene.Mutation):
 
@@ -30,7 +71,7 @@ class SubmitSurveyMutation(graphene.Mutation):
             PreferredPartnerCharacteristics.as_graphene_enum()
         )
 
-    profile = graphene.Field(UserType)
+    profile = graphene.Field(ProfileType)
 
     @classmethod
     def mutate(
@@ -47,9 +88,9 @@ class SubmitSurveyMutation(graphene.Mutation):
         ppc: list = [],
         **kwargs
         ):
-        user: MoveusUser = info.context.user
 
-        if not user.id: raise GraphQLError("Not authentificated")
+        user: MoveusUser = info.context.user
+        if not user.id: raise GraphQLError("Not authentificated.")
 
         user.new_friendships_formed = nff
         user.frequency_of_physical_activity = fpa
@@ -67,3 +108,4 @@ class SubmitSurveyMutation(graphene.Mutation):
 
 class Mutation(graphene.ObjectType):
     submit_survey = SubmitSurveyMutation.Field()
+    basic_info = BasicInfoMutatuon.Field()

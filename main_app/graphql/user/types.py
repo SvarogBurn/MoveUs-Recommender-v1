@@ -14,6 +14,7 @@ class ProfileType(DjangoObjectType):
         exclude = (
             'is_superuser', 'is_staff', 'post_set', 'postcomment_set', 'friends_added', 'friends_added_by'
         )
+        convert_choices_to_enum = False
 
 class UserType(DjangoObjectType):
     location = graphene.Field(LocationType)
