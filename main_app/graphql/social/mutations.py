@@ -1,8 +1,8 @@
 import graphene
-from graphql import GraphQLError
 
 from django.db.models import Q
 
+from ..error import MUError, MUErrorCode
 from ...models import Relationship, MoveusUser
 from ...models.enums import RelationshipStatus
 
@@ -17,9 +17,9 @@ class SendFriendRequestMutation(graphene.Mutation):
 
     @classmethod
     def mutate(cls, root, info, user_id):
-        if not info.context.user.id: raise GraphQLError("Not authentificated")
+        if not info.context.user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
-        if user_id == info.context.user.id: raise GraphQLError("Cannot send request to yourself")
+        if user_id == info.context.user.id: raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)
 
         other =  MoveusUser.objects.get(pk=user_id)
 
@@ -28,7 +28,7 @@ class SendFriendRequestMutation(graphene.Mutation):
 
         try:
             existing_relationship = Relationship.objects.get(q_1 | q_2)
-            if existing_relationship and existing_relationship.status != RelationshipStatus.NONE: raise GraphQLError("Cannot send friend request to this user")
+            if existing_relationship and existing_relationship.status != RelationshipStatus.NONE: raise MUError(MUErrorCode.INVALID_FRIEND_REQUEST)
             existing_relationship.user_1 = info.context.user
             existing_relationship.user_2  = other
             existing_relationship.status = RelationshipStatus.PENDING
@@ -48,19 +48,19 @@ class AcceptFriendRequestMutation(graphene.Mutation):
 
     @classmethod
     def mutate(cls, root, info, user_id):
-        if not info.context.user.id: raise GraphQLError("Not authentificated")
+        if not info.context.user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         other =  MoveusUser.objects.get(pk=user_id)
 
         try:
             existing_relationship = Relationship.objects.get(user_1 = other, user_2 = info.context.user)
-            if existing_relationship.status != RelationshipStatus.PENDING: raise GraphQLError("No request to accept")
+            if existing_relationship.status != RelationshipStatus.PENDING: raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)
 
             existing_relationship.status = RelationshipStatus.FRIENDS;
             existing_relationship.save()
             return AcceptFriendRequestMutation(relationship = existing_relationship)
         except Relationship.DoesNotExist:
-            raise GraphQLError("No request to accept")
+            raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)
 
 class CancelFriendRequestMutation(graphene.Mutation):
 
@@ -71,20 +71,20 @@ class CancelFriendRequestMutation(graphene.Mutation):
 
     @classmethod
     def mutate(cls, root, info, user_id):
-        if not info.context.user.id: raise GraphQLError("Not authentificated")
+        if not info.context.user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         other =  MoveusUser.objects.get(pk=user_id)
 
         try:
             existing_relationship = Relationship.objects.get(user_1 = info.context.user, user_2 = other)
-            if existing_relationship.status != RelationshipStatus.PENDING: raise GraphQLError("No request to cancel")
+            if existing_relationship.status != RelationshipStatus.PENDING: raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)
 
             existing_relationship.status = RelationshipStatus.NONE;
             existing_relationship.save()
 
             return CancelFriendRequestMutation(relationship = existing_relationship)
         except Relationship.DoesNotExist:
-            raise GraphQLError("No request to cancel")
+            raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)
 
 class RejectFriendRequestMutation(graphene.Mutation):
 
@@ -95,19 +95,19 @@ class RejectFriendRequestMutation(graphene.Mutation):
 
     @classmethod
     def mutate(cls, root, info, user_id):
-        if not info.context.user.id: raise GraphQLError("Not authentificated")
+        if not info.context.user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         other =  MoveusUser.objects.get(pk=user_id)
 
         try:
             existing_relationship = Relationship.objects.get(user_1 = other, user_2 = info.context.user)
-            if existing_relationship.status != RelationshipStatus.PENDING: raise GraphQLError("No request to reject")
+            if existing_relationship.status != RelationshipStatus.PENDING: raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)
 
             existing_relationship.status = RelationshipStatus.NONE;
             existing_relationship.save()
             return AcceptFriendRequestMutation(relationship = existing_relationship)
         except Relationship.DoesNotExist:
-            raise GraphQLError("No request to reject")
+            raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)
 
 class Mutation(graphene.ObjectType):
     send_friend_request = SendFriendRequestMutation.Field()

@@ -12,7 +12,6 @@ class Event(models.Model):
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     location = models.ForeignKey(Location, on_delete=models.DO_NOTHING)
-    img_url = models.URLField(default="default.png")
     requirements = models.JSONField(null=True)
     chat = models.ForeignKey('Chat', on_delete=models.DO_NOTHING, null=True)
 

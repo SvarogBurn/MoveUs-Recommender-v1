@@ -46,6 +46,17 @@ class CustomGraphQLView(GraphQLView):
                     pass  # Or handle invalid token appropriately.
 
         return super().get_context(request, *args, **kwargs)
+    
+    @staticmethod
+    def format_error(error):
+        formatted_error = super(CustomGraphQLView, CustomGraphQLView).format_error(error)
+
+        try:
+            formatted_error['error_code'] = error.original_error.code
+        except AttributeError:
+            pass
+
+        return formatted_error
 
 urlpatterns = [
     path('admin/', admin.site.urls),

@@ -150,5 +150,5 @@ GRAPHENE = {
 HEADLESS_ONLY = True
 ACCOUNT_EMAIL_VERIFICATION = "none"
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
-ACCOUNT_LOGIN_METHODS = ["username"]
+ACCOUNT_LOGIN_METHODS = ["username", "email"]
 SESSION_SAVE_EVERY_REQUEST = True

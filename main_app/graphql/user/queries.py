@@ -1,7 +1,7 @@
 import graphene
-from graphql import GraphQLError
 
 from .types import ProfileType, UserType
+from ..error import MUError, MUErrorCode
 from ...models import MoveusUser, UserPrivacySetting
 from ...models.enums import PrivacySetting, PrivacyScope
 
@@ -17,7 +17,7 @@ class UserQuery(graphene.ObjectType):
         try:
             return MoveusUser.objects.get(pk=id)
         except MoveusUser.DoesNotExist:
-            raise GraphQLError("User does not exist.")
+            raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
 
 class ProfileQuery(graphene.ObjectType):
     my_profile = graphene.Field(ProfileType)
@@ -25,7 +25,7 @@ class ProfileQuery(graphene.ObjectType):
     def resolve_my_profile(root, info, **kwargs):
         if info.context.user.id:
             return info.context.user;
-        raise GraphQLError("Need to be authenticated")
+        raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
 
 

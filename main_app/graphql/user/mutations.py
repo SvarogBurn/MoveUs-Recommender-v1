@@ -1,11 +1,10 @@
 import graphene
-from graphql import GraphQLError
 
 from main_app.graphql.user.types import ProfileType
 from main_app.validators import profile_validator
 
 from ...models.enums import Gender
-
+from ..error import MUError, MUErrorCode
 from ...models import MoveusUser
 from ...models.enums import (
     FrequencyOfPhycicalActivity,
@@ -41,7 +40,7 @@ class BasicInfoMutatuon(graphene.Mutation):
     ):
         
         user: MoveusUser = info.context.user
-        if not user.id: raise GraphQLError("Not authentificated.")
+        if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         profile_validator(first_name, last_name, date_of_birth, bio)
 
@@ -90,7 +89,7 @@ class SubmitSurveyMutation(graphene.Mutation):
         ):
 
         user: MoveusUser = info.context.user
-        if not user.id: raise GraphQLError("Not authentificated.")
+        if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         user.new_friendships_formed = nff
         user.frequency_of_physical_activity = fpa
