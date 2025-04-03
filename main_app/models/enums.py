@@ -107,7 +107,7 @@ class PrivacySetting(BaseEnum):
     GENDER = 4
 
 class OtherOption(BaseEnum):
-    PREFERRED_PARTNER_CHARACTHERISTICS = 0
+    PREFERRED_PARTNER_CHARACTERISTICS = 0
     ACTIVITY = 1
     FORMED_RELATIONSHIPS_TYPE = 2
 
