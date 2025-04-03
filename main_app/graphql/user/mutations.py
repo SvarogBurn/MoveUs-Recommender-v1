@@ -26,7 +26,7 @@ class BasicInfoMutatuon(graphene.Mutation):
         bio = graphene.String(required = False)
         gender = Gender.as_graphene_enum()(required=False)
 
-    profile = graphene.Field(ProfileType)
+    my_profile = graphene.Field(ProfileType)
 
     @classmethod
     def mutate(
@@ -45,15 +45,15 @@ class BasicInfoMutatuon(graphene.Mutation):
 
         profile_validator(first_name, last_name, date_of_birth, bio)
 
-        if first_name: user.first_name = first_name
-        if last_name: user.last_name = last_name
+        if first_name is not None: user.first_name = first_name
+        if last_name is not None: user.last_name = last_name
         if date_of_birth: user.date_of_birth = date_of_birth
-        if bio: user.bio = bio
+        if bio is not None : user.bio = bio
         if gender: user.gender = gender
 
         user.save()
 
-        return BasicInfoMutatuon(profile = user)
+        return BasicInfoMutatuon(my_profile = user)
 
 class SubmitSurveyMutation(graphene.Mutation):
 
@@ -71,7 +71,7 @@ class SubmitSurveyMutation(graphene.Mutation):
             PreferredPartnerCharacteristics.as_graphene_enum()
         )
 
-    profile = graphene.Field(ProfileType)
+    my_profile = graphene.Field(ProfileType)
 
     @classmethod
     def mutate(
@@ -103,7 +103,7 @@ class SubmitSurveyMutation(graphene.Mutation):
 
         user.save()
 
-        return SubmitSurveyMutation(profile = user)
+        return SubmitSurveyMutation(my_profile = user)
         
 
 class Mutation(graphene.ObjectType):

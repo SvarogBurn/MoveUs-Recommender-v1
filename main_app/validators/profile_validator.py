@@ -24,4 +24,4 @@ def profile_validator(
         if age > 100 : raise ValidationError("Surely not that old.")
 
     if bio and len(bio) > 512:
-        raise ValidationError("Bio lenght cannot longer than 512 characters.")
+        raise ValidationError("Bio length cannot longer than 512 characters.")

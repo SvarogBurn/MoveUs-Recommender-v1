@@ -115,4 +115,4 @@ class Gender(BaseEnum):
     MALE = 0
     FEMALE = 1
     NON_BINARY = 2
-    PREFFER_NOT_TO_SAY = 3
+    PREFER_NOT_TO_SAY = 3
