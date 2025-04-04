@@ -47,7 +47,7 @@ class BasicInfoMutatuon(graphene.Mutation):
         if first_name is not None: user.first_name = first_name
         if last_name is not None: user.last_name = last_name
         if date_of_birth: user.date_of_birth = date_of_birth
-        if bio is not None : user.bio = bio
+        if bio is not None: user.bio = bio
         if gender: user.gender = gender
 
         user.save()
