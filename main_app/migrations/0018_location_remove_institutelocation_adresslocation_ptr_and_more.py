@@ -39,7 +39,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, to='main_app.location'),
         ),
         migrations.AlterField(
-            model_name='moveususer',
+            model_name='User',
             name='location',
             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.DO_NOTHING, to='main_app.location'),
         ),

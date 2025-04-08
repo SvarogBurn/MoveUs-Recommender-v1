@@ -1,9 +1,9 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from ..models import MoveusUser, UserPrivacySetting
+from ..models import User, UserPrivacySetting
 from ..models.enums import PrivacySetting, PrivacyScope
 
-@receiver(post_save, sender=MoveusUser, dispatch_uid="main_app.signals.add_privacy_settings_handler")
+@receiver(post_save, sender=User, dispatch_uid="main_app.signals.add_privacy_settings_handler")
 def add_privacy_settings_handler(sender, instance, **kwargs):
 
     # call only when created

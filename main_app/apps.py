@@ -6,5 +6,5 @@ class MainAppConfig(AppConfig):
     name = 'main_app'
 
     def ready(self):
-        from . import singals
+        from . import signals
         return super().ready()

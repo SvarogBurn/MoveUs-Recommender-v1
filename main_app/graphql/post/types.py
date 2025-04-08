@@ -1,10 +1,10 @@
 import graphene
 
-from graphene_django import DjangoObjectType
+from ..object_type import MUObjectType
 
 from ...models import Post, PostComment
 
-class PostCommentType(DjangoObjectType):
+class PostCommentType(MUObjectType):
     has_replies = graphene.Boolean()
 
     class Meta:
@@ -14,7 +14,7 @@ class PostCommentType(DjangoObjectType):
     def resolve_has_replies(self: PostComment, info):
         return self.replies.count() != 0
 
-class PostType(DjangoObjectType):
+class PostType(MUObjectType):
     likes = graphene.Int()
     comments = graphene.List(PostCommentType, start=graphene.Int(default_value=0), end=graphene.Int(default_value=10))
 

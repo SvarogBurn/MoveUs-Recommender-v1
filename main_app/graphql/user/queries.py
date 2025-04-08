@@ -2,7 +2,7 @@ import graphene
 
 from .types import ProfileType, UserType
 from ..error import MUError, MUErrorCode
-from ...models import MoveusUser, UserPrivacySetting
+from ...models import User, UserPrivacySetting
 from ...models.enums import PrivacySetting, PrivacyScope
 
 class UserQuery(graphene.ObjectType):
@@ -10,13 +10,13 @@ class UserQuery(graphene.ObjectType):
     user = graphene.Field(UserType, id = graphene.Int())
 
     def resolve_users(root, info, **kwargs):
-        l =  MoveusUser.objects.all()
+        l =  User.objects.all()
         return l
     
     def resolve_user(root, info, id, **kwargs):
         try:
-            return MoveusUser.objects.get(pk=id)
-        except MoveusUser.DoesNotExist:
+            return User.objects.get(pk=id)
+        except User.DoesNotExist:
             raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
 
 class ProfileQuery(graphene.ObjectType):

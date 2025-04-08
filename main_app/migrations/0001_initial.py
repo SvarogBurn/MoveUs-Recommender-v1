@@ -54,7 +54,7 @@ class Migration(migrations.Migration):
             bases=('main_app.baselocation',),
         ),
         migrations.CreateModel(
-            name='MoveusUser',
+            name='User',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('password', models.CharField(max_length=128, verbose_name='password')),

@@ -1,25 +1,53 @@
 import graphene
-from graphene_django import DjangoObjectType
+from ..object_type import MUObjectType
 
-from ...models import Event, EventMember, EventActivity
+from ...models import Event, EventMember
+from ...models.enums import MemberRole
 from ..post.types import PostType
 from ..user.types import UserType
 
-# class EventMemberType(DjangoObjectType):
+class EventMemberType(MUObjectType):
     
-#     class Meta:
-#         model = EventMember
+    class Meta:
+        model = EventMember
+        exclude = ("pk",)
 
-class EventType(DjangoObjectType):
+class EventType(MUObjectType):
     posts = graphene.List(PostType)
-    # members = graphene.List(EventMemberType)
+    organizer = graphene.Field(EventMemberType)
+    participants = graphene.List(EventMemberType)
+    moderators = graphene.List(EventMemberType)
+    spectators = graphene.List(EventMemberType)
 
     class Meta:
         model = Event
-        exclude = ("post_set", "event_member_set")
+        exclude = ("post_set",)
 
     def resolve_posts(self: Event, info):
         return self.post_set;
 
-    def resolve_members(self: EventMember, info):
-        return self.event_member_set;
+    def resolve_organizer(self: Event, info):
+        return EventMember.objects.filter(
+            event = self,
+            role = MemberRole.ORGANIZER
+        )[0]
+    
+    def resolve_participants(self: Event, info):
+        return EventMember.objects.filter(
+            event = self,
+            role = MemberRole.PARTICIPANT
+        )
+    
+    def resolve_moderators(self: Event, info):
+        return EventMember.objects.filter(
+            event = self,
+            role = MemberRole.MODERATOR
+        )
+    
+    def resolve_spectators(self: Event, info):
+        return EventMember.objects.filter(
+            event = self,
+            role = MemberRole.SPECTATOR
+        )
+
+

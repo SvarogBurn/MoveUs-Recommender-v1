@@ -119,7 +119,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-AUTH_USER_MODEL = 'main_app.MoveusUser'
+AUTH_USER_MODEL = 'main_app.User'
 
 # Internationalization
 # https://docs.djangoproject.com/en/dev/topics/i18n/

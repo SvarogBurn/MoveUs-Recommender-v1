@@ -3,7 +3,7 @@ import graphene
 from django.db.models import Q
 
 from ..error import MUError, MUErrorCode
-from ...models import Relationship, MoveusUser
+from ...models import Relationship, User
 from ...models.enums import RelationshipStatus
 
 from .types import RelationshipType
@@ -21,7 +21,7 @@ class SendFriendRequestMutation(graphene.Mutation):
 
         if user_id == info.context.user.id: raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)
 
-        other =  MoveusUser.objects.get(pk=user_id)
+        other =  User.objects.get(pk=user_id)
 
         q_1 = Q(user_1 = info.context.user, user_2 = other)
         q_2 = Q(user_2 = info.context.user, user_1 = other)
@@ -50,7 +50,7 @@ class AcceptFriendRequestMutation(graphene.Mutation):
     def mutate(cls, root, info, user_id):
         if not info.context.user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
-        other =  MoveusUser.objects.get(pk=user_id)
+        other =  User.objects.get(pk=user_id)
 
         try:
             existing_relationship = Relationship.objects.get(user_1 = other, user_2 = info.context.user)
@@ -73,7 +73,7 @@ class CancelFriendRequestMutation(graphene.Mutation):
     def mutate(cls, root, info, user_id):
         if not info.context.user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
-        other =  MoveusUser.objects.get(pk=user_id)
+        other =  User.objects.get(pk=user_id)
 
         try:
             existing_relationship = Relationship.objects.get(user_1 = info.context.user, user_2 = other)
@@ -97,7 +97,7 @@ class RejectFriendRequestMutation(graphene.Mutation):
     def mutate(cls, root, info, user_id):
         if not info.context.user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
-        other =  MoveusUser.objects.get(pk=user_id)
+        other =  User.objects.get(pk=user_id)
 
         try:
             existing_relationship = Relationship.objects.get(user_1 = other, user_2 = info.context.user)

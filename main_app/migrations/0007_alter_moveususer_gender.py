@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AlterField(
-            model_name='moveususer',
+            model_name='User',
             name='gender',
             field=models.SmallIntegerField(choices=[(0, 'MALE'), (1, 'FEMALE'), (2, 'NON_BINARY'), (3, 'PREFFER_NOT_TO_SAY')], null=True),
         ),

@@ -1,7 +1,7 @@
-from graphene_django import DjangoObjectType
+from ..object_type import MUObjectType
 
 from ...models import Location
 
-class LocationType(DjangoObjectType):
+class LocationType(MUObjectType):
     class Meta:
         model = Location

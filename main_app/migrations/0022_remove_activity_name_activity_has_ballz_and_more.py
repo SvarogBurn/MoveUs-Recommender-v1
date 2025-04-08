@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
             field=models.SmallIntegerField(choices=[(0, 'HIKING'), (1, 'RUNNING'), (2, 'SOCCER'), (3, 'TENNIS'), (4, 'GYM'), (5, 'SEX')], primary_key=True, serialize=False),
         ),
         migrations.AlterField(
-            model_name='moveususer',
+            model_name='User',
             name='gender',
             field=models.SmallIntegerField(choices=[(0, 'MALE'), (1, 'FEMALE'), (2, 'NON_BINARY'), (3, 'PREFER_NOT_TO_SAY')], null=True),
         ),

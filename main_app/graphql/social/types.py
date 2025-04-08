@@ -1,17 +1,18 @@
 import graphene
-from graphene_django import DjangoObjectType
+
+from ..object_type import MUObjectType
 
 from ...models import Relationship
 
-from ..user.types import UserType
+class RelationshipType(MUObjectType):
 
-class RelationshipType(DjangoObjectType):
-
-    other = graphene.Field(UserType)
+    other = graphene.Field(
+        graphene.lazy_import("main_app.graphql.user.types.UserType")
+    )
 
     class Meta:
         model = Relationship
-        exclude = ('user_1', 'user_2')
+        exclude = ('pk', 'user_1', 'user_2')
         convert_choices_to_enum = False
 
     def resolve_other(self: Relationship, info):

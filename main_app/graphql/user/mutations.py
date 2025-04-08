@@ -5,7 +5,7 @@ from main_app.validators import profile_validator
 
 from ...models.enums import Gender
 from ..error import MUError, MUErrorCode
-from ...models import MoveusUser
+from ...models import User
 from ...models.enums import (
     FrequencyOfPhycicalActivity,
     SocialInteractionImportance,
@@ -39,7 +39,7 @@ class BasicInfoMutatuon(graphene.Mutation):
         gender = None
     ):
         
-        user: MoveusUser = info.context.user
+        user: User = info.context.user
         if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         profile_validator(first_name, last_name, date_of_birth, bio)
@@ -48,7 +48,7 @@ class BasicInfoMutatuon(graphene.Mutation):
         if last_name is not None: user.last_name = last_name
         if date_of_birth: user.date_of_birth = date_of_birth
         if bio is not None: user.bio = bio
-        if gender: user.gender = gender
+        if gender is not None: user.gender = gender
 
         user.save()
 
@@ -57,16 +57,15 @@ class BasicInfoMutatuon(graphene.Mutation):
 class SubmitSurveyMutation(graphene.Mutation):
 
     class Arguments:
-        nff = graphene.Boolean()
-        fpa = FrequencyOfPhycicalActivity.as_graphene_enum()(required=True)
-        sii = SocialInteractionImportance.as_graphene_enum()(required=True)
-        pps = PreferredPartySize.as_graphene_enum()(required=True)
-        pas = PhysicalActivitySatisfaction.as_graphene_enum()(required=True)
-        mpl = MatchedParticipationLikelihood.as_graphene_enum()(required=True)
-        frt = graphene.List(
+        frequency_of_physical_activity = FrequencyOfPhycicalActivity.as_graphene_enum()(required=True)
+        social_interaction_importance = SocialInteractionImportance.as_graphene_enum()(required=True)
+        preferred_party_size = PreferredPartySize.as_graphene_enum()(required=True)
+        physical_activity_satisfaction = PhysicalActivitySatisfaction.as_graphene_enum()(required=True)
+        matched_participation_likelihood = MatchedParticipationLikelihood.as_graphene_enum()(required=True)
+        formed_relationship_types = graphene.List(
             FormedRelationshipsType.as_graphene_enum()
         )
-        ppc = graphene.List(
+        preferred_partner_characteristics = graphene.List(
             PreferredPartnerCharacteristics.as_graphene_enum()
         )
 
@@ -77,28 +76,26 @@ class SubmitSurveyMutation(graphene.Mutation):
         cls, 
         root, 
         info,
-        nff: bool,
-        fpa: FrequencyOfPhycicalActivity,
-        sii: SocialInteractionImportance,
-        pps: PreferredPartySize,
-        pas: PhysicalActivitySatisfaction,
-        mpl: MatchedParticipationLikelihood,
-        frt: list = [],
-        ppc: list = [],
+        frequency_of_physical_activity: FrequencyOfPhycicalActivity,
+        social_interaction_importance: SocialInteractionImportance,
+        preferred_party_size: PreferredPartySize,
+        physical_activity_satisfaction: PhysicalActivitySatisfaction,
+        matched_participation_likelihood: MatchedParticipationLikelihood,
+        formed_relationship_types: list = [],
+        preferred_partner_characteristics: list = [],
         **kwargs
         ):
 
-        user: MoveusUser = info.context.user
+        user: User = info.context.user
         if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
-        user.new_friendships_formed = nff
-        user.frequency_of_physical_activity = fpa
-        user.social_iteraction_importance = sii
-        user.preferred_party_size = pps
-        user.physical_activity_satisfaction = pas
-        user.matched_participation_likelihood = mpl
-        user.formed_relationships_type = frt
-        user.preferred_partned_characteristics = ppc
+        user.frequency_of_physical_activity = frequency_of_physical_activity
+        user.social_interaction_importance = social_interaction_importance
+        user.preferred_party_size = preferred_party_size
+        user.physical_activity_satisfaction = physical_activity_satisfaction
+        user.matched_participation_likelihood = matched_participation_likelihood
+        user.formed_relationship_types = formed_relationship_types
+        user.preferred_partner_characteristics = preferred_partner_characteristics
 
         user.save()
 
@@ -107,4 +104,4 @@ class SubmitSurveyMutation(graphene.Mutation):
 
 class Mutation(graphene.ObjectType):
     submit_survey = SubmitSurveyMutation.Field()
-    basic_info = BasicInfoMutatuon.Field()
+    submit_basic_info = BasicInfoMutatuon.Field()

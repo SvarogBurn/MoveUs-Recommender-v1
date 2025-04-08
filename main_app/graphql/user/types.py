@@ -1,31 +1,48 @@
-from graphene_django import DjangoObjectType
+import json
+from ..object_type import MUObjectType
 from django.db.models import Q
 
 import graphene
 
-from ...models import MoveusUser, UserPrivacySetting, Relationship
-from ...models.enums import PrivacyScope, RelationshipStatus, Gender, PrivacySetting
+from main_app.graphql.social.types import RelationshipType
+
+from ...models import User, UserPrivacySetting, Relationship
+from ...models.enums import PrivacyScope, RelationshipStatus, Gender, PrivacySetting, FormedRelationshipsType, PreferredPartnerCharacteristics
 
 from ..location.types import LocationType
 
-class ProfileType(DjangoObjectType):
+class ProfileType(MUObjectType):
     class Meta:
-        model = MoveusUser
+        model = User
         exclude = (
             'is_superuser', 'is_staff', 'post_set', 'postcomment_set', 'friends_added', 'friends_added_by'
         )
-        convert_choices_to_enum = False
 
-class UserType(DjangoObjectType):
+    def resolve_formed_relationship_types(self: User, info):
+        frt_formatted = [
+            next(n for n, v in vars(FormedRelationshipsType).items() if v == x)
+            for x in self.formed_relationship_types
+        ]
+        return frt_formatted
+    
+    def resolve_preferred_partner_characteristics(self: User, info):
+        frt_formatted = [
+            next(n for n, v in vars(PreferredPartnerCharacteristics).items() if v == x)
+            for x in self.formed_relationship_types
+        ]
+        return frt_formatted
+
+class UserType(MUObjectType):
     location = graphene.Field(LocationType)
     email = graphene.String()
     date_of_birth = graphene.Date()
     gender = Gender.as_graphene_enum()
     friends = graphene.List(lambda: UserType)
     friend_count = graphene.Int()
+    relationship = graphene.Field(RelationshipType)
 
     class Meta:
-        model = MoveusUser
+        model = User
         fields = (
             "id",
             "bio",
@@ -37,16 +54,17 @@ class UserType(DjangoObjectType):
             "username",
             "is_active",
             "date_joined",
-            "img_url"
+            "img_url",
+            "preferred_activities"
         )
 
-    def resolve_friend_count(self: MoveusUser, info):
+    def resolve_friend_count(self: User, info):
         user1_q = Q(user_1 = self)
         user2_q = Q(user_2 = self)
 
         return Relationship.objects.filter(user1_q | user2_q, status = RelationshipStatus.FRIENDS).count()
     
-    def resolve_location(self: MoveusUser, info):
+    def resolve_location(self: User, info):
         if self.id == info.context.user.id: return self.location
         ups = UserPrivacySetting.objects.get(user=self, setting=PrivacySetting.LOCATION)
         if ups.scope == PrivacyScope.EVERYONE:
@@ -57,7 +75,7 @@ class UserType(DjangoObjectType):
             rel = Relationship.objects.filter(q1 | q2, status = RelationshipStatus.FRIENDS)
             if len(rel): return self.location
 
-    def resolve_email(self: MoveusUser, info):
+    def resolve_email(self: User, info):
         if self.id == info.context.user.id: return self.email
         ups = UserPrivacySetting.objects.get(user=self, setting=PrivacySetting.EMAIL)
         if ups.scope == PrivacyScope.EVERYONE:
@@ -68,7 +86,7 @@ class UserType(DjangoObjectType):
             rel = Relationship.objects.filter(q1 | q2, status = RelationshipStatus.FRIENDS)
             if len(rel): return self.email
 
-    def resolve_date_of_birth(self: MoveusUser, info):
+    def resolve_date_of_birth(self: User, info):
         if self.id == info.context.user.id: return self.date_of_birth
         ups = UserPrivacySetting.objects.get(user=self, setting=PrivacySetting.AGE)
         if ups.scope == PrivacyScope.EVERYONE:
@@ -79,7 +97,7 @@ class UserType(DjangoObjectType):
             rel = Relationship.objects.filter(q1 | q2, status = RelationshipStatus.FRIENDS)
             if len(rel): return self.date_of_birth
 
-    def resolve_gender(self: MoveusUser, info):
+    def resolve_gender(self: User, info):
         if self.id == info.context.user.id: return self.gender
         ups = UserPrivacySetting.objects.get(user=self, setting=PrivacySetting.GENDER)
         if ups.scope == PrivacyScope.EVERYONE:
@@ -111,8 +129,16 @@ class UserType(DjangoObjectType):
             rel = Relationship.objects.filter(q1 | q2, status = RelationshipStatus.FRIENDS)
             if len(rel): return all_friends()
 
+    def resolve_relationship(self: User, info):
 
-class PrivacySettingType(DjangoObjectType):
+        if info.context.user is None: return None
+        q1 = Q(user_1 = self, user_2 = info.context.user)
+        q2 = Q(user_2 = self, user_1 = info.context.user)
+        rels = Relationship.objects.filter(q1 | q2)
+        return rels[0] if len(rels) else None
+
+
+class PrivacySettingType(MUObjectType):
 
     class Meta:
         model = UserPrivacySetting

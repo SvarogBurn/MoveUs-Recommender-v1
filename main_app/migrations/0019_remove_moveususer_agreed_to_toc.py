@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RemoveField(
-            model_name='moveususer',
+            model_name='User',
             name='agreed_to_toc',
         ),
     ]

@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AlterField(
-            model_name='moveususer',
+            model_name='User',
             name='new_friendships_formed',
             field=models.BooleanField(null=True),
         ),
