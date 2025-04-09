@@ -1,15 +1,20 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.db.models.fields.composite import CompositePrimaryKey
+from django.core.validators import RegexValidator
 
 from .enums import *
 
+username_validator = RegexValidator(r"^[0-9a-zA-Z_]*$")
+
 class User(AbstractUser):
+    username = models.CharField(max_length=32, validators=[username_validator], unique=True)
     email = models.EmailField(max_length=64, unique=True)
     bio = models.CharField(max_length=255)
     gender = models.SmallIntegerField(choices=Gender.choices(), null=True)
     date_of_birth = models.DateField(null=True)
-    location = models.ForeignKey("Location", on_delete=models.DO_NOTHING, null=True)
+    longitude = models.FloatField(null=True)
+    latitude = models.FloatField(null=True)
     frequency_of_physical_activity = models.SmallIntegerField(choices=FrequencyOfPhycicalActivity.choices(), null=True)
     social_interaction_importance = models.SmallIntegerField(choices=SocialInteractionImportance.choices(), null=True)
     preferred_party_size = models.SmallIntegerField(choices=PreferredPartySize.choices(), null=True)

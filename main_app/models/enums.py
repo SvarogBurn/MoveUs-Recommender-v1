@@ -1,8 +1,8 @@
-from enum import IntEnum
+from enum import IntEnum, Enum
 
 import graphene
 
-class BaseEnum(IntEnum):
+class BaseEnum():
 
     @classmethod
     def choices(self):
@@ -12,49 +12,55 @@ class BaseEnum(IntEnum):
     def as_graphene_enum(self):
         return graphene.Enum.from_enum(self)
     
-class PrivacyScope(BaseEnum):
+class BaseIntEnum(BaseEnum, IntEnum):
+    pass
+
+class BaseStringEnum(BaseEnum, Enum):
+    pass
+
+class PrivacyScope(BaseIntEnum):
     NOONE = 0
     FRIENDS = 1
     EVERYONE = 2
 
-class FrequencyOfPhycicalActivity(BaseEnum):
+class FrequencyOfPhycicalActivity(BaseIntEnum):
     DAILY = 0
     FEW_TIMES_A_WEEK = 1
     ONCE_A_WEEK = 2
     OCCASIONALLY = 3
     RARELY = 4
 
-class SkillLevel(BaseEnum):
+class SkillLevel(BaseIntEnum):
     BEGINNER = 0
     INTERMEDIATE = 1
     ADVANCED = 2
     EXPERT = 3
 
-class SocialInteractionImportance(BaseEnum):
+class SocialInteractionImportance(BaseIntEnum):
     VERY_IMPORTANT = 0
     SOMEWHAT_IMPORTANT = 1
     NEUTRAL = 2
     NOT_VERY_IMPORTANT = 3
     NOT_IMPORTANT_AT_ALL = 4
 
-class PreferredPartySize(BaseEnum):
+class PreferredPartySize(BaseIntEnum):
     ALONE = 0
     SMALL_GROUP = 1
     LARGE_GROUP = 2
 
-class FormedRelationshipsType(BaseEnum):
+class FormedRelationshipsType(BaseIntEnum):
     ACQUAINTANCES = 0
     FRIENDS = 1
     ROMANTIC_RELATIONSHIPS = 2
 
-class PhysicalActivitySatisfaction(BaseEnum):
+class PhysicalActivitySatisfaction(BaseIntEnum):
     VERY_SATISFIED = 0
     SATISFIED = 1
     NEUTRAL = 2
     DISSATISFIED = 3
     VERY_DISSATISFIED = 4
 
-class PreferredPartnerCharacteristics(BaseEnum):
+class PreferredPartnerCharacteristics(BaseIntEnum):
     SIMILAR_SKILL_LEVEL = 0
     SIMILAR_AGE = 1
     SAME_GENDER = 2
@@ -63,61 +69,63 @@ class PreferredPartnerCharacteristics(BaseEnum):
     PROXIMITY = 5
     SIMILAR_HOBBIES = 6
 
-class MatchedParticipationLikelihood(BaseEnum):
+class MatchedParticipationLikelihood(BaseIntEnum):
     VERY_LIKELY = 0
     LIKELY = 1
     NEUTRAL = 2
     UNLIKELY = 3
     VERY_UNLIKELY = 4
 
-class MemberRole(BaseEnum):
+class MemberRole(BaseIntEnum):
     PARTICIPANT = 0
     ORGANIZER = 1
     MODERATOR = 2
     SPECTATOR = 3
 
-class ChatNotifications(BaseEnum):
+class ChatNotifications(BaseIntEnum):
     NONE = 0
     ALL = 1
     MENTIONS_ONLY = 2
 
-class EventRating(BaseEnum):
+class EventRating(BaseIntEnum):
     VERY_BAD = 0
     BAD = 1
     NEUTRAL = 2
     GOOD = 3
     GREAT = 4
 
-class RelationshipStatus(BaseEnum):
+class RelationshipStatus(BaseIntEnum):
     NONE = 0
     PENDING = 1
     FRIENDS = 2
     BLOCKED_BY_FIRST = 3
     BLOCKED_BY_SECOND = 4
     BLOCKED_BY_BOTH = 5
+    REQUEST_SENT = 6
+    REQUEST_RECEIVED = 7
 
-class PersonalityTrait(BaseEnum):
+class PersonalityTrait(BaseIntEnum):
     INTROVERSION = 0
 
-class PrivacySetting(BaseEnum):
+class PrivacySetting(BaseIntEnum):
     LOCATION = 0
     AGE = 1
     FRIENDS = 2
     EMAIL = 3
     GENDER = 4
 
-class OtherOption(BaseEnum):
+class OtherOption(BaseIntEnum):
     PREFERRED_PARTNER_CHARACTERISTICS = 0
     ACTIVITY = 1
     FORMED_RELATIONSHIPS_TYPE = 2
 
-class Gender(BaseEnum):
+class Gender(BaseIntEnum):
     MALE = 0
     FEMALE = 1
     NON_BINARY = 2
     PREFER_NOT_TO_SAY = 3
 
-class ActivityEnum(BaseEnum):
+class ActivityEnum(BaseIntEnum):
     HIKING = 0
     RUNNING = 1
     SOCCER = 2
@@ -125,7 +133,7 @@ class ActivityEnum(BaseEnum):
     GYM = 4
     MAKING_LOVE = 5
 
-class CountryCode(BaseEnum):
+class CountryCode(BaseStringEnum):
     AF = 1   # Afghanistan
     AL = 2   # Albania
     DZ = 3   # Algeria

@@ -4,6 +4,8 @@ from graphql import GraphQLError
 class MUErrorCode(IntEnum):
     AUTHENTIFICATION_ERROR = 100
     AUTHORIZATION_ERROR = 101
+    NOT_ORGANIZER = 102
+    INVALID_LOGIN = 103
 
     USER_DOES_NOT_EXIST = 200
     FRIEND_REQUEST_DOES_NOT_EXIST = 201
@@ -48,6 +50,8 @@ EC = MUErrorCode
 mu_error_code_messages = {
     EC.AUTHENTIFICATION_ERROR : "You need to be logged in to run this query.",
     EC.AUTHORIZATION_ERROR : "You are not allowed to perform this query.",
+    EC.NOT_ORGANIZER : "You need to be the event organizer to perform with mutation",
+    EC.INVALID_LOGIN : "User not found or password is wrong.",
     EC.USER_DOES_NOT_EXIST : "User does not exits.",
     EC.FRIEND_REQUEST_DOES_NOT_EXIST : "Friendship request does not exist.",
     EC.EVENT_DOES_NOT_EXIST : "Event does not exist.",

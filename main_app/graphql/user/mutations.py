@@ -16,7 +16,7 @@ from ...models.enums import (
     MatchedParticipationLikelihood
 )
 
-class BasicInfoMutatuon(graphene.Mutation):
+class BasicInfoMutation(graphene.Mutation):
 
     class Arguments:
         date_of_birth = graphene.Date(required = False)
@@ -52,7 +52,7 @@ class BasicInfoMutatuon(graphene.Mutation):
 
         user.save()
 
-        return BasicInfoMutatuon(my_profile = user)
+        return BasicInfoMutation(my_profile = user)
 
 class SubmitSurveyMutation(graphene.Mutation):
 
@@ -104,4 +104,4 @@ class SubmitSurveyMutation(graphene.Mutation):
 
 class Mutation(graphene.ObjectType):
     submit_survey = SubmitSurveyMutation.Field()
-    submit_basic_info = BasicInfoMutatuon.Field()
+    submit_basic_info = BasicInfoMutation.Field()

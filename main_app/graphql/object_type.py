@@ -22,6 +22,9 @@ class MUObjectType(DjangoObjectType):
 
         for field in model._meta.fields:
             if field.choices:
+                if hasattr(cls, f"resolve_{field.name}"):
+                    continue
+
                 # Override the field with a custom resolver that returns the display label
                 cls._meta.fields[field.name] = graphene.Field(
                     graphene.String,

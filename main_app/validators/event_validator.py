@@ -16,7 +16,7 @@ def event_validator(
     if len(title) > 32:
         raise MUError(MUErrorCode.EVENT_TITLE_MAX_LENGTH)
     
-    if len(description) > 1024:
+    if description and len(description) > 1024:
         raise MUError(MUErrorCode.EVENT_DESCRIPTION_MAX_LENGTH)
     
     now = tz_now()

@@ -13,10 +13,10 @@ from ...models.enums import SkillLevel, ActivityEnum, CountryCode, MemberRole
 class AddEvent(graphene.Mutation):
 
     class Arguments:
-        title = graphene.String()
+        title = graphene.String(required = True)
         description = graphene.String(required = False)
-        start_time = graphene.DateTime()
-        end_time = graphene.DateTime()
+        start_time = graphene.DateTime(required = True)
+        end_time = graphene.DateTime(required = True)
         requrements = graphene.String(required = False)
         location_id = graphene.Int(required = False)
         location_longitude = graphene.Float(required = False)
@@ -27,8 +27,8 @@ class AddEvent(graphene.Mutation):
         location_country_code = CountryCode.as_graphene_enum()(required = False)
         location_region = graphene.String(required = False)
         location_name = graphene.String(required = False)
-        activity = ActivityEnum.as_graphene_enum()()
-        skill_level = SkillLevel.as_graphene_enum()()
+        activity = ActivityEnum.as_graphene_enum()(required = True)
+        skill_level = SkillLevel.as_graphene_enum()(required = True)
 
     event = graphene.Field(EventType)
 
@@ -58,8 +58,11 @@ class AddEvent(graphene.Mutation):
         user: User = info.context.user
         if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
+        if not location_id and not (location_longitude and location_latitude):
+            raise MUError(MUErrorCode.MINIMAL_LOCAION_REQUIREMENTS_MISSING)
+
         location_validator(
-            location_id, location_longitude, location_latitude,
+            location_longitude, location_latitude,
             location_address_line1, location_address_line2,
             location_zip_code, location_region, location_name
         )

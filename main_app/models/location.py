@@ -12,3 +12,9 @@ class Location(models.Model):
     region = models.CharField(max_length=32, null=True)
     name = models.CharField(max_length=32, null=True)
 
+    def reference_count(self) -> int:
+        return self.event_set.count()
+    
+    def consider_dying(self):
+        if self.reference_count() <= 1:
+            self.delete()
