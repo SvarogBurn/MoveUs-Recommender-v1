@@ -1,16 +1,11 @@
 import graphene
+
+from main_app.graphql.event_member.types import EventMemberType
 from ..object_type import MUObjectType
 
 from ...models import Event, EventMember
 from ...models.enums import MemberRole
 from ..post.types import PostType
-from ..user.types import UserType
-
-class EventMemberType(MUObjectType):
-    
-    class Meta:
-        model = EventMember
-        exclude = ("pk",)
 
 class EventType(MUObjectType):
     posts = graphene.List(PostType)

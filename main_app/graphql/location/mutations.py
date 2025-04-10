@@ -6,6 +6,7 @@ from main_app.graphql.event.types import EventType
 from main_app.graphql.location.types import LocationType
 from main_app.graphql.user.types import ProfileType
 from main_app.models.location import Location
+from main_app.util import get_event
 from main_app.util.get_or_create_location import get_or_create_location
 from main_app.validators import location_validator, event_validator
 
@@ -79,19 +80,7 @@ class AlterEventLocation(graphene.Mutation):
         user: User = info.context.user
         if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
-        event = None
-
-        try:
-            event = Event.objects.get(pk = event_id)
-        except Event.DoesNotExist:
-            raise MUError(MUErrorCode.EVENT_DOES_NOT_EXIST)
-
-        try:
-            em = EventMember.objects.get(pk=(user.id, event.id))
-            if em.role != MemberRole.ORGANIZER:
-                raise MUError(MUErrorCode.NOT_ORGANIZER)
-        except EventMember.DoesNotExist:
-            raise MUError(MUErrorCode.NOT_ORGANIZER)
+        event = get_event(event_id, user.id, MemberRole.ORGANIZER)
 
         location_validator(
             location_longitude, location_latitude,

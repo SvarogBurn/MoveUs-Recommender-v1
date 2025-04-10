@@ -4,20 +4,33 @@ from graphql import GraphQLError
 class MUErrorCode(IntEnum):
     AUTHENTIFICATION_ERROR = 100
     AUTHORIZATION_ERROR = 101
-    NOT_ORGANIZER = 102
-    INVALID_LOGIN = 103
+    INVALID_LOGIN = 102
+    NOT_ORGANIZER = 110
+    NOT_MODERATOR = 111
+    NOT_PARTICIPANT = 112
+    NOT_MEMBER = 113
 
     USER_DOES_NOT_EXIST = 200
     FRIEND_REQUEST_DOES_NOT_EXIST = 201
     EVENT_DOES_NOT_EXIST = 202
     PREFERRED_ACTIVITY_DOES_NOT_EXIST = 203
     LOCATION_DOES_NOT_EXIST = 204
+    EVENT_MEMBER_DOES_NOT_EXIST = 205
 
     INVALID_FRIEND_REQUEST = 300
     MINIMAL_LOCAION_REQUIREMENTS_MISSING = 301
     EVENT_START_TIME = 302
     EVENT_END_TIME = 303
     EVENT_TIMES_RELATION = 303
+    ALREADY_IN_EVENT = 310
+    EVENT_FULL = 311
+    EVENT_ALREADY_STARTED = 312
+    SPECTATORS_NOT_ALLOWED = 313
+    CANNOT_DEMOTE_YOURSELF = 314
+    EVENT_ALREADY_ENDED = 315
+    CANNOT_LEAVE_AS_ORGANIZATOR = 316
+    CANNOT_KICK_YOURSELF = 317
+    CANNOT_KICK_ORGANIZER = 318
 
     USERNAME_ALREADY_TAKEN = 1000
     USERNAME_MIN_LENGTH = 1001
@@ -49,6 +62,7 @@ class MUErrorCode(IntEnum):
     EVENT_TITLE_MIN_LENGTH = 1030
     EVENT_TITLE_MAX_LENGTH = 1031
     EVENT_DESCRIPTION_MAX_LENGTH = 1032
+    EVENT_MIN_MAX_PARTICIPANTS = 1033
 
 
 EC = MUErrorCode
@@ -56,18 +70,31 @@ EC = MUErrorCode
 mu_error_code_messages = {
     EC.AUTHENTIFICATION_ERROR : "You need to be logged in to run this query.",
     EC.AUTHORIZATION_ERROR : "You are not allowed to perform this query.",
-    EC.NOT_ORGANIZER : "You need to be the event organizer to perform with mutation",
     EC.INVALID_LOGIN : "User not found or password is wrong.",
+    EC.NOT_ORGANIZER : "You need to be the event organizer to perform with mutation",
+    EC.NOT_MODERATOR : "You need to be the event organizer or moderator to perform with mutation",
+    EC.NOT_PARTICIPANT : "You need to participate in the event to perform with mutation",
+    EC.NOT_MEMBER : "You need to be in the event to perform with mutation",
     EC.USER_DOES_NOT_EXIST : "User does not exits.",
     EC.FRIEND_REQUEST_DOES_NOT_EXIST : "Friendship request does not exist.",
     EC.EVENT_DOES_NOT_EXIST : "Event does not exist.",
     EC.PREFERRED_ACTIVITY_DOES_NOT_EXIST: "Activity not on user's preferred activity list.",
     EC.LOCATION_DOES_NOT_EXIST: "Location does not found.",
+    EC.EVENT_MEMBER_DOES_NOT_EXIST: "Event member does not exist.",
     EC.INVALID_FRIEND_REQUEST : "Cannot send friend request to this user.",
     EC.MINIMAL_LOCAION_REQUIREMENTS_MISSING : "You either need to provide a location id or longitude and latitude.",
     EC.EVENT_START_TIME : "Event has to start in the future.",
     EC.EVENT_END_TIME : "Event has to end in the future.",
     EC.EVENT_TIMES_RELATION : "Event start time has to be before event end time.",
+    EC.ALREADY_IN_EVENT : "Cannot join event you are already participating.",
+    EC.EVENT_FULL : "This event is full.",
+    EC.EVENT_ALREADY_STARTED : "Event already started.",
+    EC.SPECTATORS_NOT_ALLOWED : "This event does not accept spectators.",
+    EC.CANNOT_DEMOTE_YOURSELF : "You cannot demote yourself to a spectator.",
+    EC.EVENT_ALREADY_ENDED : "Event already ended.",
+    EC.CANNOT_LEAVE_AS_ORGANIZATOR : "You cannot leave an event you organized.",
+    EC.CANNOT_KICK_YOURSELF : "You cannot kick yourself from the event.",
+    EC.CANNOT_KICK_ORGANIZER : "You cannot kick event organizer from the event.",
     EC.USERNAME_ALREADY_TAKEN : "Username already taken.",
     EC.USERNAME_MIN_LENGTH : "Username must be at least 3 characters long.",
     EC.USERNAME_MAX_LENGTH : "Username cannot be longer than 24 characters.",
@@ -95,6 +122,7 @@ mu_error_code_messages = {
     EC.EVENT_TITLE_MAX_LENGTH : "Event title cannot be longer than 32 characters.",
     EC.EVENT_TITLE_MIN_LENGTH : "Event title cannot be shorter than 4 characters.",
     EC.EVENT_DESCRIPTION_MAX_LENGTH : "Event description cannot be longer than 1024 characters.",
+    EC.EVENT_MIN_MAX_PARTICIPANTS : "Max participant count cannot be smaller than one or smaller than the number of currently joined participants.",
 }
 
 class MUError(GraphQLError):

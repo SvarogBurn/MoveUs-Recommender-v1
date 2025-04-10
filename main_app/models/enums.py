@@ -77,10 +77,10 @@ class MatchedParticipationLikelihood(BaseIntEnum):
     VERY_UNLIKELY = 4
 
 class MemberRole(BaseIntEnum):
-    PARTICIPANT = 0
-    ORGANIZER = 1
+    SPECTATOR = 0
+    PARTICIPANT = 1
     MODERATOR = 2
-    SPECTATOR = 3
+    ORGANIZER = 3
 
 class ChatNotifications(BaseIntEnum):
     NONE = 0

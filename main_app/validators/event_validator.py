@@ -7,7 +7,8 @@ def event_validator(
         title: str = None,
         description: str = None,
         start_time: datetime = None,
-        end_time: datetime = None
+        end_time: datetime = None,
+        max_participants: int = None
     ):
     
     if len(title) < 4:
@@ -29,3 +30,6 @@ def event_validator(
     
     if start_time and end_time and end_time < start_time:
         raise MUError(MUErrorCode.EVENT_TIMES_RELATION)
+    
+    if max_participants and max_participants < 1:
+        raise MUError(MUErrorCode.EVENT_MIN_MAX_PARTICIPANTS)

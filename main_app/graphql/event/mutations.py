@@ -4,13 +4,14 @@ from datetime import datetime
 
 from main_app.graphql.event.types import EventType
 from main_app.models.location import Location
+from main_app.util import get_event
 from main_app.validators import location_validator, event_validator
 
 from ..error import MUError, MUErrorCode
 from ...models import User, Event, EventMember
 from ...models.enums import SkillLevel, ActivityEnum, CountryCode, MemberRole
 
-class AddEvent(graphene.Mutation):
+class AddEventMutation(graphene.Mutation):
 
     class Arguments:
         title = graphene.String(required = True)
@@ -29,6 +30,8 @@ class AddEvent(graphene.Mutation):
         location_name = graphene.String(required = False)
         activity = ActivityEnum.as_graphene_enum()(required = True)
         skill_level = SkillLevel.as_graphene_enum()(required = True)
+        max_participants = graphene.Int(required = False)
+        allow_spectators = graphene.Boolean(required = False)
 
     event = graphene.Field(EventType)
 
@@ -52,7 +55,9 @@ class AddEvent(graphene.Mutation):
         location_region: str = None,
         location_name: str = None,
         activity: ActivityEnum = None,
-        skill_level: SkillLevel = None
+        skill_level: SkillLevel = None,
+        max_participants: int = None,
+        allow_spectators: bool = None
     ):
         
         user: User = info.context.user
@@ -68,7 +73,7 @@ class AddEvent(graphene.Mutation):
         )
 
         event_validator(
-            title, description, start_time, end_time
+            title, description, start_time, end_time, max_participants
         )
 
         location = None
@@ -100,7 +105,9 @@ class AddEvent(graphene.Mutation):
                 location = location,
                 requirements = requirements,
                 activity_id = activity,
-                skill_level = skill_level
+                skill_level = skill_level,
+                max_participants = max_participants,
+                allow_spectators = allow_spectators
             )
         
         EventMember.objects.create(
@@ -109,11 +116,11 @@ class AddEvent(graphene.Mutation):
             role = MemberRole.ORGANIZER
         )
 
-        return AddEvent(
+        return AddEventMutation(
             event = event
         )      
 
-class AlterEvent(graphene.Mutation):
+class AlterEventMutation(graphene.Mutation):
 
     class Arguments:
         event_id = graphene.Int(required=True)
@@ -122,6 +129,7 @@ class AlterEvent(graphene.Mutation):
         start_time = graphene.DateTime(required = False)
         end_time = graphene.DateTime(required = False)
         requrements = graphene.String(required = False)
+        max_participants = graphene.Int(required = False)
 
     event = graphene.Field(EventType)
 
@@ -136,42 +144,35 @@ class AlterEvent(graphene.Mutation):
         start_time: datetime = None,
         end_time: datetime = None,
         requirements: object = None,
+        max_participants: int = None,
     ):
         
         user: User = info.context.user
         if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         event_validator(
-            title, description, start_time, end_time
+            title, description, start_time, end_time, max_participants
         )
 
-        event = None
+        event = get_event(event_id, user.id, MemberRole.ORGANIZER)
 
-        try:
-            event = Event.objects.get(pk = event_id)
-        except Event.DoesNotExist:
-            raise MUError(MUErrorCode.EVENT_DOES_NOT_EXIST)
-
-        try:
-            em = EventMember.objects.get(pk=(user.id, event.id))
-            if em.role != MemberRole.ORGANIZER:
-                raise MUError(MUErrorCode.NOT_ORGANIZER)
-        except EventMember.DoesNotExist:
-            raise MUError(MUErrorCode.NOT_ORGANIZER)
+        if max_participants < event.participant_count():
+            raise MUError(MUErrorCode.EVENT_MIN_MAX_PARTICIPANTS)
         
         if title is not None: event.title = title
         if description is not None: event.description = description
         if start_time is not None: event.start_time = start_time
         if end_time is not None: event.end_time = end_time
         if requirements is not None: event.requirements = requirements
+        if max_participants is not None: event.max_participants = max_participants
 
         event.save()
 
-        return AlterEvent(
+        return AlterEventMutation(
             event = event
         )
 
-class DeleteEvent(graphene.Mutation):
+class DeleteEventMutation(graphene.Mutation):
 
     class Arguments:
         event_id = graphene.Int(required=True)
@@ -189,27 +190,15 @@ class DeleteEvent(graphene.Mutation):
         user: User = info.context.user
         if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
-        event = None
-
-        try:
-            event = Event.objects.get(pk = event_id)
-        except Event.DoesNotExist:
-            raise MUError(MUErrorCode.EVENT_DOES_NOT_EXIST)
-
-        try:
-            em = EventMember.objects.get(pk=(user.id, event.id))
-            if em.role != MemberRole.ORGANIZER:
-                raise MUError(MUErrorCode.NOT_ORGANIZER)
-        except EventMember.DoesNotExist:
-            raise MUError(MUErrorCode.NOT_ORGANIZER)
+        event = get_event(event_id, user.id, MemberRole.ORGANIZER)
 
         event.delete()
 
-        return DeleteEvent(
+        return DeleteEventMutation(
             success = True
         )
 
 class Mutation(graphene.ObjectType):
-    add_event = AddEvent.Field()
-    alter_event = AlterEvent.Field()
-    delete_event = DeleteEvent.Field()
+    add_event = AddEventMutation.Field()
+    alter_event = AlterEventMutation.Field()
+    delete_event = DeleteEventMutation.Field()

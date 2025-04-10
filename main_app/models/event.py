@@ -15,6 +15,14 @@ class Event(models.Model):
     chat = models.ForeignKey('Chat', on_delete=models.DO_NOTHING, null=True)
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE)
     skill_level = models.SmallIntegerField(choices=SkillLevel.choices())
+    max_participants = models.IntegerField(null=True)
+    allow_spectators = models.BooleanField(default=False)
+
+    def participant_count(self):
+        return EventMember.objects.filter(
+            event_id = self.id,
+            role = MemberRole.PARTICIPANT
+        ).count()
 
 class EventMember(models.Model):
     pk = CompositePrimaryKey('user', 'event')
@@ -22,6 +30,6 @@ class EventMember(models.Model):
     event = models.ForeignKey("Event", on_delete=models.CASCADE, related_name="members")
     # likes = models.ManyToManyField(User, related_name='liked_on_event_by') Does not work :<<
     role = models.SmallIntegerField(choices=MemberRole.choices())
-    has_participated = models.BooleanField(default=True)
+    has_participated = models.BooleanField(default=False)
     score = models.SmallIntegerField(choices=EventRating.choices(), null=True)
     comment = models.CharField(max_length=512, null=True)
