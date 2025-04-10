@@ -23,6 +23,12 @@ class MUErrorCode(IntEnum):
     USERNAME_MIN_LENGTH = 1001
     USERNAME_MAX_LENGTH = 1002
     USERNAME_ALLOWED_CHARACTERS = 1003
+    EMAIL_ALREADY_TAKEN = 1004
+    EMAIL_INVALID = 1005
+    PASSWORD_MIN_LENGTH = 1006
+    PASSWORD_MISSING_LETTER = 1007
+    PASSWORD_MISSING_NUMBER = 1008
+    PASSWORD_MISSING_SPECIAL = 1009
 
     FIRSTNAME_MIN_LENGTH = 1010
     FIRSTNAME_MAX_LENGTH = 1011
@@ -66,6 +72,12 @@ mu_error_code_messages = {
     EC.USERNAME_MIN_LENGTH : "Username must be at least 3 characters long.",
     EC.USERNAME_MAX_LENGTH : "Username cannot be longer than 24 characters.",
     EC.USERNAME_ALLOWED_CHARACTERS : "Username can only contain alphanumeric characters and underscore.",
+    EC.EMAIL_ALREADY_TAKEN : "Email already taken.",
+    EC.EMAIL_INVALID : "Email not valid.",
+    EC.PASSWORD_MIN_LENGTH : "Password must be at least 8 characters long.",
+    EC.PASSWORD_MISSING_LETTER : "Password must contain at least one letter.",
+    EC.PASSWORD_MISSING_NUMBER : "Password must contain at least one number.",
+    EC.PASSWORD_MISSING_SPECIAL : "Password must contain at least one special character.",
     EC.FIRSTNAME_MIN_LENGTH : "First name has to be at least 2 characters long.",
     EC.FIRSTNAME_MAX_LENGTH : "First name cannot be longer than 32 characters.",
     EC.LASTNAME_MIN_LENGTH : "Last name has to be at least 2 characters long.",
