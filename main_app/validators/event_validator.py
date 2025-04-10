@@ -21,11 +21,11 @@ def event_validator(
     
     now = tz_now()
 
-    if start_time < now:
+    if start_time and start_time < now:
         raise MUError(MUErrorCode.EVENT_START_TIME)
     
-    if end_time < now:
+    if end_time and end_time < now:
         raise MUError(MUErrorCode.EVENT_END_TIME)
     
-    if end_time < start_time:
+    if start_time and end_time and end_time < start_time:
         raise MUError(MUErrorCode.EVENT_TIMES_RELATION)
