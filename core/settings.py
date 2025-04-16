@@ -36,7 +36,6 @@ CORS_ORIGIN_ALLOW_ALL = DEBUG
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
-    'polymorphic',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',

@@ -1,11 +1,9 @@
 from django.db import models
-from polymorphic.models import PolymorphicModel
 
 from ..enums import ActivityEnum
 
-class Activity(PolymorphicModel):
+class Activity(models.Model):
     id = models.SmallIntegerField (
         choices = ActivityEnum.choices(),
         primary_key = True
     )
-    has_ballz = models.BooleanField(default=False)

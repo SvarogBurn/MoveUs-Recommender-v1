@@ -131,7 +131,6 @@ class ActivityEnum(BaseIntEnum):
     SOCCER = 2
     TENNIS = 3
     GYM = 4
-    MAKING_LOVE = 5
 
 class CountryCode(BaseStringEnum):
     AF = 1   # Afghanistan
