@@ -1,3 +1,6 @@
+import graphene
+
+from main_app.models.enums import ActivityEnum
 from ..object_type import MUObjectType
 
 from ...models import Activity, PreferredActivity
@@ -5,7 +8,12 @@ from ...models import Activity, PreferredActivity
 class ActivityType(MUObjectType):
     class Meta:
         model = Activity
-        convert_choices_to_enum = False
+        exclude = ("pk",)
+
+    id = graphene.String()
+
+    def resolve_id(self, info):
+        return ActivityEnum(self.id).name
         
 class PreferredActivityType(MUObjectType):
     class Meta:

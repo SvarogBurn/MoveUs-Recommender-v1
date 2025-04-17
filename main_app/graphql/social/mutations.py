@@ -21,7 +21,7 @@ class SendFriendRequestMutation(graphene.Mutation):
 
         if user_id == info.context.user.id: raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)
 
-        other =  User.objects.get(pk=user_id)
+        other = User.objects.get(pk=user_id)
 
         q_1 = Q(user_1 = info.context.user, user_2 = other)
         q_2 = Q(user_2 = info.context.user, user_1 = other)
@@ -29,10 +29,13 @@ class SendFriendRequestMutation(graphene.Mutation):
         try:
             existing_relationship = Relationship.objects.get(q_1 | q_2)
             if existing_relationship and existing_relationship.status != RelationshipStatus.NONE: raise MUError(MUErrorCode.INVALID_FRIEND_REQUEST)
-            existing_relationship.user_1 = info.context.user
-            existing_relationship.user_2  = other
+            
             existing_relationship.status = RelationshipStatus.PENDING
             existing_relationship.save()
+
+            if existing_relationship.user_1 != info.context.user:
+                existing_relationship.swap_users()
+            
             return SendFriendRequestMutation(relationship = existing_relationship)
         
         except Relationship.DoesNotExist:
@@ -109,8 +112,32 @@ class RejectFriendRequestMutation(graphene.Mutation):
         except Relationship.DoesNotExist:
             raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)
 
+class RemoveFriendMutation(graphene.Mutation):
+
+    class Arguments:
+        user_id = graphene.Int()
+
+    relationship = graphene.Field(RelationshipType)
+
+    @classmethod
+    def mutate(cls, root, info, user_id):
+        if not info.context.user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
+
+        other =  User.objects.get(pk=user_id)
+
+        try:
+            existing_relationship = Relationship.objects.get(user_1 = other, user_2 = info.context.user)
+            if existing_relationship.status != RelationshipStatus.FRIENDS: raise MUError(MUErrorCode.NOT_FRIENDS)
+
+            existing_relationship.status = RelationshipStatus.NONE;
+            existing_relationship.save()
+            return RemoveFriendMutation(relationship = existing_relationship)
+        except Relationship.DoesNotExist:
+            raise MUError(MUErrorCode.NOT_FRIENDS)
+
 class Mutation(graphene.ObjectType):
     send_friend_request = SendFriendRequestMutation.Field()
     accept_friend_request = AcceptFriendRequestMutation.Field()
     cancel_friend_request = CancelFriendRequestMutation.Field()
-    reject_friends_request = RejectFriendRequestMutation.Field()
+    reject_friend_request = RejectFriendRequestMutation.Field()
+    remove_friend = RemoveFriendMutation.Field()

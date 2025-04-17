@@ -22,6 +22,7 @@ class MUErrorCode(IntEnum):
     EVENT_START_TIME = 302
     EVENT_END_TIME = 303
     EVENT_TIMES_RELATION = 303
+    NOT_FRIENDS = 304
     ALREADY_IN_EVENT = 310
     EVENT_FULL = 311
     EVENT_ALREADY_STARTED = 312
@@ -86,6 +87,7 @@ mu_error_code_messages = {
     EC.EVENT_START_TIME : "Event has to start in the future.",
     EC.EVENT_END_TIME : "Event has to end in the future.",
     EC.EVENT_TIMES_RELATION : "Event start time has to be before event end time.",
+    EC.NOT_FRIENDS : "You need to be friends with this user to run this mutation.",
     EC.ALREADY_IN_EVENT : "Cannot join event you are already participating.",
     EC.EVENT_FULL : "This event is full.",
     EC.EVENT_ALREADY_STARTED : "Event already started.",

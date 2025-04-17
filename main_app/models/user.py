@@ -22,13 +22,16 @@ class User(AbstractUser):
     physical_activity_satisfaction = models.SmallIntegerField(choices=PhysicalActivitySatisfaction.choices(), null=True)
     preferred_partner_characteristics = models.JSONField(null=True)
     matched_participation_likelihood = models.SmallIntegerField(choices=MatchedParticipationLikelihood.choices(), null=True)
+    preferred_time_of_the_day = models.JSONField(null=True)
     is_capeable = models.BooleanField(default=False)
     first_name = models.CharField(max_length=32)
     last_name = models.CharField(max_length=32)
     xp = models.IntegerField(default=0)
-    passed_tutorial = models.BooleanField(default=False)
-    img_url = models.URLField()
     verified = models.BooleanField(default=False)
+
+    @property
+    def display_name(self):
+        return self.first_name if self.first_name else self.username
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']

@@ -2,13 +2,15 @@ import graphene
 
 from main_app.graphql.user.types import ProfileType
 
-from allauth.account.utils import complete_signup, perform_login
+from allauth.account.utils import complete_signup, perform_login, send_email_confirmation
 from allauth.account.adapter import get_adapter
 from allauth.account.models import EmailAddress
+from allauth.account.forms import ResetPasswordForm
 from allauth.account import app_settings as allauth_settings
 from django.contrib.auth import logout, authenticate
 
 from main_app.models.user import User
+from main_app.util import require_auth
 from main_app.validators import signup_validator
 
 from ..error import MUError, MUErrorCode
@@ -103,10 +105,32 @@ class DeleteAccountMutation(graphene.Mutation):
         user.delete()
 
         return DeleteAccountMutation(success = True)
+    
+class SendConfirmationEmailMutation(graphene.Mutation):
+    success = graphene.Boolean()
+
+    @require_auth
+    def mutate(self, info):
+        request = info.context
+        send_email_confirmation(request, request.user)
+        return SendConfirmationEmailMutation(success=True)
+    
+class SendPasswordResetEmailMutation(graphene.Mutation):
+    success = graphene.Boolean()
+
+    @require_auth
+    def mutate(self, info):
+        email = info.context.user.email
+        form = ResetPasswordForm(data={"email": email})
+        if form.is_valid():
+            form.save(request=None)
+        return SendPasswordResetEmailMutation(success=form.is_valid())
 
 class Mutation(graphene.ObjectType):
     login = LoginMutation.Field()
     signup = SignupMutation.Field()
     logout = LogoutMutation.Field()
     delete_account = DeleteAccountMutation.Field()
+    send_confirmation_email = SendConfirmationEmailMutation.Field()
+    send_password_reset_email = SendPasswordResetEmailMutation.Field()
 

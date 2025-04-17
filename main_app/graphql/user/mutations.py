@@ -3,7 +3,7 @@ import graphene
 from main_app.graphql.user.types import ProfileType
 from main_app.validators import profile_validator
 
-from ...models.enums import Gender
+from ...models.enums import Gender, TimeOfTheDay
 from ..error import MUError, MUErrorCode
 from ...models import User
 from ...models.enums import (
@@ -68,6 +68,9 @@ class SubmitSurveyMutation(graphene.Mutation):
         preferred_partner_characteristics = graphene.List(
             PreferredPartnerCharacteristics.as_graphene_enum()
         )
+        preferred_time_of_the_day = graphene.List(
+            TimeOfTheDay.as_graphene_enum()
+        )
 
     my_profile = graphene.Field(ProfileType)
 
@@ -83,6 +86,7 @@ class SubmitSurveyMutation(graphene.Mutation):
         matched_participation_likelihood: MatchedParticipationLikelihood,
         formed_relationship_types: list = [],
         preferred_partner_characteristics: list = [],
+        preferred_time_of_the_day: list = [],
         **kwargs
         ):
 
@@ -96,6 +100,7 @@ class SubmitSurveyMutation(graphene.Mutation):
         user.matched_participation_likelihood = matched_participation_likelihood
         user.formed_relationship_types = formed_relationship_types
         user.preferred_partner_characteristics = preferred_partner_characteristics
+        user.preferred_time_of_the_day = preferred_time_of_the_day
 
         user.save()
 

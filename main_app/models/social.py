@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.db.models.fields.composite import CompositePrimaryKey
 
 from .enums import ChatNotifications, RelationshipStatus
@@ -28,6 +28,18 @@ class Relationship(models.Model):
     last_update = models.DateTimeField(auto_now_add=True)
     status = models.SmallIntegerField(choices=RelationshipStatus.choices())
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE, null=True)
+
+    def swap_users(self):
+        user_1, user_2 = self.user_1, self.user_2
+
+        with transaction.atomic():
+            Relationship.objects.filter(
+                user_1=user_1,
+                user_2=user_2
+                ).update(
+                    user_1=user_2,
+                    user_2=user_1
+                    )
 
 class Post(models.Model):
     title = models.CharField(max_length=128)

@@ -1,0 +1,8 @@
+Hi {{ user.display_name }},
+
+Thanks for signing up.
+
+Please confirm your email by clicking the link below:
+{{ activate_url }}
+
+If you didn’t request this, ignore this message.

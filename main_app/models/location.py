@@ -11,6 +11,7 @@ class Location(models.Model):
     country_code = models.CharField(choices = CountryCode.choices(), null=True)
     region = models.CharField(max_length=32, null=True)
     name = models.CharField(max_length=32, null=True)
+    city = models.CharField(max_length=32, null=True)
 
     def reference_count(self) -> int:
         return self.event_set.count()

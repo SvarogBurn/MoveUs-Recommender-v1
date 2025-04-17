@@ -71,7 +71,9 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [
+            BASE_DIR / "templates",
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -145,9 +147,23 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 GRAPHENE = {
     "SCHEMA": "main_app.schema.schema",
 }
+
+# Email Config
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp-relay.brevo.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = 'MoveUs <noreply@moveusapp.com>'
+EMAIL_HOST_USER = '8aa818001@smtp-brevo.com'
+EMAIL_HOST_PASSWORD = 'FBHjMWSfabnyC17P'
+ACCOUNT_EMAIL_SUBJECT_PREFIX = "🦆 MoveUs | "
+
 # Allauth Config
-HEADLESS_ONLY = True
-ACCOUNT_EMAIL_VERIFICATION = "none"
+# HEADLESS_ONLY = True
+ACCOUNT_EMAIL_VERIFICATION = "optional"
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
 ACCOUNT_LOGIN_METHODS = ["username", "email"]
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True
 SESSION_SAVE_EVERY_REQUEST = True
