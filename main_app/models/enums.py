@@ -118,7 +118,7 @@ class OtherOption(BaseIntEnum):
     PREFERRED_PARTNER_CHARACTERISTICS = 0
     ACTIVITY = 1
     FORMED_RELATIONSHIPS_TYPE = 2
-
+    
 class Gender(BaseIntEnum):
     MALE = 0
     FEMALE = 1
@@ -126,10 +126,15 @@ class Gender(BaseIntEnum):
     PREFER_NOT_TO_SAY = 3
 
 class TimeOfTheDay(BaseIntEnum):
-    MORNING = 0,
-    AFTERNOON = 1,
-    EVENING = 2,
+    MORNING = 0
+    AFTERNOON = 1
+    EVENING = 2
     NIGHT = 3
+
+class MainInterest(BaseIntEnum):
+    SOCIALIZE = 0
+    FUN = 1
+    SPORT = 2
 
 class ActivityEnum(BaseIntEnum):
     HIKING = 0

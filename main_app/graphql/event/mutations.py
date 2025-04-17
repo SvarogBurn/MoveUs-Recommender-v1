@@ -9,7 +9,7 @@ from main_app.validators import location_validator, event_validator
 
 from ..error import MUError, MUErrorCode
 from ...models import User, Event, EventMember
-from ...models.enums import SkillLevel, ActivityEnum, CountryCode, MemberRole
+from ...models.enums import Gender, SkillLevel, ActivityEnum, CountryCode, MemberRole
 
 class AddEventMutation(graphene.Mutation):
 
@@ -32,6 +32,12 @@ class AddEventMutation(graphene.Mutation):
         skill_level = SkillLevel.as_graphene_enum()(required = True)
         max_participants = graphene.Int(required = False)
         allow_spectators = graphene.Boolean(required = False)
+        min_age = graphene.Int(required=False)
+        max_age = graphene.Int(required=False)
+        accepted_genders = graphene.List(
+            Gender.as_graphene_enum(),
+            required=False
+            )
 
     event = graphene.Field(EventType)
 
@@ -57,7 +63,10 @@ class AddEventMutation(graphene.Mutation):
         activity: ActivityEnum = None,
         skill_level: SkillLevel = None,
         max_participants: int = None,
-        allow_spectators: bool = None
+        allow_spectators: bool = None,
+        min_age: int = None,
+        max_age: int = None,
+        accepted_genders: list = None
     ):
         
         user: User = info.context.user
@@ -73,7 +82,8 @@ class AddEventMutation(graphene.Mutation):
         )
 
         event_validator(
-            title, description, start_time, end_time, max_participants
+            title, description, start_time, end_time, max_participants,
+            min_age, max_age, accepted_genders
         )
 
         location = None

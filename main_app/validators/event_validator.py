@@ -1,4 +1,4 @@
-from main_app.models.enums import CountryCode
+from main_app.models.enums import CountryCode, Gender
 from ..graphql.error import MUError, MUErrorCode
 from datetime import datetime
 from django.utils.timezone import now as tz_now
@@ -8,7 +8,10 @@ def event_validator(
         description: str = None,
         start_time: datetime = None,
         end_time: datetime = None,
-        max_participants: int = None
+        max_participants: int = None,
+        min_age: int = None,
+        max_age: int = None,
+        accepted_genders: list = None
     ):
     
     if len(title) < 4:
@@ -33,3 +36,15 @@ def event_validator(
     
     if max_participants and max_participants < 1:
         raise MUError(MUErrorCode.EVENT_MIN_MAX_PARTICIPANTS)
+    
+    if min_age and not 18 <= min_age <= 100:
+        raise MUError(MUErrorCode.EVENT_MIN_AGE)
+    
+    if max_age and not 18 <= max_age <= 100:
+        raise MUError(MUErrorCode.EVENT_MAX_AGE)
+    
+    if min_age and max_age and min_age >= max_age:
+        raise MUError(MUErrorCode.EVENT_MIN_MAX_AGE)
+    
+    if accepted_genders and Gender.PREFER_NOT_TO_SAY in accepted_genders:
+        raise MUError(MUErrorCode.EVENT_ACCEPTED_GENDERS)

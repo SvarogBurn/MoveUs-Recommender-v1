@@ -23,6 +23,10 @@ class MUErrorCode(IntEnum):
     EVENT_END_TIME = 303
     EVENT_TIMES_RELATION = 303
     NOT_FRIENDS = 304
+    EVENT_MIN_AGE = 305
+    EVENT_MAX_AGE = 306
+    EVENT_MIN_MAX_AGE = 307
+    EVENT_ACCEPTED_GENDERS = 308
     ALREADY_IN_EVENT = 310
     EVENT_FULL = 311
     EVENT_ALREADY_STARTED = 312
@@ -51,6 +55,7 @@ class MUErrorCode(IntEnum):
     USER_MAX_AGE = 1014
     USER_MIN_AGE = 1015
     BIO_MAX_LENGTH = 1016
+    TRAVEL_DISTANCE_RANGE = 1017
 
     ADDRESS_LINE_MAX_LENGTH = 1020
     ZIP_CODE_VALUE = 1021
@@ -88,6 +93,10 @@ mu_error_code_messages = {
     EC.EVENT_END_TIME : "Event has to end in the future.",
     EC.EVENT_TIMES_RELATION : "Event start time has to be before event end time.",
     EC.NOT_FRIENDS : "You need to be friends with this user to run this mutation.",
+    EC.EVENT_MIN_AGE : "Minimal age for an event has to be between 18 and 100 years.",
+    EC.EVENT_MAX_AGE : "Maximum age for an event has to be between 18 and 100 years.",
+    EC.EVENT_MIN_MAX_AGE : "Event minimal age must be lower than even maximal age.",
+    EC.EVENT_ACCEPTED_GENDERS : "Prefer not to say cannot be in event accepted genders.",
     EC.ALREADY_IN_EVENT : "Cannot join event you are already participating.",
     EC.EVENT_FULL : "This event is full.",
     EC.EVENT_ALREADY_STARTED : "Event already started.",
@@ -114,6 +123,7 @@ mu_error_code_messages = {
     EC.USER_MAX_AGE : "Surely not that old.",
     EC.USER_MIN_AGE : "You must be over 18 to use MoveUs.",
     EC.BIO_MAX_LENGTH : "User bio cannot be longer than 512 characters.",
+    EC.TRAVEL_DISTANCE_RANGE : "Max travel distance must be between 1 and 20,000 km.",
     EC.ADDRESS_LINE_MAX_LENGTH : "Address line can be at most 64 characters.",
     EC.ZIP_CODE_VALUE : "Zip code must be a 5 digit number.",
     EC.REGION_MAX_LENGTH : "Region cannot be longer than 32 characters.",

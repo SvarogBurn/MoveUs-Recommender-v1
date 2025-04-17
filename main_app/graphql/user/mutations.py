@@ -1,9 +1,10 @@
 import graphene
 
 from main_app.graphql.user.types import ProfileType
+from main_app.util import require_auth
 from main_app.validators import profile_validator
 
-from ...models.enums import Gender, TimeOfTheDay
+from ...models.enums import Gender, MainInterest, TimeOfTheDay
 from ..error import MUError, MUErrorCode
 from ...models import User
 from ...models.enums import (
@@ -62,14 +63,23 @@ class SubmitSurveyMutation(graphene.Mutation):
         preferred_party_size = PreferredPartySize.as_graphene_enum()(required=True)
         physical_activity_satisfaction = PhysicalActivitySatisfaction.as_graphene_enum()(required=True)
         matched_participation_likelihood = MatchedParticipationLikelihood.as_graphene_enum()(required=True)
+        main_interest = MainInterest.as_graphene_enum()(required=True)
+        preferred_event_duration = graphene.Int(required=True)
         formed_relationship_types = graphene.List(
-            FormedRelationshipsType.as_graphene_enum()
+            FormedRelationshipsType.as_graphene_enum(),
+            required=True
         )
         preferred_partner_characteristics = graphene.List(
-            PreferredPartnerCharacteristics.as_graphene_enum()
+            PreferredPartnerCharacteristics.as_graphene_enum(),
+            required=True
         )
         preferred_time_of_the_day = graphene.List(
-            TimeOfTheDay.as_graphene_enum()
+            TimeOfTheDay.as_graphene_enum(),
+            required=True
+        )
+        gender_preference = graphene.List(
+            Gender.as_graphene_enum(),
+            required=True
         )
 
     my_profile = graphene.Field(ProfileType)
@@ -84,9 +94,12 @@ class SubmitSurveyMutation(graphene.Mutation):
         preferred_party_size: PreferredPartySize,
         physical_activity_satisfaction: PhysicalActivitySatisfaction,
         matched_participation_likelihood: MatchedParticipationLikelihood,
+        main_interest: MainInterest,
+        preferred_event_duration: int,
         formed_relationship_types: list = [],
         preferred_partner_characteristics: list = [],
         preferred_time_of_the_day: list = [],
+        gender_preference: list = [],
         **kwargs
         ):
 
@@ -98,15 +111,33 @@ class SubmitSurveyMutation(graphene.Mutation):
         user.preferred_party_size = preferred_party_size
         user.physical_activity_satisfaction = physical_activity_satisfaction
         user.matched_participation_likelihood = matched_participation_likelihood
+        user.main_interest = main_interest
+        user.preferred_event_duration = preferred_event_duration
         user.formed_relationship_types = formed_relationship_types
         user.preferred_partner_characteristics = preferred_partner_characteristics
         user.preferred_time_of_the_day = preferred_time_of_the_day
+        user.gender_preference = gender_preference
 
         user.save()
 
         return SubmitSurveyMutation(my_profile = user)
-        
+
+class UpdateMaxTravelDistanceMutation(graphene.Mutation):
+
+    class Arguments:
+        distance = graphene.Int(required = False)
+
+    my_profile = graphene.Field(ProfileType)
+
+    @require_auth
+    def mutate(self, info, distance: int = None):
+        user: User = info.context.user
+        if distance is not None and not 1 <= distance < 2e5:
+            raise MUError(MUErrorCode.TRAVEL_DISTANCE_RANGE)
+        user.max_travel_distance = distance
+        return UpdateMaxTravelDistanceMutation(my_profile=user)
 
 class Mutation(graphene.ObjectType):
     submit_survey = SubmitSurveyMutation.Field()
     submit_basic_info = BasicInfoMutation.Field()
+    update_max_travel_distance = UpdateMaxTravelDistanceMutation.Field()

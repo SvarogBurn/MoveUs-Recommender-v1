@@ -17,6 +17,9 @@ class Event(models.Model):
     skill_level = models.SmallIntegerField(choices=SkillLevel.choices())
     max_participants = models.IntegerField(null=True)
     allow_spectators = models.BooleanField(default=False)
+    min_age = models.SmallIntegerField(null=True)
+    max_age = models.SmallIntegerField(null=True)
+    accepted_genders = models.JSONField(null=True)
 
     def participant_count(self):
         return EventMember.objects.filter(
