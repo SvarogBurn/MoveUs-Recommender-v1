@@ -56,6 +56,8 @@ class MUErrorCode(IntEnum):
     USER_MIN_AGE = 1015
     BIO_MAX_LENGTH = 1016
     TRAVEL_DISTANCE_RANGE = 1017
+    USER_PREFERRED_GENDERS_CHOICE = 1018
+    PREFERRED_EVENT_DURATION_RANGE = 1019
 
     ADDRESS_LINE_MAX_LENGTH = 1020
     ZIP_CODE_VALUE = 1021
@@ -124,6 +126,8 @@ mu_error_code_messages = {
     EC.USER_MIN_AGE : "You must be over 18 to use MoveUs.",
     EC.BIO_MAX_LENGTH : "User bio cannot be longer than 512 characters.",
     EC.TRAVEL_DISTANCE_RANGE : "Max travel distance must be between 1 and 20,000 km.",
+    EC.USER_PREFERRED_GENDERS_CHOICE : "Prefer not to say cannot be in preferred genders.",
+    EC.PREFERRED_EVENT_DURATION_RANGE : "Preferred event duration must be between 1 and 200 hours.",
     EC.ADDRESS_LINE_MAX_LENGTH : "Address line can be at most 64 characters.",
     EC.ZIP_CODE_VALUE : "Zip code must be a 5 digit number.",
     EC.REGION_MAX_LENGTH : "Region cannot be longer than 32 characters.",

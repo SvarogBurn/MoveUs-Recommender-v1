@@ -103,6 +103,12 @@ class SubmitSurveyMutation(graphene.Mutation):
         **kwargs
         ):
 
+        if Gender.PREFER_NOT_TO_SAY in gender_preference:
+            raise MUError(MUErrorCode.USER_PREFERRED_GENDERS_CHOICE)
+
+        if not 1 <= preferred_event_duration <= 200:
+            raise MUError(MUErrorCode.PREFERRED_EVENT_DURATION_RANGE)
+
         user: User = info.context.user
         if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
