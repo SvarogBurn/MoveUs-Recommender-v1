@@ -27,6 +27,15 @@ class JoinEventMutation(graphene.Mutation):
             event.participant_count() >= event.max_participants:
 
             raise MUError(MUErrorCode.EVENT_FULL)
+        
+        if event.accepted_genders is not None and not user.gender in event.accepted_genders:
+            raise MUError(MUErrorCode.GENDER_NOT_ALLOWED)
+        
+        if event.min_age and not user.date_of_birth or user.age < event.min_age:
+            raise MUError(MUErrorCode.AGE_RANGE)
+        
+        if event.max_age and not user.date_of_birth or user.age > event.max_age:
+            raise MUError(MUErrorCode.AGE_RANGE)
 
         member: EventMember = None
         

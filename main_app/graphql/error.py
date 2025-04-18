@@ -27,6 +27,7 @@ class MUErrorCode(IntEnum):
     EVENT_MAX_AGE = 306
     EVENT_MIN_MAX_AGE = 307
     EVENT_ACCEPTED_GENDERS = 308
+
     ALREADY_IN_EVENT = 310
     EVENT_FULL = 311
     EVENT_ALREADY_STARTED = 312
@@ -36,6 +37,8 @@ class MUErrorCode(IntEnum):
     CANNOT_LEAVE_AS_ORGANIZATOR = 316
     CANNOT_KICK_YOURSELF = 317
     CANNOT_KICK_ORGANIZER = 318
+    AGE_RANGE = 319
+    GENDER_NOT_ALLOWED = 320
 
     USERNAME_ALREADY_TAKEN = 1000
     USERNAME_MIN_LENGTH = 1001
@@ -108,6 +111,8 @@ mu_error_code_messages = {
     EC.CANNOT_LEAVE_AS_ORGANIZATOR : "You cannot leave an event you organized.",
     EC.CANNOT_KICK_YOURSELF : "You cannot kick yourself from the event.",
     EC.CANNOT_KICK_ORGANIZER : "You cannot kick event organizer from the event.",
+    EC.AGE_RANGE : "You are not withing the allowed age range of the event.",
+    EC.GENDER_NOT_ALLOWED : "You are not allowed to join this event beacuse of your gender.",
     EC.USERNAME_ALREADY_TAKEN : "Username already taken.",
     EC.USERNAME_MIN_LENGTH : "Username must be at least 3 characters long.",
     EC.USERNAME_MAX_LENGTH : "Username cannot be longer than 24 characters.",

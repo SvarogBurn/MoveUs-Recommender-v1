@@ -1,3 +1,5 @@
+import datetime
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.db.models.fields.composite import CompositePrimaryKey
@@ -34,8 +36,12 @@ class User(AbstractUser):
     verified = models.BooleanField(default=False)
 
     @property
-    def display_name(self):
+    def display_name(self) -> str:
         return self.first_name if self.first_name else self.username
+    
+    @property
+    def age(self) -> float:
+        return (datetime.date.today() - self.date_of_birth).days / 365
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
