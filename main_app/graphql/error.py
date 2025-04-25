@@ -40,6 +40,22 @@ class MUErrorCode(IntEnum):
     AGE_RANGE = 319
     GENDER_NOT_ALLOWED = 320
 
+    CANNOT_CONFIRM_NON_PARTICIPATING_MEMBER = 321
+    CANNOT_CONFIRM_BEFORE_END = 322
+    CANNOT_CONFIRM_AFTER_FINISH = 323
+    CANNOT_FINISH_BEFORE_END = 324
+    CANNOT_FINISH_WITH_UNCONFIRMED = 325
+
+    CANNOT_RATE_OWN_EVENT = 330
+    CANNOT_RATE_UNFINISHED = 331
+    CANNOT_RATE_NO_PARTICIPATION = 332
+    RATE_COMMENT_MAX_LENGTH = 333
+
+    CANNOT_LIKE_BEFORE_FINISH = 340
+    CANNOT_LIKE_YOURSELF = 341
+    CANNOT_LIKE_NOT_PARTICIPANT = 342
+    CANNOT_LIKE_DIDNT_PARTICIPATE = 343
+
     USERNAME_ALREADY_TAKEN = 1000
     USERNAME_MIN_LENGTH = 1001
     USERNAME_MAX_LENGTH = 1002
@@ -113,6 +129,19 @@ mu_error_code_messages = {
     EC.CANNOT_KICK_ORGANIZER : "You cannot kick event organizer from the event.",
     EC.AGE_RANGE : "You are not withing the allowed age range of the event.",
     EC.GENDER_NOT_ALLOWED : "You are not allowed to join this event beacuse of your gender.",
+    EC.CANNOT_CONFIRM_NON_PARTICIPATING_MEMBER : "Can only confirm paarticipation of participants.",
+    EC.CANNOT_CONFIRM_BEFORE_END : "Cannot confirm pariticipation before the event ends.",
+    EC.CANNOT_CONFIRM_AFTER_FINISH : "Cannot confirm pariticipation after the event is finished.",
+    EC.CANNOT_FINISH_BEFORE_END : "Cannot finish event before its end time.",
+    EC.CANNOT_FINISH_WITH_UNCONFIRMED : "Cannot finish event with unconfirmed participants.",
+    EC.CANNOT_RATE_OWN_EVENT : "Cannot rate your own event.",
+    EC.CANNOT_RATE_UNFINISHED : "Cannot rate an event before it officially finishes.",
+    EC.CANNOT_RATE_NO_PARTICIPATION : "Cannot rate an event you didn't participate in.",
+    EC.RATE_COMMENT_MAX_LENGTH : "Event comment can be at most 512 characters long." ,
+    EC.CANNOT_LIKE_BEFORE_FINISH : "Cannot like a member before the event officially finishes." ,
+    EC.CANNOT_LIKE_YOURSELF : "Cannot like yourself." ,
+    EC.CANNOT_LIKE_NOT_PARTICIPANT : "Cannot like a member who did not participate" ,
+    EC.CANNOT_LIKE_DIDNT_PARTICIPATE : "Cannot like an event member of event you didn't participate in. " ,
     EC.USERNAME_ALREADY_TAKEN : "Username already taken.",
     EC.USERNAME_MIN_LENGTH : "Username must be at least 3 characters long.",
     EC.USERNAME_MAX_LENGTH : "Username cannot be longer than 24 characters.",

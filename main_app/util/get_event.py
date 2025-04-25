@@ -35,3 +35,26 @@ def get_event(
             raise MUError(role_error_code)
     
     return event
+
+def get_event_with_member(
+        event_id: int,
+        user_id: int,
+        minimal_role: MemberRole = None
+    ) -> tuple[Event,  EventMember]:
+    event = None
+
+    try:
+        event = Event.objects.get(pk = event_id)
+    except Event.DoesNotExist:
+        raise MUError(MUErrorCode.EVENT_DOES_NOT_EXIST)
+
+    try:
+        em = EventMember.objects.get(pk=(user_id, event.id))
+        if minimal_role is None or em.role >= minimal_role:
+            return event, em
+    except EventMember.DoesNotExist:
+        pass
+    
+    raise MUError(get_event_error_code(minimal_role))
+    
+    return event

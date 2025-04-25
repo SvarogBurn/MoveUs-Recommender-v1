@@ -1,4 +1,6 @@
 import json
+
+from main_app.models.event import EventMemberLike
 from ..object_type import MUObjectType
 from django.db.models import Q
 
@@ -11,7 +13,23 @@ from ...models.enums import PrivacyScope, RelationshipStatus, Gender, PrivacySet
 
 from ..location.types import LocationType
 
-class ProfileType(MUObjectType):
+class UserTypeMixin():
+    likes = graphene.Int()
+    dislikes = graphene.Int()
+
+    def resolve_likes(self: User, info):
+        return EventMemberLike.objects.filter(
+            user_2 = self,
+            like = True
+        ).count()
+    
+    def resolve_dislikes(self: User, info):
+        return EventMemberLike.objects.filter(
+            user_2 = self,
+            like = False
+        ).count()
+
+class ProfileType(MUObjectType, UserTypeMixin):
     class Meta:
         model = User
         exclude = (
@@ -32,7 +50,7 @@ class ProfileType(MUObjectType):
         ]
         return frt_formatted
 
-class UserType(MUObjectType):
+class UserType(MUObjectType, UserTypeMixin):
     location = graphene.Field(LocationType)
     email = graphene.String()
     date_of_birth = graphene.Date()
@@ -54,7 +72,6 @@ class UserType(MUObjectType):
             "username",
             "is_active",
             "date_joined",
-            "img_url",
             "preferred_activities"
         )
 

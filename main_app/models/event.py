@@ -1,7 +1,8 @@
+from functools import cached_property
 from django.db import models
 from django.db.models.fields.composite import CompositePrimaryKey
+from django.utils.timezone import now
 
-from .location import Location
 from .enums import SkillLevel, MemberRole, EventRating
 from .activities import Activity
 
@@ -20,19 +21,27 @@ class Event(models.Model):
     min_age = models.SmallIntegerField(null=True)
     max_age = models.SmallIntegerField(null=True)
     accepted_genders = models.JSONField(null=True)
+    finished = models.BooleanField(default=False)
 
     def participant_count(self):
         return EventMember.objects.filter(
             event_id = self.id,
-            role = MemberRole.PARTICIPANT
+            participates = True
         ).count()
 
 class EventMember(models.Model):
     pk = CompositePrimaryKey('user', 'event')
     user = models.ForeignKey("User", on_delete=models.CASCADE)
     event = models.ForeignKey("Event", on_delete=models.CASCADE, related_name="members")
-    # likes = models.ManyToManyField(User, related_name='liked_on_event_by') Does not work :<<
     role = models.SmallIntegerField(choices=MemberRole.choices())
-    has_participated = models.BooleanField(default=False)
+    has_participated = models.BooleanField(null=True)
     score = models.SmallIntegerField(choices=EventRating.choices(), null=True)
     comment = models.CharField(max_length=512, null=True)
+    participates = models.BooleanField(default=role==MemberRole.PARTICIPANT)
+
+class EventMemberLike(models.Model):
+    pk = CompositePrimaryKey('event', 'user_1', 'user_2')
+    event = models.ForeignKey("Event", on_delete=models.CASCADE)
+    user_1 = models.ForeignKey("User", on_delete=models.CASCADE, related_name='likes')
+    user_2 = models.ForeignKey("User", on_delete=models.CASCADE, related_name='liked_by')
+    like = models.BooleanField(default=True)

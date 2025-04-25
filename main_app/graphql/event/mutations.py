@@ -123,7 +123,8 @@ class AddEventMutation(graphene.Mutation):
         EventMember.objects.create(
             event = event,
             user = info.context.user,
-            role = MemberRole.ORGANIZER
+            role = MemberRole.ORGANIZER,
+            has_participated = True
         )
 
         return AddEventMutation(

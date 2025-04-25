@@ -1,18 +1,24 @@
 import graphene
 
+from django.db.models import Avg
+
 from main_app.graphql.event_member.types import EventMemberType
+from main_app.graphql.post_event.types import EventCommentType
 from ..object_type import MUObjectType
 
 from ...models import Event, EventMember
 from ...models.enums import MemberRole
 from ..post.types import PostType
 
-class EventType(MUObjectType):
+class EventTypeMixin(MUObjectType):
     posts = graphene.List(PostType)
     organizer = graphene.Field(EventMemberType)
     participants = graphene.List(EventMemberType)
     moderators = graphene.List(EventMemberType)
     spectators = graphene.List(EventMemberType)
+    role = graphene.Field(MemberRole.as_graphene_enum())
+    average_score = graphene.Float()
+    comments = graphene.List(EventCommentType)
 
     class Meta:
         model = Event
@@ -44,5 +50,54 @@ class EventType(MUObjectType):
             event = self,
             role = MemberRole.SPECTATOR
         )
+    
+    def resolve_role(self: Event, info):
+        user_id = info.context.user.id;
+        if id == None:
+            return None
+        try:
+            return EventMember.objects.get(
+                pk = (user_id, self.id)
+            ).role;
+        except EventMember.DoesNotExist:
+            return None
+        
+    def resolve_average_score(self: Event, info):
+        score = EventMember.objects.filter(
+                event_id=self.id
+            ).aggregate(
+                Avg('score')
+            )['score__avg'];
+        if score is not None:
+            return score + 1
+        return None
+    
+    def resolve_comments(self: Event, info):
+        return [
+            EventCommentType(
+                member=m,
+                comment=m.comment
+            ) for m in EventMember.objects.filter(
+                event_id = self.id,
+                comment__isnull = False
+            )
+        ]
 
+class UnfinishedEventType(EventTypeMixin):
+    class Meta:
+        model = Event
+        exclude = ("post_set",)
 
+    unconfirmed_participants = graphene.List(EventMemberType)
+
+    def resolve_unconfirmed_participants(self: Event, info):
+        return EventMember.objects.filter(
+            event_id = self.id,
+            participates = True,
+            has_participated__isnull = True
+        );
+
+class EventType(EventTypeMixin):
+    class Meta:
+        model = Event
+        exclude = ("post_set",)
