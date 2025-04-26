@@ -8,14 +8,14 @@ from ...models import Relationship
 
 class RelationshipType(MUObjectType):
 
-    other = graphene.Field(
+    user = graphene.Field(
         graphene.lazy_import("main_app.graphql.user.types.UserType")
     )
     status = graphene.String()
 
     class Meta:
         model = Relationship
-        exclude = ('pk', 'user_1', 'user_2')
+        fields = ("last_update", "status", "chat")
         convert_choices_to_enum = False
 
     def resolve_status(self: Relationship, info):
@@ -24,7 +24,7 @@ class RelationshipType(MUObjectType):
             status = RS(RS.REQUEST_SENT).name if self.user_1 == info.context.user else RS(RS.REQUEST_RECEIVED).name
         return status
     
-    def resolve_other(self: Relationship, info):
+    def resolve_user(self: Relationship, info):
         other = self.user_1 if self.user_2 == info.context.user else self.user_2
         return other
     

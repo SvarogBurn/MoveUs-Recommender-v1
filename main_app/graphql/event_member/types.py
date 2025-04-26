@@ -6,4 +6,4 @@ class EventMemberType(MUObjectType):
     
     class Meta:
         model = EventMember
-        exclude = ("pk",)
+        fields = ("user", "role", "participates", "has_participated", "score", "comment")

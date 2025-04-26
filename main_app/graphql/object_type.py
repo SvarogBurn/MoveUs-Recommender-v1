@@ -1,12 +1,13 @@
 import graphene
 from graphene_django.types import DjangoObjectType
 
+from django.db.models.fields.composite import CompositePrimaryKey
 
 class MUObjectType(DjangoObjectType):
 
     def __init_subclass__(self):
         try:
-            if not "pk" in self.Meta.exclude:
+            if not isinstance(self.Meta.model._meta.pk, CompositePrimaryKey):
                 raise AttributeError()
         except AttributeError:
             self.id = graphene.Int(source='pk')

@@ -18,4 +18,4 @@ class ActivityType(MUObjectType):
 class PreferredActivityType(MUObjectType):
     class Meta:
         model = PreferredActivity
-        exclude = ("pk", "user")
+        fields = ("activity", "skill_level")
