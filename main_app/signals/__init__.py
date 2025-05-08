@@ -1,3 +1,4 @@
 from .privacy_settings import add_privacy_settings_handler
 from .relationships import update_relationship_update_time_handler, create_relationship_chat
 from .remove_location import remove_event_location_handler
+from .notify_chat_event import notify_chat_event_handler

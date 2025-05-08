@@ -5,21 +5,20 @@ from .enums import ChatNotifications, RelationshipStatus
 
 class Chat(models.Model):
     time_created = models.DateTimeField(auto_now_add=True)
-    img_url = models.URLField(default="default.png")
 
 class ChatMember(models.Model):
     pk = CompositePrimaryKey('user', 'chat')
     user = models.ForeignKey("User", on_delete=models.CASCADE)
-    chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name="members")
     nickname = models.CharField(max_length=64)
     last_open = models.DateTimeField(null=True)
     notifications = models.SmallIntegerField(choices=ChatNotifications.choices(), default=ChatNotifications.ALL)
 
 class ChatMessage(models.Model):
-    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, null=False)
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, null=False, related_name="messages")
     user = models.ForeignKey("User", on_delete=models.CASCADE, null=False)
-    text_content = models.CharField()
-    time_sent = models.DateTimeField()
+    text_content = models.CharField(max_length=512)
+    time_sent = models.DateTimeField(auto_now_add=True)
 
 class Relationship(models.Model):
     pk = CompositePrimaryKey('user_1', 'user_2')

@@ -56,6 +56,11 @@ class MUErrorCode(IntEnum):
     CANNOT_LIKE_NOT_PARTICIPANT = 342
     CANNOT_LIKE_DIDNT_PARTICIPATE = 343
 
+    CHAT_DOES_NOT_EXIST = 350
+    NOT_IN_CHAT = 351
+    NICKNAME_TOO_LONG = 352
+    MESSAGE_TOO_LONG = 353
+
     USERNAME_ALREADY_TAKEN = 1000
     USERNAME_MIN_LENGTH = 1001
     USERNAME_MAX_LENGTH = 1002
@@ -142,6 +147,10 @@ mu_error_code_messages = {
     EC.CANNOT_LIKE_YOURSELF : "Cannot like yourself." ,
     EC.CANNOT_LIKE_NOT_PARTICIPANT : "Cannot like a member who did not participate" ,
     EC.CANNOT_LIKE_DIDNT_PARTICIPATE : "Cannot like an event member of event you didn't participate in. " ,
+    EC.CHAT_DOES_NOT_EXIST : "That chat does not exist." ,
+    EC.NOT_IN_CHAT : "You are not a member of this chat." ,
+    EC.NICKNAME_TOO_LONG : "Nickname cannot be longer than 24 characters." ,
+    EC.MESSAGE_TOO_LONG : "Messages cannot be longer than 512 characters." ,
     EC.USERNAME_ALREADY_TAKEN : "Username already taken.",
     EC.USERNAME_MIN_LENGTH : "Username must be at least 3 characters long.",
     EC.USERNAME_MAX_LENGTH : "Username cannot be longer than 24 characters.",
