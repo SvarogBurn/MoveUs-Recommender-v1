@@ -13,6 +13,7 @@ from main_app.util import require_auth
 class EventQuery(graphene.ObjectType):
     event = graphene.Field(EventType, id=graphene.Int())
     joined_events = graphene.List(EventType)
+    owned_events = graphene.List(EventType)
     past_joined_events = graphene.List(EventType)
     ongoing_joined_events = graphene.List(EventType)
     future_joined_events = graphene.List(EventType)
@@ -36,7 +37,19 @@ class EventQuery(graphene.ObjectType):
         user_id: int = info.context.user.id
         return Event.objects.filter(
             id__in=EventMember.objects.filter(
-                user_id=user_id
+                user_id=user_id,
+            ).exclude(
+                role=MemberRole.ORGANIZER
+            ).values("event_id")
+        )
+    
+    @require_auth
+    def resolve_owned_events(root, info, **kwargs):
+        user_id: int = info.context.user.id
+        return Event.objects.filter(
+            id__in=EventMember.objects.filter(
+                user_id=user_id,
+                role=MemberRole.ORGANIZER
             ).values("event_id")
         )
     
@@ -48,6 +61,8 @@ class EventQuery(graphene.ObjectType):
             end_time__lte=time,
             id__in=EventMember.objects.filter(
                 user_id=user_id
+            ).exclude(
+                role=MemberRole.ORGANIZER
             ).values("event_id")
         )
     
@@ -60,6 +75,8 @@ class EventQuery(graphene.ObjectType):
             end_time__gt=time,
             id__in=EventMember.objects.filter(
                 user_id=user_id
+            ).exclude(
+                role=MemberRole.ORGANIZER
             ).values("event_id")
         )
     
@@ -71,6 +88,8 @@ class EventQuery(graphene.ObjectType):
             start_time__gte=time,
             id__in=EventMember.objects.filter(
                 user_id=user_id
+            ).exclude(
+                role=MemberRole.ORGANIZER
             ).values("event_id")
         )
     

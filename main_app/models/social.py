@@ -44,7 +44,7 @@ class Post(models.Model):
     title = models.CharField(max_length=128)
     content = models.CharField()
     time_posted = models.DateTimeField(auto_now_add=True)
-    event = models.ForeignKey("Event", on_delete=models.CASCADE, null=True)
+    event = models.ForeignKey("Event", on_delete=models.CASCADE, null=True, related_name="posts")
     liked_by = models.ManyToManyField("User")
 
 class PostComment(models.Model):

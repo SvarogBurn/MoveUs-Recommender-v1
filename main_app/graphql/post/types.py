@@ -9,7 +9,7 @@ class PostCommentType(MUObjectType):
 
     class Meta:
         model = PostComment
-        include = "__all__"
+        include = ('id', 'user', 'text', 'time_posted', 'replies')
 
     def resolve_has_replies(self: PostComment, info):
         return self.replies.count() != 0

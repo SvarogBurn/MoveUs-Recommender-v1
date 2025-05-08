@@ -11,7 +11,6 @@ from ...models.enums import MemberRole
 from ..post.types import PostType
 
 class EventTypeMixin(MUObjectType):
-    posts = graphene.List(PostType)
     organizer = graphene.Field(EventMemberType)
     participants = graphene.List(EventMemberType)
     moderators = graphene.List(EventMemberType)
@@ -22,10 +21,6 @@ class EventTypeMixin(MUObjectType):
 
     class Meta:
         model = Event
-        exclude = ("post_set",)
-
-    def resolve_posts(self: Event, info):
-        return self.post_set;
 
     def resolve_organizer(self: Event, info):
         return EventMember.objects.filter(
@@ -86,7 +81,6 @@ class EventTypeMixin(MUObjectType):
 class UnfinishedEventType(EventTypeMixin):
     class Meta:
         model = Event
-        exclude = ("post_set",)
 
     unconfirmed_participants = graphene.List(EventMemberType)
 
@@ -100,4 +94,3 @@ class UnfinishedEventType(EventTypeMixin):
 class EventType(EventTypeMixin):
     class Meta:
         model = Event
-        exclude = ("post_set",)

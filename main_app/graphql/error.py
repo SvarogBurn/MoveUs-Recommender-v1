@@ -16,6 +16,8 @@ class MUErrorCode(IntEnum):
     PREFERRED_ACTIVITY_DOES_NOT_EXIST = 203
     LOCATION_DOES_NOT_EXIST = 204
     EVENT_MEMBER_DOES_NOT_EXIST = 205
+    POST_DOES_NOT_EXIST = 206
+    POST_COMMENT_DOES_NOT_EXIST = 207
 
     INVALID_FRIEND_REQUEST = 300
     MINIMAL_LOCAION_REQUIREMENTS_MISSING = 301
@@ -60,6 +62,12 @@ class MUErrorCode(IntEnum):
     NOT_IN_CHAT = 351
     NICKNAME_TOO_LONG = 352
     MESSAGE_TOO_LONG = 353
+
+    POST_TITLE_MAX_LENGTH = 360
+    POST_CONTENT_MAX_LENGTH = 361
+    POST_ALREADY_LIKED = 362
+    POST_NOT_LIKED = 363
+    POST_COMMENT_MAX_LENGTH = 364
 
     USERNAME_ALREADY_TAKEN = 1000
     USERNAME_MIN_LENGTH = 1001
@@ -113,6 +121,8 @@ mu_error_code_messages = {
     EC.PREFERRED_ACTIVITY_DOES_NOT_EXIST: "Activity not on user's preferred activity list.",
     EC.LOCATION_DOES_NOT_EXIST: "Location does not found.",
     EC.EVENT_MEMBER_DOES_NOT_EXIST: "Event member does not exist.",
+    EC.POST_DOES_NOT_EXIST: "Post does not exist.",
+    EC.POST_COMMENT_DOES_NOT_EXIST: "Post comment does not exist.",
     EC.INVALID_FRIEND_REQUEST : "Cannot send friend request to this user.",
     EC.MINIMAL_LOCAION_REQUIREMENTS_MISSING : "You either need to provide a location id or longitude and latitude.",
     EC.EVENT_START_TIME : "Event has to start in the future.",
@@ -151,6 +161,11 @@ mu_error_code_messages = {
     EC.NOT_IN_CHAT : "You are not a member of this chat." ,
     EC.NICKNAME_TOO_LONG : "Nickname cannot be longer than 24 characters." ,
     EC.MESSAGE_TOO_LONG : "Messages cannot be longer than 512 characters." ,
+    EC.POST_TITLE_MAX_LENGTH : "Post title cannot be longer than 128 characters." ,
+    EC.POST_CONTENT_MAX_LENGTH : "Post content cannot be longer than 2048 characters." ,
+    EC.POST_ALREADY_LIKED : "You cannot like the same post twice." ,
+    EC.POST_NOT_LIKED : "You cannot unlike post you didn't like." ,
+    EC.POST_COMMENT_MAX_LENGTH : "Post comment cannot be longer than 512 characters." ,
     EC.USERNAME_ALREADY_TAKEN : "Username already taken.",
     EC.USERNAME_MIN_LENGTH : "Username must be at least 3 characters long.",
     EC.USERNAME_MAX_LENGTH : "Username cannot be longer than 24 characters.",
