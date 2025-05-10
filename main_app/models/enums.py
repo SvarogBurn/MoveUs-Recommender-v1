@@ -143,6 +143,11 @@ class ActivityEnum(BaseIntEnum):
     TENNIS = 3
     GYM = 4
 
+class NotificationEnum(BaseIntEnum):
+    FRIEND_REQUEST = 0
+    FRIEND_ACCEPTED = 1
+    EVENT_FINISHED = 2
+
 class CountryCode(BaseStringEnum):
     AF = 1   # Afghanistan
     AL = 2   # Albania

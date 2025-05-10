@@ -4,7 +4,9 @@ from django.db.models import Q
 
 from ..error import MUError, MUErrorCode
 from ...models import Relationship, User
-from ...models.enums import RelationshipStatus
+from ...models.enums import RelationshipStatus, NotificationEnum
+
+from main_app.util import send_notification
 
 from .types import RelationshipType
 
@@ -36,9 +38,11 @@ class SendFriendRequestMutation(graphene.Mutation):
             if existing_relationship.user_1 != info.context.user:
                 existing_relationship.swap_users()
             
+            send_notification(user_id, info.context.user.id, NotificationEnum.FRIEND_REQUEST)
             return SendFriendRequestMutation(relationship = existing_relationship)
         
         except Relationship.DoesNotExist:
+            send_notification(user_id, info.context.user.id, NotificationEnum.FRIEND_REQUEST)
             new_relationship = Relationship.objects.create(user_1 = info.context.user, user_2 = other, status = RelationshipStatus.PENDING)
             return SendFriendRequestMutation(relationship = new_relationship)
         
@@ -61,6 +65,7 @@ class AcceptFriendRequestMutation(graphene.Mutation):
 
             existing_relationship.status = RelationshipStatus.FRIENDS;
             existing_relationship.save()
+            send_notification(user_id, info.context.user.id, NotificationEnum.FRIEND_ACCEPTED)
             return AcceptFriendRequestMutation(relationship = existing_relationship)
         except Relationship.DoesNotExist:
             raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)

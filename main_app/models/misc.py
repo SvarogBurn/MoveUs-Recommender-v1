@@ -1,7 +1,7 @@
 from django.db import models
 from django.db.models.fields.composite import CompositePrimaryKey
 
-from .enums import PrivacySetting as PS, PrivacyScope, OtherOption as OO, PersonalityTrait as PT
+from .enums import PrivacySetting as PS, PrivacyScope, OtherOption as OO, PersonalityTrait as PT, NotificationEnum
 
 class UserPersonalityTrait(models.Model):
     pk = CompositePrimaryKey('user', 'trait')
@@ -30,3 +30,12 @@ class EventReport(models.Model):
     reporter = models.ForeignKey("User", on_delete=models.CASCADE)
     reported = models.ForeignKey("Event", on_delete=models.CASCADE, related_name='reported_by')
     comment = models.CharField(max_length=256)
+
+class Notification(models.Model):
+    user = models.ForeignKey("User", on_delete=models.CASCADE, related_name='notifications')
+    target_id = models.IntegerField()
+    time_added = models.DateTimeField(auto_now_add=True)
+    type = models.SmallIntegerField(choices=NotificationEnum.choices())
+
+    USER_NOTIFICATION_TYPES = (NotificationEnum.FRIEND_ACCEPTED, NotificationEnum.FRIEND_REQUEST)
+    EVENT_NOTIFICATION_TYPES = (NotificationEnum.EVENT_FINISHED, )

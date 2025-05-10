@@ -3,7 +3,7 @@ import graphene
 from django.utils.timezone import now
 
 from main_app.graphql.event.types import EventType
-from main_app.util import get_event, get_event_with_member, require_auth
+from main_app.util import get_event, get_event_with_member, require_auth, send_event_finished_notification
 from main_app.models import User, EventMember, EventMemberLike
 from main_app.models.enums import MemberRole, EventRating
 from main_app.graphql.error import MUError, MUErrorCode
@@ -58,6 +58,7 @@ class FinishEventMutation(graphene.Mutation):
 
         event.finished = True;
         event.save();
+        send_event_finished_notification(event_id)
 
         return FinishEventMutation(event=event)
     
