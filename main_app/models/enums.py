@@ -1,6 +1,7 @@
-from enum import IntEnum, Enum
+from enum import Enum, IntEnum
 
 import graphene
+
 
 class BaseEnum():
 
@@ -98,8 +99,8 @@ class RelationshipStatus(BaseIntEnum):
     NONE = 0
     PENDING = 1
     FRIENDS = 2
-    BLOCKED_BY_FIRST = 3
-    BLOCKED_BY_SECOND = 4
+    BLOCKED_BY_ONE = 3
+    #BLOCKED_BY_SECOND = 4
     BLOCKED_BY_BOTH = 5
     REQUEST_SENT = 6
     REQUEST_RECEIVED = 7

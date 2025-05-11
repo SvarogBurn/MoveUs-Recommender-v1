@@ -1,5 +1,7 @@
-from ..graphql.error import MUError, MUErrorCode
 import datetime
+
+from ..graphql.error import MUError, MUErrorCode
+
 
 def profile_validator(
         first_name: str = None,

@@ -1,9 +1,10 @@
 import graphene
 
 from main_app.graphql.error import MUError, MUErrorCode
-from main_app.models import ChatMember, ChatMessage
+from main_app.models import ChatMessage
 from main_app.models.enums import ChatNotifications
-from main_app.util import get_chat_member, validate_attachment
+from main_app.util import get_chat_member, require_auth, validate_attachment
+
 
 class SetChatNotifications(graphene.Mutation):
 
@@ -13,7 +14,7 @@ class SetChatNotifications(graphene.Mutation):
 
     success = graphene.Boolean()
 
-    @classmethod
+    @require_auth
     def mutate(
         cls,
         root,
@@ -36,7 +37,7 @@ class SetChatNickname(graphene.Mutation):
 
     success = graphene.Boolean()
 
-    @classmethod
+    @require_auth
     def mutate(
         cls,
         root,
@@ -45,7 +46,7 @@ class SetChatNickname(graphene.Mutation):
         nickname: str
     ):
         if len(nickname) > 24:
-            raise MUError(MUErrorCode.NICKNAME_TOO_LONG)
+            raise MUError(MUErrorCode.NICKNAME_MAX_LENGTH)
 
         user_id: int = info.context.user.id
         chatmember = get_chat_member(chat_id, user_id)
@@ -63,7 +64,7 @@ class SendChatMessage(graphene.Mutation):
 
     success = graphene.Boolean()
 
-    @classmethod
+    @require_auth
     def mutate(
         cls,
         root,
@@ -73,7 +74,7 @@ class SendChatMessage(graphene.Mutation):
         attachment_id: str = None
     ):
         if len(message) > 512:
-            raise MUError(MUErrorCode.MESSAGE_TOO_LONG)
+            raise MUError(MUErrorCode.MESSAGE_MAX_LENGTH)
 
         user_id: int = info.context.user.id
         get_chat_member(chat_id, user_id)

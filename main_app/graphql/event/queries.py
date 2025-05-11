@@ -1,14 +1,13 @@
 import graphene
-
 from django.utils.timezone import now
 
-from main_app.models.user import User
-
-from .types import EventType, UnfinishedEventType
-from ..error import MUError, MUErrorCode
-from ...models import Event, EventMember
 from main_app.models.enums import MemberRole
 from main_app.util import require_auth
+
+from ...models import Event, EventMember
+from ..error import MUError, MUErrorCode
+from .types import EventType, UnfinishedEventType
+
 
 class EventQuery(graphene.ObjectType):
     event = graphene.Field(EventType, id=graphene.Int())
@@ -29,7 +28,7 @@ class EventQuery(graphene.ObjectType):
 
     def resolve_my_recommended_events(root, info, **kwargs):
         if not info.context.user.id:
-            raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
+            raise MUError(MUErrorCode.AUTHENTICATION_ERROR)
         return Event.objects.all()
     
     @require_auth

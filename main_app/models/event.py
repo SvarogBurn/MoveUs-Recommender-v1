@@ -1,10 +1,12 @@
 from functools import cached_property
+
 from django.db import models
 from django.db.models.fields.composite import CompositePrimaryKey
 from django.utils.timezone import now
 
-from .enums import SkillLevel, MemberRole, EventRating
 from .activities import Activity
+from .enums import EventRating, MemberRole, SkillLevel
+
 
 class Event(models.Model):
     title = models.CharField(max_length=32)

@@ -1,9 +1,10 @@
 import graphene
 
-from main_app.graphql.error import MUError, MUErrorCode
 from main_app.graphql.chat.types import ChatType
-from main_app.models import User, Chat, ChatMember
+from main_app.graphql.error import MUError, MUErrorCode
+from main_app.models import Chat, ChatMember
 from main_app.util import require_auth
+
 
 class MyChatsQuery(graphene.ObjectType):
     my_chats = graphene.List(ChatType)

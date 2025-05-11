@@ -1,14 +1,16 @@
 import graphene
+from graphene_django import DjangoObjectType
 
 from main_app.models.enums import ActivityEnum
-from ..object_type import MUObjectType
 
 from ...models import Activity, PreferredActivity
+from ..object_type import MUObjectType
 
-class ActivityType(MUObjectType):
+
+class ActivityType(DjangoObjectType):
     class Meta:
         model = Activity
-        exclude = ("pk",)
+        fields = tuple()
 
     id = graphene.String()
 

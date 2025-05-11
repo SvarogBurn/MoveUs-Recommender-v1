@@ -1,9 +1,10 @@
 import graphene
 
-from ..object_type import MUObjectType
+from main_app.util import generate_post_picture_url
 
 from ...models import Post, PostComment
-from main_app.util import generate_post_picture_url
+from ..object_type import MUObjectType
+
 
 class PostCommentType(MUObjectType):
     has_replies = graphene.Boolean()

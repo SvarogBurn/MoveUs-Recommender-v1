@@ -1,12 +1,19 @@
-import graphene
 import datetime
 
+import graphene
 from channels.db import database_sync_to_async
 from django.db.models.functions.datetime import Now
 
 from main_app.graphql.chat.types import WSChatMessageType, WSLastOpenType
-from main_app.models import ChatMessage, ChatMember
-from main_app.util import get_chat_member, wait_for_chat_event, notifiy_chat_event, ChatEventType, generate_attachment_url
+from main_app.models import ChatMember, ChatMessage
+from main_app.util import (
+    ChatEventType,
+    generate_attachment_url,
+    get_chat_member,
+    notifiy_chat_event,
+    wait_for_chat_event,
+)
+
 
 @database_sync_to_async
 def get_chat_messages(chat_id: int, last_update: datetime.datetime):

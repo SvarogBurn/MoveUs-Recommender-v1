@@ -1,10 +1,11 @@
 import graphene
 
-from main_app.models import Post, User, PostComment
+from main_app.graphql.error import MUError, MUErrorCode
+from main_app.graphql.post.types import CreatePostType, PostCommentType
+from main_app.models import Post, PostComment, User
 from main_app.models.enums import MemberRole
 from main_app.util import get_event, require_auth
-from main_app.graphql.error import MUError, MUErrorCode
-from main_app.graphql.post.types import PostType, PostCommentType, CreatePostType
+
 
 class CreatePostMutation(graphene.Mutation):
 

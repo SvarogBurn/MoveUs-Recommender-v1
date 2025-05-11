@@ -1,7 +1,11 @@
-from main_app.models.enums import CountryCode, Gender
-from ..graphql.error import MUError, MUErrorCode
 from datetime import datetime
+
 from django.utils.timezone import now as tz_now
+
+from main_app.models.enums import CountryCode, Gender
+
+from ..graphql.error import MUError, MUErrorCode
+
 
 def event_validator(
         title: str = None,
@@ -26,13 +30,13 @@ def event_validator(
     now = tz_now()
 
     if start_time and start_time < now:
-        raise MUError(MUErrorCode.EVENT_START_TIME)
+        raise MUError(MUErrorCode.EVENT_START_TIME_INVALID)
     
     if end_time and end_time < now:
-        raise MUError(MUErrorCode.EVENT_END_TIME)
+        raise MUError(MUErrorCode.EVENT_END_TIME_INVALID)
     
     if start_time and end_time and end_time < start_time:
-        raise MUError(MUErrorCode.EVENT_TIMES_RELATION)
+        raise MUError(MUErrorCode.EVENT_TIMES_RELATION_INVALID)
     
     if max_participants and max_participants < 1:
         raise MUError(MUErrorCode.EVENT_MIN_MAX_PARTICIPANTS)

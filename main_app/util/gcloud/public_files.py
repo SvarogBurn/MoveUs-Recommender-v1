@@ -1,4 +1,5 @@
-from main_app.util.gcloud.generate import generate_signed_url, Method
+from main_app.util.gcloud.generate import Method, generate_signed_url
+
 
 def generate_profile_picture_url(user_id: int):
     return generate_signed_url(

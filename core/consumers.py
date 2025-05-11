@@ -1,11 +1,13 @@
-# consumers.py
-import json
 import asyncio
-from channels.generic.websocket import AsyncWebsocketConsumer
-from graphql import parse, validate
-from main_app.schema import schema
-from django.contrib.sessions.models import Session
+import json
+
 from channels.db import database_sync_to_async
+from channels.generic.websocket import AsyncWebsocketConsumer
+from django.contrib.sessions.models import Session
+from graphql import parse, validate
+
+from main_app.schema import schema
+
 
 @database_sync_to_async
 def get_session(token: str)-> Session:

@@ -1,10 +1,14 @@
 import graphene
 
-from main_app.graphql.notification.types import BaseNotificationType, UserNotificationType, EventNotificationType
-from main_app.graphql.user.types import UserType
 from main_app.graphql.event.types import EventType
+from main_app.graphql.notification.types import (
+    BaseNotificationType,
+    EventNotificationType,
+    UserNotificationType,
+)
+from main_app.models import Event, Notification, User
 from main_app.util import require_auth
-from main_app.models import Notification, User, Event
+
 
 class NotificationQuery(graphene.ObjectType):
 

@@ -2,6 +2,7 @@ from main_app.graphql.error import MUError, MUErrorCode
 from main_app.models import ChatMember
 from main_app.models.enums import MemberRole
 
+
 def get_chat_member(chat_id: int, user_id: int) -> ChatMember:
 
     try:

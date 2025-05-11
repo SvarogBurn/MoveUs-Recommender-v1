@@ -1,12 +1,12 @@
 import graphene
 
-from main_app.graphql.user.types import ProfileType
-from main_app.validators import profile_validator
+from main_app.util import require_auth
 
-from ..error import MUError, MUErrorCode
+from ...models import PreferredActivity, User
+from ...models.enums import ActivityEnum, SkillLevel
 from ..activity.types import PreferredActivityType
-from ...models import User, PreferredActivity
-from ...models.enums import SkillLevel, ActivityEnum
+from ..error import MUError, MUErrorCode
+
 
 class SetPreferredActivity(graphene.Mutation):
 
@@ -14,9 +14,9 @@ class SetPreferredActivity(graphene.Mutation):
         activity = ActivityEnum.as_graphene_enum()()
         skill_level = SkillLevel.as_graphene_enum()()
 
-    preferred_activities = graphene.List(PreferredActivityType)
+    success = graphene.Boolean()
 
-    @classmethod
+    @require_auth
     def mutate(
         cls,
         root,
@@ -26,7 +26,6 @@ class SetPreferredActivity(graphene.Mutation):
     ):
         
         user: User = info.context.user
-        if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         try:
             pa = PreferredActivity.objects.get(pk = (user.id, activity))
@@ -39,18 +38,16 @@ class SetPreferredActivity(graphene.Mutation):
                 skill_level = skill_level
             )
 
-        return SetPreferredActivity(
-            preferred_activities = PreferredActivity.objects.filter(user = user)
-        )        
+        return SetPreferredActivity(success = True)        
 
 class RemovePreferredActivity(graphene.Mutation):
 
     class Arguments:
         activity = ActivityEnum.as_graphene_enum()()
 
-    preferred_activities = graphene.List(PreferredActivityType)
+    success = graphene.Boolean()
 
-    @classmethod
+    @require_auth
     def mutate(
         cls,
         root,
@@ -59,7 +56,6 @@ class RemovePreferredActivity(graphene.Mutation):
     ):
         
         user: User = info.context.user
-        if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         try:
             pa = PreferredActivity.objects.get(pk = (user.id, activity))
@@ -67,9 +63,7 @@ class RemovePreferredActivity(graphene.Mutation):
         except PreferredActivity.DoesNotExist:
             raise MUError(MUErrorCode.PREFERRED_ACTIVITY_DOES_NOT_EXIST)
 
-        return RemovePreferredActivity(
-            preferred_activities = PreferredActivity.objects.filter(user = user)
-        )   
+        return RemovePreferredActivity(success = True)   
 
 class Mutation(graphene.ObjectType):
     set_preferred_activity = SetPreferredActivity.Field()

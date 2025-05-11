@@ -1,15 +1,16 @@
-import graphene
-
 from datetime import datetime
+
+import graphene
 
 from main_app.graphql.event.types import EventType
 from main_app.models.location import Location
-from main_app.util import get_event
-from main_app.validators import location_validator, event_validator
+from main_app.util import get_event, require_auth
+from main_app.validators import event_validator, location_validator
 
+from ...models import Event, EventMember, User
+from ...models.enums import ActivityEnum, CountryCode, Gender, MemberRole, SkillLevel
 from ..error import MUError, MUErrorCode
-from ...models import User, Event, EventMember
-from ...models.enums import Gender, SkillLevel, ActivityEnum, CountryCode, MemberRole
+
 
 class AddEventMutation(graphene.Mutation):
 
@@ -41,7 +42,7 @@ class AddEventMutation(graphene.Mutation):
 
     event = graphene.Field(EventType)
 
-    @classmethod
+    @require_auth
     def mutate(
         cls,
         root,
@@ -70,10 +71,9 @@ class AddEventMutation(graphene.Mutation):
     ):
         
         user: User = info.context.user
-        if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         if not location_id and not (location_longitude and location_latitude):
-            raise MUError(MUErrorCode.MINIMAL_LOCAION_REQUIREMENTS_MISSING)
+            raise MUError(MUErrorCode.MINIMAL_LOCATION_REQUIREMENTS_MISSING)
 
         location_validator(
             location_longitude, location_latitude,
@@ -142,9 +142,9 @@ class AlterEventMutation(graphene.Mutation):
         requrements = graphene.String(required = False)
         max_participants = graphene.Int(required = False)
 
-    event = graphene.Field(EventType)
+    success = graphene.Boolean()
 
-    @classmethod
+    @require_auth
     def mutate(
         cls,
         root,
@@ -159,7 +159,6 @@ class AlterEventMutation(graphene.Mutation):
     ):
         
         user: User = info.context.user
-        if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         event_validator(
             title, description, start_time, end_time, max_participants
@@ -179,9 +178,7 @@ class AlterEventMutation(graphene.Mutation):
 
         event.save()
 
-        return AlterEventMutation(
-            event = event
-        )
+        return AlterEventMutation(success = True)
 
 class DeleteEventMutation(graphene.Mutation):
 
@@ -190,7 +187,7 @@ class DeleteEventMutation(graphene.Mutation):
 
     success = graphene.Boolean()
 
-    @classmethod
+    @require_auth
     def mutate(
         cls,
         root,
@@ -199,7 +196,6 @@ class DeleteEventMutation(graphene.Mutation):
     ):
         
         user: User = info.context.user
-        if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         event = get_event(event_id, user.id, MemberRole.ORGANIZER)
 

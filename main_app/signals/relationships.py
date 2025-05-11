@@ -1,7 +1,9 @@
-from django.db.models.signals import post_save, pre_save
 from django.db.models.functions import Now
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
-from ..models import Relationship, Chat, ChatMember
+
+from ..models import Chat, ChatMember, Relationship
+
 
 @receiver(post_save, sender=Relationship, dispatch_uid="main_app.signals.update_relationship_update_time")
 def update_relationship_update_time_handler(sender, instance: Relationship, **kwargs):

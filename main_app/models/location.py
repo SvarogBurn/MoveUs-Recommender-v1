@@ -2,6 +2,7 @@ from django.db import models
 
 from .enums import CountryCode
 
+
 class Location(models.Model):
     longitude = models.FloatField()
     latitude = models.FloatField()

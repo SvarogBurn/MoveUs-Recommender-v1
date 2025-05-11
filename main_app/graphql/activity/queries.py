@@ -1,7 +1,8 @@
 import graphene
 
-from .types import ActivityType
 from ...models import Activity
+from .types import ActivityType
+
 
 class ActivityQuery(graphene.ObjectType):
     all_activities = graphene.List(ActivityType)

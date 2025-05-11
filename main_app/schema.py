@@ -1,6 +1,6 @@
 from graphene import Schema
 
-from main_app.graphql import query, mutation, subscription
+from main_app.graphql import mutation, query, subscription
 from main_app.graphql.unreferenced_types import unreferenced_types
 
 schema = Schema(query=query.Queries, 

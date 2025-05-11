@@ -1,12 +1,17 @@
 import graphene
-
 from django.utils.timezone import now
 
-from main_app.graphql.event.types import EventType
-from main_app.util import get_event, get_event_with_member, require_auth, send_event_finished_notification
-from main_app.models import User, EventMember, EventMemberLike
-from main_app.models.enums import MemberRole, EventRating
 from main_app.graphql.error import MUError, MUErrorCode
+from main_app.graphql.event.types import EventType
+from main_app.models import EventMember, EventMemberLike, User
+from main_app.models.enums import EventRating, MemberRole
+from main_app.util import (
+    get_event,
+    get_event_with_member,
+    require_auth,
+    send_event_finished_notification,
+)
+
 
 class ConfirmMemberParticipationMutation(graphene.Mutation):
     
@@ -39,7 +44,7 @@ class FinishEventMutation(graphene.Mutation):
     class Arguments:
         event_id = graphene.Int(required=True)
 
-    event = graphene.Field(EventType)
+    success = graphene.Boolean()
 
     @require_auth
     def mutate(self, info, event_id: int):
@@ -60,7 +65,7 @@ class FinishEventMutation(graphene.Mutation):
         event.save();
         send_event_finished_notification(event_id)
 
-        return FinishEventMutation(event=event)
+        return FinishEventMutation(success = True)
     
 class RateEventMutation(graphene.Mutation):
 
@@ -81,7 +86,7 @@ class RateEventMutation(graphene.Mutation):
             raise MUError(MUErrorCode.RATE_COMMENT_MAX_LENGTH)
 
         if not event.finished:
-            raise MUError(MUErrorCode.CANNOT_RATE_UNFINISHED)
+            raise MUError(MUErrorCode.CANNOT_RATE_UNFINISHED_EVENT)
         
         if member.role == MemberRole.ORGANIZER:
             return MUError(MUErrorCode.CANNOT_RATE_OWN_EVENT)

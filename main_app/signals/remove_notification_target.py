@@ -1,6 +1,8 @@
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
+
 from ..models import Event, Notification, User
+
 
 @receiver(post_delete, sender=Event, dispatch_uid="main_app.signals.remove_target_event_notification")
 def remove_target_event_notification_handler(sender, instance: Event, **kwargs):

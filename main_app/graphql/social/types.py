@@ -2,9 +2,9 @@ import graphene
 
 from main_app.models.enums import RelationshipStatus as RS
 
+from ...models import Relationship
 from ..object_type import MUObjectType
 
-from ...models import Relationship
 
 class RelationshipType(MUObjectType):
 

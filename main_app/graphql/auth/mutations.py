@@ -1,20 +1,23 @@
 import graphene
+from allauth.account import app_settings as allauth_settings
+from allauth.account.adapter import get_adapter
+from allauth.account.forms import ResetPasswordForm
+from allauth.account.models import EmailAddress
+from allauth.account.utils import (
+    complete_signup,
+    perform_login,
+    send_email_confirmation,
+)
+from django.contrib.auth import authenticate, logout
 
 from main_app.graphql.user.types import ProfileType
-
-from allauth.account.utils import complete_signup, perform_login, send_email_confirmation
-from allauth.account.adapter import get_adapter
-from allauth.account.models import EmailAddress
-from allauth.account.forms import ResetPasswordForm
-from allauth.account import app_settings as allauth_settings
-from django.contrib.auth import logout, authenticate
-
 from main_app.models.user import User
 from main_app.util import require_auth
 from main_app.validators import signup_validator
 
 from ..error import MUError, MUErrorCode
-    
+
+
 class LoginMutation(graphene.Mutation):
 
     class Arguments:
@@ -100,7 +103,7 @@ class DeleteAccountMutation(graphene.Mutation):
         request = info.context
         user: User = request.user
         if not user.id:
-            raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
+            raise MUError(MUErrorCode.AUTHENTICATION_ERROR)
         logout(request)
         user.delete()
 

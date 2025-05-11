@@ -1,8 +1,15 @@
 import graphene
 
-from main_app.util import require_auth, generate_profile_picture_url, get_event, generate_event_picture_url, generate_attachment_upload_url
-from main_app.models.enums import MemberRole
 from main_app.graphql.misc.types import AttachmentType
+from main_app.models.enums import MemberRole
+from main_app.util import (
+    generate_attachment_upload_url,
+    generate_event_picture_url,
+    generate_profile_picture_url,
+    get_event,
+    require_auth,
+)
+
 
 class SignedURLQuery(graphene.ObjectType):
     profile_picture_gcloud_url = graphene.String()

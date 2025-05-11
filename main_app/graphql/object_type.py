@@ -1,7 +1,7 @@
 import graphene
+from django.db.models.fields.composite import CompositePrimaryKey
 from graphene_django.types import DjangoObjectType
 
-from django.db.models.fields.composite import CompositePrimaryKey
 
 class MUObjectType(DjangoObjectType):
 

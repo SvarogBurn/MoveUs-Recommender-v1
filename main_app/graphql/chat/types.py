@@ -1,10 +1,11 @@
 import graphene
 
-from ..object_type import MUObjectType
+from main_app.models.enums import ChatNotifications
+from main_app.util import generate_attachment_url, require_auth
 
 from ...models import Chat, ChatMember, ChatMessage
-from main_app.util import require_auth, generate_attachment_url
-from main_app.models.enums import ChatNotifications
+from ..object_type import MUObjectType
+
 
 class ChatMemberType(MUObjectType):
     class Meta:
@@ -39,7 +40,7 @@ class ChatType(MUObjectType):
 
     class Meta:
         model = Chat
-        exclude = ('relationship_set', 'event_set')
+        fields = ('id', 'time_created', 'members', 'messages')
 
     @require_auth
     def resolve_notifications(self: Chat, info):

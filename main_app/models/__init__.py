@@ -1,6 +1,13 @@
-from .social import Chat, ChatMember, ChatMessage, Relationship, Post, PostComment
-from .location import Location
-from .misc import EventReport, UserReport, UserOtherOption, UserPrivacySetting, UserPersonalityTrait, Notification
-from .user import User, PreferredActivity
-from .event import Event, EventMember, EventMemberLike
 from .activities import *
+from .event import Event, EventMember, EventMemberLike
+from .location import Location
+from .misc import (
+    EventReport,
+    Notification,
+    UserOtherOption,
+    UserPersonalityTrait,
+    UserPrivacySetting,
+    UserReport,
+)
+from .social import Chat, ChatMember, ChatMessage, Post, PostComment, Relationship
+from .user import PreferredActivity, User

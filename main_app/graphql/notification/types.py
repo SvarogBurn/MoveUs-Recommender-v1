@@ -1,8 +1,9 @@
 import graphene
 
-from main_app.graphql.user.types import UserType
 from main_app.graphql.event.types import EventType
+from main_app.graphql.user.types import UserType
 from main_app.models.enums import NotificationEnum
+
 
 class BaseNotificationType(graphene.Interface):
     id = graphene.Int()

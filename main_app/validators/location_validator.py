@@ -1,5 +1,7 @@
 from main_app.models.enums import CountryCode
+
 from ..graphql.error import MUError, MUErrorCode
+
 
 def location_validator(
         location_longitude: float = None,

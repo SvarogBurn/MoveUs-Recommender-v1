@@ -15,16 +15,15 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.contrib.auth import get_user_model
+from django.contrib.sessions.models import Session
+from django.http import HttpRequest
 from django.urls import include, path
 from django.views.decorators.csrf import csrf_exempt
 from graphene_django.views import GraphQLView
 
 from .settings import DEBUG
 
-from django.contrib.sessions.models import Session
-from django.contrib.auth import get_user_model
-from django.http import HttpRequest
-from graphene_django.views import GraphQLView
 
 class CustomGraphQLView(GraphQLView):
     def get_context(self, request: HttpRequest, *args, **kwargs):

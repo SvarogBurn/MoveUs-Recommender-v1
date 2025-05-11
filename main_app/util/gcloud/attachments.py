@@ -1,10 +1,11 @@
 import uuid
 
-from core.redis_client import get_sync, set_sync
+from asgiref.sync import async_to_sync
+
 from core.gcs_client import bucket
-from core.settings import CONFIG
-from main_app.util.gcloud.generate import generate_signed_url, Method
+from core.redis_client import get_sync, set_sync
 from main_app.graphql.error import MUError, MUErrorCode
+from main_app.util.gcloud.generate import Method, generate_signed_url
 
 format_key = lambda id: f"attachment:{id}:creator"
 

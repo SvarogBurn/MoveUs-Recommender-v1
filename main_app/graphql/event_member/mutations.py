@@ -1,12 +1,12 @@
 import graphene
-
 from django.utils.timezone import now
 
 from main_app.graphql.error import MUError, MUErrorCode
-from main_app.models import EventMember, Event, User
-from main_app.models.enums import MemberRole
 from main_app.graphql.event_member.types import EventMemberType
-from main_app.util import require_auth, get_event
+from main_app.models import EventMember, User
+from main_app.models.enums import MemberRole
+from main_app.util import get_event, require_auth
+
 
 class JoinEventMutation(graphene.Mutation):
     
@@ -32,10 +32,10 @@ class JoinEventMutation(graphene.Mutation):
             raise MUError(MUErrorCode.GENDER_NOT_ALLOWED)
         
         if event.min_age and not user.date_of_birth or user.age < event.min_age:
-            raise MUError(MUErrorCode.AGE_RANGE)
+            raise MUError(MUErrorCode.AGE_RANGE_INVALID)
         
         if event.max_age and not user.date_of_birth or user.age > event.max_age:
-            raise MUError(MUErrorCode.AGE_RANGE)
+            raise MUError(MUErrorCode.AGE_RANGE_INVALID)
 
         member: EventMember = None
         

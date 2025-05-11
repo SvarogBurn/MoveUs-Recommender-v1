@@ -1,18 +1,14 @@
 import graphene
 
-from datetime import datetime
-
-from main_app.graphql.event.types import EventType
-from main_app.graphql.location.types import LocationType
 from main_app.graphql.user.types import ProfileType
 from main_app.models.location import Location
-from main_app.util import get_event
-from main_app.util.get_or_create_location import get_or_create_location
-from main_app.validators import location_validator, event_validator
+from main_app.util import get_event, require_auth
+from main_app.validators import location_validator
 
-from ..error import MUError, MUErrorCode
-from ...models import User, Event, EventMember
+from ...models import Event, EventMember, User
 from ...models.enums import CountryCode, MemberRole
+from ..error import MUError, MUErrorCode
+
 
 class UpdateProfileLocation(graphene.Mutation):
 
@@ -20,9 +16,9 @@ class UpdateProfileLocation(graphene.Mutation):
         longitude = graphene.Float()
         latitude = graphene.Float()
 
-    my_profile = graphene.Field(ProfileType)
+    success = graphene.Boolean()
 
-    @classmethod
+    @require_auth
     def mutate(
         cls,
         root,
@@ -32,7 +28,6 @@ class UpdateProfileLocation(graphene.Mutation):
     ):
         
         user: User = info.context.user
-        if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         location_validator(
             location_longitude = longitude,
@@ -42,9 +37,7 @@ class UpdateProfileLocation(graphene.Mutation):
         user.latitude = latitude
         user.longitude = longitude
 
-        return UpdateProfileLocation(
-            my_profile = user
-        )        
+        return UpdateProfileLocation(success = True)        
     
 class AlterEventLocation(graphene.Mutation):
 
@@ -59,9 +52,9 @@ class AlterEventLocation(graphene.Mutation):
         location_region = graphene.String(required = False)
         location_name = graphene.String(required = False)
 
-    event = graphene.Field(EventType)
+    success = graphene.Boolean()
 
-    @classmethod
+    @require_auth
     def mutate(
         cls,
         root,
@@ -78,7 +71,6 @@ class AlterEventLocation(graphene.Mutation):
     ):
         
         user: User = info.context.user
-        if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         event = get_event(event_id, user.id, MemberRole.ORGANIZER)
 
@@ -103,9 +95,7 @@ class AlterEventLocation(graphene.Mutation):
         if location_name: location.name = location_name 
         location.save()
 
-        return AlterEventLocation(
-            event = event
-        )        
+        return AlterEventLocation(success = True)        
 
 class SetEventLocation(graphene.Mutation):
 
@@ -113,9 +103,9 @@ class SetEventLocation(graphene.Mutation):
         event_id = graphene.Int()
         location_id = graphene.Float(required = False)
 
-    event = graphene.Field(EventType)
+    success = graphene.Boolean()
 
-    @classmethod
+    @require_auth
     def mutate(
         cls,
         root,
@@ -125,7 +115,6 @@ class SetEventLocation(graphene.Mutation):
     ):
         
         user: User = info.context.user
-        if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         event = None
 
@@ -150,9 +139,7 @@ class SetEventLocation(graphene.Mutation):
         except Location.DoesNotExist:
             raise MUError(MUErrorCode.LOCATION_DOES_NOT_EXIST)
 
-        return SetEventLocation(
-            event = event
-        )   
+        return SetEventLocation(success = True)   
 
 class Mutation(graphene.ObjectType):
     update_profile_location = UpdateProfileLocation.Field()

@@ -1,7 +1,8 @@
 import datetime
 import enum
+
 from core.gcs_client import bucket
-from core.settings import CONFIG
+
 
 class Method(enum.Enum):
     GET = "GET"

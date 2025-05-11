@@ -3,6 +3,7 @@ from django.db.models.fields.composite import CompositePrimaryKey
 
 from .enums import ChatNotifications, RelationshipStatus
 
+
 class Chat(models.Model):
     time_created = models.DateTimeField(auto_now_add=True)
 
@@ -40,6 +41,12 @@ class Relationship(models.Model):
                     user_1=user_2,
                     user_2=user_1
                     )
+            
+    def is_blocked(self, user) -> bool:
+        if self.status == RelationshipStatus.BLOCKED_BY_BOTH:
+            return True
+        return user == self.user_2 and self.status == RelationshipStatus.BLOCKED_BY_ONE
+        
 
 class Post(models.Model):
     title = models.CharField(max_length=128)

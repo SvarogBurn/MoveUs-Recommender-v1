@@ -1,17 +1,23 @@
 import json
 
-from main_app.models.event import EventMemberLike
-from ..object_type import MUObjectType
+import graphene
 from django.db.models import Q
 
-import graphene
-
 from main_app.graphql.social.types import RelationshipType
+from main_app.models.event import EventMemberLike
 
-from ...models import User, UserPrivacySetting, Relationship
-from ...models.enums import PrivacyScope, RelationshipStatus, Gender, PrivacySetting, FormedRelationshipsType, PreferredPartnerCharacteristics
-
+from ...models import Relationship, User, UserPrivacySetting
+from ...models.enums import (
+    FormedRelationshipsType,
+    Gender,
+    PreferredPartnerCharacteristics,
+    PrivacyScope,
+    PrivacySetting,
+    RelationshipStatus,
+)
 from ..location.types import LocationType
+from ..object_type import MUObjectType
+
 
 class UserTypeMixin():
     likes = graphene.Int()

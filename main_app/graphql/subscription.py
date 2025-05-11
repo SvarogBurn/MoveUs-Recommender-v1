@@ -1,5 +1,9 @@
+import importlib
+import os
 from inspect import getmembers, isclass
-import os, graphene, importlib
+
+import graphene
+
 
 class SubscriptionsAbstract(graphene.ObjectType):
     pass

@@ -1,7 +1,11 @@
 import re
+
 from allauth.utils import valid_email_or_none
-from ..graphql.error import MUError, MUErrorCode
+
 from main_app.models import User
+
+from ..graphql.error import MUError, MUErrorCode
+
 
 def signup_validator(
         username: str,

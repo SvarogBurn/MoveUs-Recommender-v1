@@ -1,5 +1,6 @@
-from main_app.models import Notification, EventMember
-from main_app.models.enums import NotificationEnum, MemberRole
+from main_app.models import EventMember, Notification
+from main_app.models.enums import MemberRole, NotificationEnum
+
 
 def send_notification(
         to: int,

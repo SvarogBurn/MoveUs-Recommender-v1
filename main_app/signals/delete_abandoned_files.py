@@ -1,8 +1,11 @@
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
-from ..models import Event, User, Post, ChatMessage
-from core.gcs_client import bucket
 from google.api_core.exceptions import NotFound
+
+from core.gcs_client import bucket
+
+from ..models import ChatMessage, Event, Post, User
+
 
 @receiver(post_delete, sender=User, dispatch_uid="main_app.signals.delete_profile_picture")
 def delete_profile_picture_handler(sender, instance: User, **kwargs):

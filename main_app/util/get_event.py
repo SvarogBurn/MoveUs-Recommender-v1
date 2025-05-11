@@ -2,6 +2,7 @@ from main_app.graphql.error import MUError, MUErrorCode
 from main_app.models import Event, EventMember
 from main_app.models.enums import MemberRole
 
+
 def get_event_error_code(role: MemberRole) -> MUErrorCode:
     match role:
         case MemberRole.ORGANIZER: return MUErrorCode.NOT_ORGANIZER

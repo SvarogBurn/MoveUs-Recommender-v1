@@ -1,7 +1,8 @@
 import graphene
 
-from .types import PostType, PostCommentType
 from ...models import Post
+from .types import PostType
+
 
 class PostQuery(graphene.ObjectType):
     post = graphene.Field(PostType, id=graphene.Int())

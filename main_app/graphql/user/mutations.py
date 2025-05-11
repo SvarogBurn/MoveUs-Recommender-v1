@@ -1,21 +1,23 @@
 import graphene
 
-from main_app.graphql.user.types import ProfileType
 from main_app.util import require_auth
 from main_app.validators import profile_validator
 
-from ...models.enums import Gender, MainInterest, TimeOfTheDay
-from ..error import MUError, MUErrorCode
 from ...models import User
 from ...models.enums import (
-    FrequencyOfPhycicalActivity,
-    SocialInteractionImportance,
-    PreferredPartySize,
     FormedRelationshipsType,
+    FrequencyOfPhycicalActivity,
+    Gender,
+    MainInterest,
+    MatchedParticipationLikelihood,
     PhysicalActivitySatisfaction,
     PreferredPartnerCharacteristics,
-    MatchedParticipationLikelihood
+    PreferredPartySize,
+    SocialInteractionImportance,
+    TimeOfTheDay,
 )
+from ..error import MUError, MUErrorCode
+
 
 class BasicInfoMutation(graphene.Mutation):
 
@@ -26,9 +28,9 @@ class BasicInfoMutation(graphene.Mutation):
         bio = graphene.String(required = False)
         gender = Gender.as_graphene_enum()(required=False)
 
-    my_profile = graphene.Field(ProfileType)
+    success = graphene.Boolean()
 
-    @classmethod
+    @require_auth
     def mutate(
         cls,
         root,
@@ -41,7 +43,6 @@ class BasicInfoMutation(graphene.Mutation):
     ):
         
         user: User = info.context.user
-        if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         profile_validator(first_name, last_name, date_of_birth, bio)
 
@@ -53,7 +54,7 @@ class BasicInfoMutation(graphene.Mutation):
 
         user.save()
 
-        return BasicInfoMutation(my_profile = user)
+        return BasicInfoMutation(success = True)
 
 class SubmitSurveyMutation(graphene.Mutation):
 
@@ -82,9 +83,9 @@ class SubmitSurveyMutation(graphene.Mutation):
             required=True
         )
 
-    my_profile = graphene.Field(ProfileType)
+    success = graphene.Boolean()
 
-    @classmethod
+    @require_auth
     def mutate(
         cls, 
         root, 
@@ -110,7 +111,6 @@ class SubmitSurveyMutation(graphene.Mutation):
             raise MUError(MUErrorCode.PREFERRED_EVENT_DURATION_RANGE)
 
         user: User = info.context.user
-        if not user.id: raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
 
         user.frequency_of_physical_activity = frequency_of_physical_activity
         user.social_interaction_importance = social_interaction_importance
@@ -126,14 +126,14 @@ class SubmitSurveyMutation(graphene.Mutation):
 
         user.save()
 
-        return SubmitSurveyMutation(my_profile = user)
+        return SubmitSurveyMutation(success = True)
 
 class UpdateMaxTravelDistanceMutation(graphene.Mutation):
 
     class Arguments:
         distance = graphene.Int(required = False)
 
-    my_profile = graphene.Field(ProfileType)
+    success = graphene.Boolean()
 
     @require_auth
     def mutate(self, info, distance: int = None):
@@ -141,7 +141,7 @@ class UpdateMaxTravelDistanceMutation(graphene.Mutation):
         if distance is not None and not 1 <= distance < 2e5:
             raise MUError(MUErrorCode.TRAVEL_DISTANCE_RANGE)
         user.max_travel_distance = distance
-        return UpdateMaxTravelDistanceMutation(my_profile=user)
+        return UpdateMaxTravelDistanceMutation(success = True)
 
 class Mutation(graphene.ObjectType):
     submit_survey = SubmitSurveyMutation.Field()

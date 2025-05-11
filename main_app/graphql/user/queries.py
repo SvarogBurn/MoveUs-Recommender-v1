@@ -1,18 +1,15 @@
 import graphene
 
-from .types import ProfileType, UserType
+from main_app.util import require_auth
+
+from ...models import User
 from ..error import MUError, MUErrorCode
-from ...models import User, UserPrivacySetting
-from ...models.enums import PrivacySetting, PrivacyScope
+from .types import ProfileType, UserType
+
 
 class UserQuery(graphene.ObjectType):
-    users = graphene.List(UserType)
     user = graphene.Field(UserType, id = graphene.Int())
 
-    def resolve_users(root, info, **kwargs):
-        l =  User.objects.all()
-        return l
-    
     def resolve_user(root, info, id, **kwargs):
         try:
             return User.objects.get(pk=id)
@@ -22,10 +19,9 @@ class UserQuery(graphene.ObjectType):
 class ProfileQuery(graphene.ObjectType):
     my_profile = graphene.Field(ProfileType)
 
+    @require_auth
     def resolve_my_profile(root, info, **kwargs):
-        if info.context.user.id:
-            return info.context.user;
-        raise MUError(MUErrorCode.AUTHENTIFICATION_ERROR)
+        return info.context.user;
 
 
 

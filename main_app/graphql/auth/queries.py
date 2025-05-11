@@ -2,6 +2,7 @@ import graphene
 
 from main_app.models.user import User
 
+
 class AuthUtilQuery(graphene.ObjectType):
     username_taken = graphene.Boolean(
         username = graphene.String(),

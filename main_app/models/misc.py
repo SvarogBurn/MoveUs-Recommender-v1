@@ -1,7 +1,12 @@
 from django.db import models
 from django.db.models.fields.composite import CompositePrimaryKey
 
-from .enums import PrivacySetting as PS, PrivacyScope, OtherOption as OO, PersonalityTrait as PT, NotificationEnum
+from .enums import NotificationEnum
+from .enums import OtherOption as OO
+from .enums import PersonalityTrait as PT
+from .enums import PrivacyScope
+from .enums import PrivacySetting as PS
+
 
 class UserPersonalityTrait(models.Model):
     pk = CompositePrimaryKey('user', 'trait')
@@ -24,12 +29,12 @@ class UserOtherOption(models.Model):
 class UserReport(models.Model):
     reporter = models.ForeignKey("User", on_delete=models.CASCADE)
     reported = models.ForeignKey("User", on_delete=models.CASCADE, related_name='reported_by')
-    comment = models.CharField(max_length=256)
+    comment = models.CharField(max_length=512, null=True)
 
 class EventReport(models.Model):
     reporter = models.ForeignKey("User", on_delete=models.CASCADE)
     reported = models.ForeignKey("Event", on_delete=models.CASCADE, related_name='reported_by')
-    comment = models.CharField(max_length=256)
+    comment = models.CharField(max_length=512, null=True)
 
 class Notification(models.Model):
     user = models.ForeignKey("User", on_delete=models.CASCADE, related_name='notifications')

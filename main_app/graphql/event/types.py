@@ -1,14 +1,13 @@
 import graphene
-
 from django.db.models import Avg
 
 from main_app.graphql.event_member.types import EventMemberType
 from main_app.graphql.post_event.types import EventCommentType
-from ..object_type import MUObjectType
 
 from ...models import Event, EventMember
 from ...models.enums import MemberRole
-from ..post.types import PostType
+from ..object_type import MUObjectType
+
 
 class EventTypeMixin(MUObjectType):
     organizer = graphene.Field(EventMemberType)
