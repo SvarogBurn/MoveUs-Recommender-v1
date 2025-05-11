@@ -69,6 +69,9 @@ class MUErrorCode(IntEnum):
     POST_NOT_LIKED = 363
     POST_COMMENT_MAX_LENGTH = 364
 
+    ATTACHMENT_NOT_OWNED = 370
+    ATTACHMENT_NOT_UPLOADED = 371
+
     USERNAME_ALREADY_TAKEN = 1000
     USERNAME_MIN_LENGTH = 1001
     USERNAME_MAX_LENGTH = 1002
@@ -166,6 +169,8 @@ mu_error_code_messages = {
     EC.POST_ALREADY_LIKED : "You cannot like the same post twice." ,
     EC.POST_NOT_LIKED : "You cannot unlike post you didn't like." ,
     EC.POST_COMMENT_MAX_LENGTH : "Post comment cannot be longer than 512 characters." ,
+    EC.ATTACHMENT_NOT_OWNED : "You can only send messages with attachments you have created." ,
+    EC.ATTACHMENT_NOT_UPLOADED : "You need to upload a file to the attachment link before you can use it." ,
     EC.USERNAME_ALREADY_TAKEN : "Username already taken.",
     EC.USERNAME_MIN_LENGTH : "Username must be at least 3 characters long.",
     EC.USERNAME_MAX_LENGTH : "Username cannot be longer than 24 characters.",

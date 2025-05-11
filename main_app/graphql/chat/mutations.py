@@ -3,7 +3,7 @@ import graphene
 from main_app.graphql.error import MUError, MUErrorCode
 from main_app.models import ChatMember, ChatMessage
 from main_app.models.enums import ChatNotifications
-from main_app.util import get_chat_member
+from main_app.util import get_chat_member, validate_attachment
 
 class SetChatNotifications(graphene.Mutation):
 
@@ -59,6 +59,7 @@ class SendChatMessage(graphene.Mutation):
     class Arguments:
         chat_id = graphene.Int(required=True)
         message = graphene.String(required=True)
+        attachment_id = graphene.String(required=False)
 
     success = graphene.Boolean()
 
@@ -68,18 +69,23 @@ class SendChatMessage(graphene.Mutation):
         root,
         info,
         chat_id: int,
-        message: str
+        message: str,
+        attachment_id: str = None
     ):
         if len(message) > 512:
             raise MUError(MUErrorCode.MESSAGE_TOO_LONG)
 
         user_id: int = info.context.user.id
         get_chat_member(chat_id, user_id)
+
+        if attachment_id:
+            validate_attachment(attachment_id, user_id)
         
         ChatMessage.objects.create(
             chat_id = chat_id,
             user_id = user_id,
-            text_content = message
+            text_content = message,
+            attachment = attachment_id
         )
 
         return SendChatMessage(success=True)

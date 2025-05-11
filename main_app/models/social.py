@@ -19,6 +19,7 @@ class ChatMessage(models.Model):
     user = models.ForeignKey("User", on_delete=models.CASCADE, null=False)
     text_content = models.CharField(max_length=512)
     time_sent = models.DateTimeField(auto_now_add=True)
+    attachment = models.CharField(null=True)
 
 class Relationship(models.Model):
     pk = CompositePrimaryKey('user_1', 'user_2')
@@ -58,9 +59,3 @@ class PostComment(models.Model):
         self.descendents = list(self.replies.all())
         for child in self.descendents:
             child.get_tree()
-        
-
-class Attachment(models.Model):
-    url = models.URLField(null=False)
-    message = models.ForeignKey(ChatMessage, on_delete=models.CASCADE)
-    post = models.ForeignKey(Post, on_delete=models.CASCADE)

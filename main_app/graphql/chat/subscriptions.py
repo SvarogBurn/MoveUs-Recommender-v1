@@ -6,14 +6,14 @@ from django.db.models.functions.datetime import Now
 
 from main_app.graphql.chat.types import WSChatMessageType, WSLastOpenType
 from main_app.models import ChatMessage, ChatMember
-from main_app.util import get_chat_member, wait_for_chat_event, notifiy_chat_event, ChatEventType
+from main_app.util import get_chat_member, wait_for_chat_event, notifiy_chat_event, ChatEventType, generate_attachment_url
 
 @database_sync_to_async
 def get_chat_messages(chat_id: int, last_update: datetime.datetime):
     return list(ChatMessage.objects.filter(
                 chat_id=chat_id,
                 time_sent__gt=last_update
-            ).values('id', 'time_sent', 'text_content', 'user_id'))
+            ).values('id', 'time_sent', 'text_content', 'user_id', 'attachment'))
 
 @database_sync_to_async
 def get_chat_member_async(chat_id: int, user_id: int):
@@ -59,7 +59,8 @@ class Subscription(graphene.ObjectType):
                         id=message['id'],
                         user_id=message['user_id'],
                         time_sent=message['time_sent'],
-                        text_content=message['text_content']
+                        text_content=message['text_content'],
+                        attachment_url=generate_attachment_url(message['attachment']) if message['attachment'] else None
                     ) for message in messages
                 ]
                 last_update = datetime.datetime.now()
