@@ -16,23 +16,26 @@ def get_session(token: str)-> Session:
 class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
-        token: bytes = next(value for key, value in self.scope.get('headers') if key == b'authorization')
-        if not token:
-            await self.close()
+        user_id = self.scope['user'].id
+        if user_id is None:
+            token: bytes = next(value for key, value in self.scope.get('headers') if key == b'authorization')
+            if not token:
+                await self.close()
 
-        token = token.decode()
-        
-        try:
-            session = await get_session(token)
-            session = session.get_decoded()
-            user_id = session.get('_auth_user_id')
-            if user_id:
-                self.scope['user_id'] = user_id
-        except Session.DoesNotExist:
-            await self.close()
-            return
+            token = token.decode()
+            
+            try:
+                session = await get_session(token)
+                session = session.get_decoded()
+                user_id = session.get('_auth_user_id')
+                if user_id:
+                    self.scope['user_id'] = user_id
+            except Session.DoesNotExist:
+                await self.close()
+                return
 
-        await self.accept()
+        self.scope['user_id'] = user_id
+        await self.accept(subprotocol='graphql-transport-ws')
         self.subscriptions = {}
         self.keep_alive_task = None
 
@@ -50,12 +53,14 @@ class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
             
             if message_type == "connection_init":
                 await self.handle_connection_init(data)
-            elif message_type in ("start", "subscribe"):
+            elif message_type in ("subscribe"):
                 await self.handle_start(data)
             elif message_type == "stop":
                 await self.handle_stop(data)
-            elif message_type == "connection_terminate":
+            elif message_type == "complete":
                 await self.close()
+            elif message_type == "pong":
+                pass
             else:
                 await self.send_message("error", None, {"message": "Unknown message type"})
                 
@@ -73,7 +78,7 @@ class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
         while True:
             await asyncio.sleep(15)  # Send every 15 seconds
             try:
-                await self.send_message("ka")
+                await self.send_message("ping")
             except:
                 break
 
@@ -115,7 +120,7 @@ class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
             else:
                 # It's a regular query/mutation result
                 await self.send_message(
-                    "data",
+                    "next",
                     subscription_id,
                     {"data": result.data}
                 )
@@ -133,7 +138,7 @@ class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
             async for item in result:
                 if subscription_id in self.subscriptions:  # Check if still active
                     await self.send_message(
-                        "data",
+                        "next",
                         subscription_id,
                         {"data": item.data}
                     )

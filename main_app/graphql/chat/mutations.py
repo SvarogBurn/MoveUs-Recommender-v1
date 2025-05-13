@@ -16,8 +16,7 @@ class SetChatNotifications(graphene.Mutation):
 
     @require_auth
     def mutate(
-        cls,
-        root,
+        self,
         info,
         chat_id: int,
         notifications: ChatNotifications
@@ -39,8 +38,7 @@ class SetChatNickname(graphene.Mutation):
 
     @require_auth
     def mutate(
-        cls,
-        root,
+        self,
         info,
         chat_id: int,
         nickname: str
@@ -66,8 +64,7 @@ class SendChatMessage(graphene.Mutation):
 
     @require_auth
     def mutate(
-        cls,
-        root,
+        self,
         info,
         chat_id: int,
         message: str,
