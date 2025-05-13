@@ -26,13 +26,18 @@ CONFIG = dotenv_values('.env')
 SECRET_KEY = CONFIG['SECRET_KEY']
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = CONFIG['DEBUG'] == "True"
 
-ALLOWED_HOSTS = ['*']
-CORS_ORIGIN_ALLOW_ALL = DEBUG
+CORS_ALLOWED_ORIGINS = [
+    "https://app.moveusapp.com",
+    "http://localhost:3000",
+    "ws://app.moveusapp.com",
+    "ws://localhost:3000"
+]
 
+CORS_ALLOW_CREDENTIALS = True
 
-# Application definition
+# Application definition``
 
 INSTALLED_APPS = [
     'daphne',
@@ -42,6 +47,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'allauth',
     'allauth.account',
     'allauth.headless',
@@ -60,6 +66,7 @@ AUTHENTICATION_BACKENDS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
