@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/dev/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/dev/ref/settings/
 """
-
+import re
 from pathlib import Path
 
 from dotenv import dotenv_values
@@ -28,11 +28,16 @@ SECRET_KEY = CONFIG['SECRET_KEY']
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = CONFIG['DEBUG'] == "True"
 
+web_origin = CONFIG.get('WEB_ORIGIN', "http://localhost:3000")
+web_host = re.search(r'^(?:https?:\/\/)?([^\/:?#]+)', web_origin).group(1)
+
 CORS_ALLOWED_ORIGINS = [
-    "https://app.moveusapp.com",
-    "http://localhost:3000",
-    "ws://app.moveusapp.com",
-    "ws://localhost:3000"
+    CONFIG.get('WEB_ORIGIN', "http://localhost:3000"),
+]
+
+ALLOWED_HOSTS = [
+    web_host,
+    'localhost'
 ]
 
 CORS_ALLOW_CREDENTIALS = True

@@ -35,6 +35,11 @@ class User(AbstractUser):
     xp = models.IntegerField(default=0)
     verified = models.BooleanField(default=False)
 
+    def save(self, *args, **kwargs):
+        if self.username:
+            self.username = self.username.lower()
+        super().save(*args, **kwargs)
+
     @property
     def display_name(self) -> str:
         return self.first_name if self.first_name else self.username

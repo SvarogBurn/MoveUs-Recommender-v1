@@ -41,7 +41,7 @@ class LoginMutation(graphene.Mutation):
         if is_email:
             profile = authenticate(request, email=user, password=password)
         else:
-            profile = authenticate(request, username=user, password=password)
+            profile = authenticate(request, username=user.lower(), password=password)
 
         if profile is None:
             raise MUError(MUErrorCode.INVALID_LOGIN)

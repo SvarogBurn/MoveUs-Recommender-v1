@@ -17,7 +17,7 @@ class AuthUtilQuery(graphene.ObjectType):
     is_logged_in = graphene.Boolean()
     
     def resolve_username_taken(self, info, username: str):
-        if User.objects.filter(username=username).count():
+        if User.objects.filter(username=username.lower()).count():
             return True
         return False
 
