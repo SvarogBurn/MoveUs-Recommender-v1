@@ -10,13 +10,13 @@ def profile_validator(
         bio: str = None
         ):
     
-    if first_name is not None:
+    if first_name:
         if len(first_name) > 32:
             raise MUError(MUErrorCode.FIRSTNAME_MAX_LENGTH)
-        if len(last_name) < 2:
+        if len(first_name) < 2:
             raise MUError(MUErrorCode.FIRSTNAME_MIN_LENGTH)
 
-    if last_name is not None:
+    if last_name:
         if len(last_name) > 32:
             raise MUError(MUErrorCode.LASTNAME_MAX_LENGTH)
         if len(last_name) < 2:

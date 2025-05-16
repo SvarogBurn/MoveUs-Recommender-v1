@@ -126,6 +126,11 @@ class Gender(BaseIntEnum):
     NON_BINARY = 2
     PREFER_NOT_TO_SAY = 3
 
+class GenderNoPNTS(BaseIntEnum):
+    MALE = 0
+    FEMALE = 1
+    NON_BINARY = 2
+
 class TimeOfTheDay(BaseIntEnum):
     MORNING = 0
     AFTERNOON = 1

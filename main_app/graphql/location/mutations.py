@@ -20,8 +20,7 @@ class UpdateProfileLocation(graphene.Mutation):
 
     @require_auth
     def mutate(
-        cls,
-        root,
+        self,
         info,
         longitude: float = None,
         latitude: float = None,
@@ -36,6 +35,7 @@ class UpdateProfileLocation(graphene.Mutation):
 
         user.latitude = latitude
         user.longitude = longitude
+        user.save()
 
         return UpdateProfileLocation(success = True)        
     

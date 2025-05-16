@@ -9,11 +9,20 @@ from main_app.models.event import EventMemberLike
 from ...models import Relationship, User, UserPrivacySetting
 from ...models.enums import (
     FormedRelationshipsType,
+    FrequencyOfPhycicalActivity,
     Gender,
+    GenderNoPNTS,
+    MainInterest,
+    MatchedParticipationLikelihood,
+    PhysicalActivitySatisfaction,
     PreferredPartnerCharacteristics,
+    PreferredPartySize,
+    SocialInteractionImportance,
+    TimeOfTheDay,
     PrivacyScope,
     PrivacySetting,
     RelationshipStatus,
+    
 )
 from ..location.types import LocationType
 from ..object_type import MUObjectType
@@ -36,13 +45,29 @@ class UserTypeMixin():
         ).count()
 
 class ProfileType(MUObjectType, UserTypeMixin):
+    
+    formed_relationship_types = graphene.List(FormedRelationshipsType.as_graphene_enum())
+    preferred_partner_characteristics = graphene.List(PreferredPartnerCharacteristics.as_graphene_enum())
+    preferred_time_of_the_day = graphene.List(TimeOfTheDay.as_graphene_enum())
+    gender_preference = graphene.List(GenderNoPNTS.as_graphene_enum())
+
+    frequency_of_physical_activity = FrequencyOfPhycicalActivity.as_graphene_enum()()
+    social_interaction_importance = SocialInteractionImportance.as_graphene_enum()()
+    preferred_party_size = PreferredPartySize.as_graphene_enum()()
+    physical_activity_satisfaction = PhysicalActivitySatisfaction.as_graphene_enum()()
+    matched_participation_likelihood = MatchedParticipationLikelihood.as_graphene_enum()()
+    main_interest = MainInterest.as_graphene_enum()()
+
+    
     class Meta:
         model = User
         exclude = (
             'is_superuser', 'is_staff', 'post_set', 'postcomment_set', 'friends_added', 'friends_added_by'
         )
+        convert_choices_to_enum = True
 
     def resolve_formed_relationship_types(self: User, info):
+        if self.formed_relationship_types is None: return []
         frt_formatted = [
             next(n for n, v in vars(FormedRelationshipsType).items() if v == x)
             for x in self.formed_relationship_types
@@ -50,11 +75,47 @@ class ProfileType(MUObjectType, UserTypeMixin):
         return frt_formatted
     
     def resolve_preferred_partner_characteristics(self: User, info):
-        frt_formatted = [
+        if self.preferred_partner_characteristics is None: return []
+        ppc_formatted = [
             next(n for n, v in vars(PreferredPartnerCharacteristics).items() if v == x)
-            for x in self.formed_relationship_types
+            for x in self.preferred_partner_characteristics
         ]
-        return frt_formatted
+        return ppc_formatted
+    
+    def resolve_preferred_time_of_the_day(self: User, info):
+        if self.preferred_time_of_the_day is None: return []
+        ptd_formatted = [
+            next(n for n, v in vars(TimeOfTheDay).items() if v == x)
+            for x in self.preferred_time_of_the_day
+        ]
+        return ptd_formatted
+    
+    def resolve_gender_preference(self: User, info):
+        if self.gender_preference is None: return []
+        gpf_formatted = [
+            next(n for n, v in vars(GenderNoPNTS).items() if v == x)
+            for x in self.gender_preference
+        ]
+        return gpf_formatted
+    
+    def resolve_frequency_of_physical_activity(self: User, info):
+        return self.frequency_of_physical_activity
+
+    def resolve_social_interaction_importance(self: User, info):
+        return self.social_interaction_importance
+
+    def resolve_preferred_party_size(self: User, info):
+        return self.preferred_party_size
+
+    def resolve_physical_activity_satisfaction(self: User, info):
+        return self.physical_activity_satisfaction
+
+    def resolve_matched_participation_likelihood(self: User, info):
+        return self.matched_participation_likelihood
+
+    def resolve_main_interest(self: User, info):
+        return self.main_interest
+
 
 class UserType(MUObjectType, UserTypeMixin):
     location = graphene.Field(LocationType)

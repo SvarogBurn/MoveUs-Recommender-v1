@@ -15,11 +15,12 @@ from ...models.enums import (
     PreferredPartySize,
     SocialInteractionImportance,
     TimeOfTheDay,
+    GenderNoPNTS
 )
 from ..error import MUError, MUErrorCode
 
 
-class BasicInfoMutation(graphene.Mutation):
+class UpdateBasicInfoMutation(graphene.Mutation):
 
     class Arguments:
         date_of_birth = graphene.Date(required = False)
@@ -32,8 +33,7 @@ class BasicInfoMutation(graphene.Mutation):
 
     @require_auth
     def mutate(
-        cls,
-        root,
+        self,
         info,
         date_of_birth = None,
         first_name = None,
@@ -54,49 +54,48 @@ class BasicInfoMutation(graphene.Mutation):
 
         user.save()
 
-        return BasicInfoMutation(success = True)
+        return UpdateBasicInfoMutation(success = True)
 
-class SubmitSurveyMutation(graphene.Mutation):
+class UpdateSurveyInfoMutation(graphene.Mutation):
 
     class Arguments:
-        frequency_of_physical_activity = FrequencyOfPhycicalActivity.as_graphene_enum()(required=True)
-        social_interaction_importance = SocialInteractionImportance.as_graphene_enum()(required=True)
-        preferred_party_size = PreferredPartySize.as_graphene_enum()(required=True)
-        physical_activity_satisfaction = PhysicalActivitySatisfaction.as_graphene_enum()(required=True)
-        matched_participation_likelihood = MatchedParticipationLikelihood.as_graphene_enum()(required=True)
-        main_interest = MainInterest.as_graphene_enum()(required=True)
-        preferred_event_duration = graphene.Int(required=True)
+        frequency_of_physical_activity = FrequencyOfPhycicalActivity.as_graphene_enum()(required=False)
+        social_interaction_importance = SocialInteractionImportance.as_graphene_enum()(required=False)
+        preferred_party_size = PreferredPartySize.as_graphene_enum()(required=False)
+        physical_activity_satisfaction = PhysicalActivitySatisfaction.as_graphene_enum()(required=False)
+        matched_participation_likelihood = MatchedParticipationLikelihood.as_graphene_enum()(required=False)
+        main_interest = MainInterest.as_graphene_enum()(required=False)
+        preferred_event_duration = graphene.Int(required=False)
         formed_relationship_types = graphene.List(
             FormedRelationshipsType.as_graphene_enum(),
-            required=True
+            required=False
         )
         preferred_partner_characteristics = graphene.List(
             PreferredPartnerCharacteristics.as_graphene_enum(),
-            required=True
+            required=False
         )
         preferred_time_of_the_day = graphene.List(
             TimeOfTheDay.as_graphene_enum(),
-            required=True
+            required=False
         )
         gender_preference = graphene.List(
-            Gender.as_graphene_enum(),
-            required=True
+            GenderNoPNTS.as_graphene_enum(),
+            required=False
         )
 
     success = graphene.Boolean()
 
     @require_auth
     def mutate(
-        cls, 
-        root, 
+        self, 
         info,
-        frequency_of_physical_activity: FrequencyOfPhycicalActivity,
-        social_interaction_importance: SocialInteractionImportance,
-        preferred_party_size: PreferredPartySize,
-        physical_activity_satisfaction: PhysicalActivitySatisfaction,
-        matched_participation_likelihood: MatchedParticipationLikelihood,
-        main_interest: MainInterest,
-        preferred_event_duration: int,
+        frequency_of_physical_activity: FrequencyOfPhycicalActivity = None,
+        social_interaction_importance: SocialInteractionImportance = None,
+        preferred_party_size: PreferredPartySize = None,
+        physical_activity_satisfaction: PhysicalActivitySatisfaction = None,
+        matched_participation_likelihood: MatchedParticipationLikelihood = None,
+        main_interest: MainInterest = None,
+        preferred_event_duration: int = None,
         formed_relationship_types: list = [],
         preferred_partner_characteristics: list = [],
         preferred_time_of_the_day: list = [],
@@ -104,21 +103,18 @@ class SubmitSurveyMutation(graphene.Mutation):
         **kwargs
         ):
 
-        if Gender.PREFER_NOT_TO_SAY in gender_preference:
-            raise MUError(MUErrorCode.USER_PREFERRED_GENDERS_CHOICE)
-
-        if not 1 <= preferred_event_duration <= 200:
+        if preferred_event_duration and not 1 <= preferred_event_duration <= 200:
             raise MUError(MUErrorCode.PREFERRED_EVENT_DURATION_RANGE)
 
         user: User = info.context.user
 
-        user.frequency_of_physical_activity = frequency_of_physical_activity
-        user.social_interaction_importance = social_interaction_importance
-        user.preferred_party_size = preferred_party_size
-        user.physical_activity_satisfaction = physical_activity_satisfaction
-        user.matched_participation_likelihood = matched_participation_likelihood
-        user.main_interest = main_interest
-        user.preferred_event_duration = preferred_event_duration
+        if frequency_of_physical_activity is not None: user.frequency_of_physical_activity = frequency_of_physical_activity
+        if social_interaction_importance is not None: user.social_interaction_importance = social_interaction_importance
+        if preferred_party_size is not None: user.preferred_party_size = preferred_party_size
+        if physical_activity_satisfaction is not None: user.physical_activity_satisfaction = physical_activity_satisfaction
+        if matched_participation_likelihood is not None: user.matched_participation_likelihood = matched_participation_likelihood
+        if main_interest is not None: user.main_interest = main_interest
+        if preferred_event_duration is not None: user.preferred_event_duration = preferred_event_duration
         user.formed_relationship_types = formed_relationship_types
         user.preferred_partner_characteristics = preferred_partner_characteristics
         user.preferred_time_of_the_day = preferred_time_of_the_day
@@ -126,7 +122,7 @@ class SubmitSurveyMutation(graphene.Mutation):
 
         user.save()
 
-        return SubmitSurveyMutation(success = True)
+        return UpdateBasicInfoMutation(success = True)
 
 class UpdateMaxTravelDistanceMutation(graphene.Mutation):
 
@@ -144,6 +140,6 @@ class UpdateMaxTravelDistanceMutation(graphene.Mutation):
         return UpdateMaxTravelDistanceMutation(success = True)
 
 class Mutation(graphene.ObjectType):
-    submit_survey = SubmitSurveyMutation.Field()
-    submit_basic_info = BasicInfoMutation.Field()
+    update_survey_info = UpdateSurveyInfoMutation.Field()
+    update_basic_info = UpdateBasicInfoMutation.Field()
     update_max_travel_distance = UpdateMaxTravelDistanceMutation.Field()
