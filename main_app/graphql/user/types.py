@@ -3,10 +3,10 @@ import json
 import graphene
 from django.db.models import Q
 
+from main_app.graphql.event.types import EventType
 from main_app.graphql.social.types import RelationshipType
-from main_app.models.event import EventMemberLike
+from main_app.models import Event, EventMemberLike, EventMember, Relationship, User, UserPrivacySetting
 
-from ...models import Relationship, User, UserPrivacySetting
 from ...models.enums import (
     FormedRelationshipsType,
     FrequencyOfPhycicalActivity,
@@ -14,6 +14,7 @@ from ...models.enums import (
     GenderNoPNTS,
     MainInterest,
     MatchedParticipationLikelihood,
+    MemberRole,
     PhysicalActivitySatisfaction,
     PreferredPartnerCharacteristics,
     PreferredPartySize,
@@ -31,6 +32,9 @@ from ..object_type import MUObjectType
 class UserTypeMixin():
     likes = graphene.Int()
     dislikes = graphene.Int()
+    friends = graphene.List(lambda: UserType)
+    friend_count = graphene.Int()
+    organizes = graphene.List(EventType)
 
     def resolve_likes(self: User, info):
         return EventMemberLike.objects.filter(
@@ -43,6 +47,41 @@ class UserTypeMixin():
             user_2 = self,
             like = False
         ).count()
+    
+    def resolve_friends(self, info):
+
+        def all_friends():
+            user1_q = Q(user_1 = self)
+            user2_q = Q(user_2 = self)
+
+            rels = Relationship.objects.filter(user1_q | user2_q, status = RelationshipStatus.FRIENDS)
+            return [
+                r.user_1 if self.id == r.user_2.id else r.user_2 for r in rels
+            ]
+    
+        if self.id == info.context.user.id: return all_friends()
+        ups = UserPrivacySetting.objects.get(user=self, setting=PrivacySetting.FRIENDS)
+        if ups.scope == PrivacyScope.EVERYONE:
+            return all_friends()
+        if ups.scope == PrivacyScope.FRIENDS and info.context.user.id:
+            q1 = Q(user_1 = self, user_2 = info.context.user)
+            q2 = Q(user_2 = self, user_1 = info.context.user)
+            rel = Relationship.objects.filter(q1 | q2, status = RelationshipStatus.FRIENDS)
+            if len(rel): return all_friends()
+
+    def resolve_friend_count(self: User, info):
+        user1_q = Q(user_1 = self)
+        user2_q = Q(user_2 = self)
+
+        return Relationship.objects.filter(user1_q | user2_q, status = RelationshipStatus.FRIENDS).count()
+    
+    def resolve_organizes(self: User, info):
+        return Event.objects.filter(
+            id__in = EventMember.objects.filter(
+                user = self,
+                role = MemberRole.ORGANIZER
+            ).values("event_id")
+        )
 
 class ProfileType(MUObjectType, UserTypeMixin):
     
@@ -121,9 +160,7 @@ class UserType(MUObjectType, UserTypeMixin):
     location = graphene.Field(LocationType)
     email = graphene.String()
     date_of_birth = graphene.Date()
-    gender = Gender.as_graphene_enum()
-    friends = graphene.List(lambda: UserType)
-    friend_count = graphene.Int()
+    gender = Gender.as_graphene_enum()()
     relationship = graphene.Field(RelationshipType)
 
     class Meta:
@@ -141,12 +178,6 @@ class UserType(MUObjectType, UserTypeMixin):
             "date_joined",
             "preferred_activities"
         )
-
-    def resolve_friend_count(self: User, info):
-        user1_q = Q(user_1 = self)
-        user2_q = Q(user_2 = self)
-
-        return Relationship.objects.filter(user1_q | user2_q, status = RelationshipStatus.FRIENDS).count()
     
     def resolve_location(self: User, info):
         if self.id == info.context.user.id: return self.location
@@ -191,27 +222,6 @@ class UserType(MUObjectType, UserTypeMixin):
             q2 = Q(user_2 = self, user_1 = info.context.user)
             rel = Relationship.objects.filter(q1 | q2, status = RelationshipStatus.FRIENDS)
             if len(rel): return self.gender
-
-    def resolve_friends(self, info):
-
-        def all_friends():
-            user1_q = Q(user_1 = self)
-            user2_q = Q(user_2 = self)
-
-            rels = Relationship.objects.filter(user1_q | user2_q, status = RelationshipStatus.FRIENDS)
-            return [
-                r.user_1 if self.id == r.user_2.id else r.user_2 for r in rels
-            ]
-    
-        if self.id == info.context.user.id: return all_friends()
-        ups = UserPrivacySetting.objects.get(user=self, setting=PrivacySetting.FRIENDS)
-        if ups.scope == PrivacyScope.EVERYONE:
-            return all_friends()
-        if ups.scope == PrivacyScope.FRIENDS and info.context.user.id:
-            q1 = Q(user_1 = self, user_2 = info.context.user)
-            q2 = Q(user_2 = self, user_1 = info.context.user)
-            rel = Relationship.objects.filter(q1 | q2, status = RelationshipStatus.FRIENDS)
-            if len(rel): return all_friends()
 
     def resolve_relationship(self: User, info):
 

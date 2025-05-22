@@ -19,7 +19,6 @@ def update_relationship_update_time_handler(sender, instance: Relationship, **kw
 @receiver(post_save, sender=Relationship, dispatch_uid="main_app.signals.create_relationship_chat")
 def create_relationship_chat(sender, instance: Relationship, **kwargs):
     
-    # call only when created
     if 'created' in kwargs:
         if kwargs['created']:
 

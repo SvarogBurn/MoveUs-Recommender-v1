@@ -37,6 +37,8 @@ class WSLastOpenType(graphene.ObjectType):
 
 class ChatType(MUObjectType):
     notifications = ChatNotifications.as_graphene_enum()()
+    last_message = graphene.Field(ChatMessageType)
+    members = graphene.List(ChatMemberType, required=True)
 
     class Meta:
         model = Chat
@@ -48,3 +50,20 @@ class ChatType(MUObjectType):
             chat_id = self.id,
             user_id = info.context.user.id
         ).notifications
+    
+    @require_auth
+    def resolve_last_message(self: Chat, info):
+        try:
+            return ChatMessage.objects.filter(
+                chat_id = self.id
+            ).latest('time_sent')
+        except ChatMessage.DoesNotExist:
+            return None
+        
+    @require_auth
+    def resolve_members(self: Chat, info):
+        return ChatMember.objects.filter(
+            chat_id = self.id,
+        ).exclude(
+            user_id = info.context.user.id
+        )

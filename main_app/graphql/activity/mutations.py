@@ -3,7 +3,7 @@ import graphene
 from main_app.util import require_auth
 
 from ...models import PreferredActivity, User
-from ...models.enums import ActivityEnum, SkillLevel
+from ...models.enums import Activity, SkillLevel
 from ..activity.types import PreferredActivityType
 from ..error import MUError, MUErrorCode
 
@@ -11,7 +11,7 @@ from ..error import MUError, MUErrorCode
 class SetPreferredActivity(graphene.Mutation):
 
     class Arguments:
-        activity = ActivityEnum.as_graphene_enum()()
+        activity = Activity.as_graphene_enum()()
         skill_level = SkillLevel.as_graphene_enum()()
 
     success = graphene.Boolean()
@@ -21,7 +21,7 @@ class SetPreferredActivity(graphene.Mutation):
         cls,
         root,
         info,
-        activity: ActivityEnum,
+        activity: Activity,
         skill_level: SkillLevel
     ):
         
@@ -43,7 +43,7 @@ class SetPreferredActivity(graphene.Mutation):
 class RemovePreferredActivity(graphene.Mutation):
 
     class Arguments:
-        activity = ActivityEnum.as_graphene_enum()()
+        activity = Activity.as_graphene_enum()()
 
     success = graphene.Boolean()
 
@@ -52,7 +52,7 @@ class RemovePreferredActivity(graphene.Mutation):
         cls,
         root,
         info,
-        activity: ActivityEnum
+        activity: Activity
     ):
         
         user: User = info.context.user

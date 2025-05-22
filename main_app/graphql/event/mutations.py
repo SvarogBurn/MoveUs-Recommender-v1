@@ -8,11 +8,11 @@ from main_app.util import get_event, require_auth
 from main_app.validators import event_validator, location_validator
 
 from ...models import Event, EventMember, User
-from ...models.enums import ActivityEnum, CountryCode, Gender, MemberRole, SkillLevel
+from ...models.enums import Activity, CountryCode, MemberRole, SkillLevel, GenderNoPNTS
 from ..error import MUError, MUErrorCode
 
 
-class AddEventMutation(graphene.Mutation):
+class CreateEventMutation(graphene.Mutation):
 
     class Arguments:
         title = graphene.String(required = True)
@@ -29,14 +29,14 @@ class AddEventMutation(graphene.Mutation):
         location_country_code = CountryCode.as_graphene_enum()(required = False)
         location_region = graphene.String(required = False)
         location_name = graphene.String(required = False)
-        activity = ActivityEnum.as_graphene_enum()(required = True)
+        activity = Activity.as_graphene_enum()(required = True)
         skill_level = SkillLevel.as_graphene_enum()(required = True)
         max_participants = graphene.Int(required = False)
         allow_spectators = graphene.Boolean(required = False)
         min_age = graphene.Int(required=False)
         max_age = graphene.Int(required=False)
         accepted_genders = graphene.List(
-            Gender.as_graphene_enum(),
+            GenderNoPNTS.as_graphene_enum(),
             required=False
             )
 
@@ -44,8 +44,7 @@ class AddEventMutation(graphene.Mutation):
 
     @require_auth
     def mutate(
-        cls,
-        root,
+        self,
         info,
         title: str = None,
         description: str = None,
@@ -61,7 +60,7 @@ class AddEventMutation(graphene.Mutation):
         location_country_code: CountryCode = None,
         location_region: str = None,
         location_name: str = None,
-        activity: ActivityEnum = None,
+        activity: Activity = None,
         skill_level: SkillLevel = None,
         max_participants: int = None,
         allow_spectators: bool = None,
@@ -127,7 +126,7 @@ class AddEventMutation(graphene.Mutation):
             has_participated = True
         )
 
-        return AddEventMutation(
+        return CreateEventMutation(
             event = event
         )      
 
@@ -146,8 +145,7 @@ class AlterEventMutation(graphene.Mutation):
 
     @require_auth
     def mutate(
-        cls,
-        root,
+        self,
         info,
         event_id: str = None,
         title: str = None,
@@ -189,8 +187,7 @@ class DeleteEventMutation(graphene.Mutation):
 
     @require_auth
     def mutate(
-        cls,
-        root,
+        self,
         info,
         event_id: str = None,
     ):
@@ -206,6 +203,6 @@ class DeleteEventMutation(graphene.Mutation):
         )
 
 class Mutation(graphene.ObjectType):
-    add_event = AddEventMutation.Field()
+    create_event = CreateEventMutation.Field()
     alter_event = AlterEventMutation.Field()
     delete_event = DeleteEventMutation.Field()

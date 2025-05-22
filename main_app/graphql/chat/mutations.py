@@ -57,7 +57,7 @@ class SendChatMessage(graphene.Mutation):
 
     class Arguments:
         chat_id = graphene.Int(required=True)
-        message = graphene.String(required=True)
+        message = graphene.String(required=False)
         attachment_id = graphene.String(required=False)
 
     success = graphene.Boolean()
@@ -67,9 +67,13 @@ class SendChatMessage(graphene.Mutation):
         self,
         info,
         chat_id: int,
-        message: str,
+        message: str = None,
         attachment_id: str = None
     ):
+        
+        if message is None and attachment_id is None:
+            raise MUError(MUErrorCode.NO_TEXT_OR_ATTACHMENT)
+
         if len(message) > 512:
             raise MUError(MUErrorCode.MESSAGE_MAX_LENGTH)
 

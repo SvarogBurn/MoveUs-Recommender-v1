@@ -13,7 +13,7 @@ class JoinEventMutation(graphene.Mutation):
     class Arguments:
         event_id = graphene.Int(required=True)
 
-    event_member = graphene.Field(EventMemberType)
+    success = graphene.Boolean()
 
     @require_auth
     def mutate(self, info, event_id: int):
@@ -31,10 +31,10 @@ class JoinEventMutation(graphene.Mutation):
         if event.accepted_genders is not None and not user.gender in event.accepted_genders:
             raise MUError(MUErrorCode.GENDER_NOT_ALLOWED)
         
-        if event.min_age and not user.date_of_birth or user.age < event.min_age:
+        if event.min_age and (not user.date_of_birth or user.age < event.min_age):
             raise MUError(MUErrorCode.AGE_RANGE_INVALID)
         
-        if event.max_age and not user.date_of_birth or user.age > event.max_age:
+        if event.max_age and (not user.date_of_birth or user.age > event.max_age):
             raise MUError(MUErrorCode.AGE_RANGE_INVALID)
 
         member: EventMember = None
@@ -52,7 +52,7 @@ class JoinEventMutation(graphene.Mutation):
                 role=MemberRole.PARTICIPANT
             )
 
-        return JoinEventMutation(event_member=member)
+        return JoinEventMutation(success=True)
     
 class SpectateEventMutation(graphene.Mutation):
     
@@ -69,7 +69,7 @@ class SpectateEventMutation(graphene.Mutation):
         if event.start_time <= now():
             raise MUError(MUErrorCode.EVENT_ALREADY_STARTED)
 
-        member: EventMember = None
+        success = graphene.Boolean()
         
         try:
             member = EventMember.objects.get(pk=(user.id, event_id))
@@ -84,7 +84,7 @@ class SpectateEventMutation(graphene.Mutation):
                 role=MemberRole.SPECTATOR
             )
 
-        return SpectateEventMutation(event_member=member)
+        return SpectateEventMutation(success = True)
     
 class LeaveEventMutation(graphene.Mutation):
     

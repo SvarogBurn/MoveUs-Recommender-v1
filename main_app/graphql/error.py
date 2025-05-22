@@ -74,6 +74,8 @@ class MUErrorCode(IntEnum):
     NOT_IN_CHAT = 400
     NICKNAME_MAX_LENGTH = 401
     MESSAGE_MAX_LENGTH = 402
+    CANNOT_MESSAGE_YOURSELF = 403
+    NO_TEXT_OR_ATTACHMENT = 404
 
     # 5xx – Post & Comment Errors
     POST_TITLE_MAX_LENGTH = 500
@@ -137,10 +139,10 @@ mu_error_code_messages = {
     EC.AUTHENTICATION_ERROR : "You need to be logged in to run this query.",
     EC.AUTHORIZATION_ERROR : "You are not allowed to perform this query.",
     EC.INVALID_LOGIN : "User not found or password is wrong.",
-    EC.NOT_ORGANIZER : "You need to be the event organizer to perform with mutation",
-    EC.NOT_MODERATOR : "You need to be the event organizer or moderator to perform with mutation",
-    EC.NOT_PARTICIPANT : "You need to participate in the event to perform with mutation",
-    EC.NOT_MEMBER : "You need to be in the event to perform with mutation",
+    EC.NOT_ORGANIZER : "You need to be the event organizer to perform this mutation",
+    EC.NOT_MODERATOR : "You need to be the event organizer or moderator to perform this mutation",
+    EC.NOT_PARTICIPANT : "You need to participate in the event to perform this mutation",
+    EC.NOT_MEMBER : "You need to be in the event to perform this mutation",
     EC.USER_DOES_NOT_EXIST : "User does not exits.",
     EC.FRIEND_REQUEST_DOES_NOT_EXIST : "Friendship request does not exist.",
     EC.EVENT_DOES_NOT_EXIST : "Event does not exist.",
@@ -227,6 +229,8 @@ mu_error_code_messages = {
     EC.EVENT_MIN_MAX_PARTICIPANTS : "Max participant count cannot be smaller than one or smaller than the number of currently joined participants.",
     EC.REPORT_COMMENT_MAX_LENGTH : "Report comment cannot be longer than 512 characters.",
     EC.CANNOT_HAVE_RELATION_WITH_SELF : "Cannot run this query on yourself.",
+    EC.CANNOT_MESSAGE_YOURSELF : "Cannot message yourself.",
+    EC.NO_TEXT_OR_ATTACHMENT : "Chat message must include either text or an attachment.",
 }
 
 class MUError(GraphQLError):

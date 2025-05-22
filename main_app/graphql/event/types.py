@@ -14,6 +14,7 @@ class EventTypeMixin(MUObjectType):
     participants = graphene.List(EventMemberType)
     moderators = graphene.List(EventMemberType)
     spectators = graphene.List(EventMemberType)
+    participant_count = graphene.Int()
     role = graphene.Field(MemberRole.as_graphene_enum())
     average_score = graphene.Float()
     comments = graphene.List(EventCommentType)
@@ -44,6 +45,12 @@ class EventTypeMixin(MUObjectType):
             event = self,
             role = MemberRole.SPECTATOR
         )
+    
+    def resolve_participant_count(self: Event, info):
+        return EventMember.objects.filter(
+            event = self,
+            participates = True
+        ).count()
     
     def resolve_role(self: Event, info):
         user_id = info.context.user.id;

@@ -16,7 +16,7 @@ class SendFriendRequestMutation(graphene.Mutation):
     success = graphene.Boolean()
 
     @require_auth
-    def mutate(cls, root, info, user_id):
+    def mutate(self, info, user_id):
 
         if user_id == info.context.user.id: raise MUError(MUErrorCode.CANNOT_HAVE_RELATION_WITH_SELF)
 
@@ -51,7 +51,7 @@ class AcceptFriendRequestMutation(graphene.Mutation):
     success = graphene.Boolean()
 
     @require_auth
-    def mutate(cls, root, info, user_id):
+    def mutate(self, info, user_id):
         other =  User.objects.get(pk=user_id)
 
         try:
@@ -73,7 +73,7 @@ class CancelFriendRequestMutation(graphene.Mutation):
     success = graphene.Boolean()
 
     @require_auth
-    def mutate(cls, root, info, user_id):
+    def mutate(self, info, user_id):
         other =  User.objects.get(pk=user_id)
 
         try:
@@ -95,7 +95,7 @@ class RejectFriendRequestMutation(graphene.Mutation):
     success = graphene.Boolean()
 
     @require_auth
-    def mutate(cls, root, info, user_id):
+    def mutate(self, info, user_id):
         other =  User.objects.get(pk=user_id)
 
         try:
@@ -116,11 +116,13 @@ class RemoveFriendMutation(graphene.Mutation):
     success = graphene.Boolean()
 
     @require_auth
-    def mutate(cls, root, info, user_id):
+    def mutate(self, info, user_id):
         other =  User.objects.get(pk=user_id)
+        q1 = Q(user_1 = info.context.user, user_2 = other)
+        q2 = Q(user_2 = info.context.user, user_1 = other)
 
         try:
-            existing_relationship = Relationship.objects.get(user_1 = other, user_2 = info.context.user)
+            existing_relationship = Relationship.objects.get(q1 | q2)
             if existing_relationship.status != RelationshipStatus.FRIENDS: raise MUError(MUErrorCode.NOT_FRIENDS)
 
             existing_relationship.status = RelationshipStatus.NONE;
@@ -137,7 +139,7 @@ class BlockUserMutation(graphene.Mutation):
     success = graphene.Boolean()
 
     @require_auth
-    def mutate(cls, root, info, user_id):
+    def mutate(self, info, user_id):
 
         if user_id == info.context.user.id: raise MUError(MUErrorCode.CANNOT_HAVE_RELATION_WITH_SELF)
 

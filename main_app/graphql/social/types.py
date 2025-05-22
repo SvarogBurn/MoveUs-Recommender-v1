@@ -11,7 +11,7 @@ class RelationshipType(MUObjectType):
     user = graphene.Field(
         graphene.lazy_import("main_app.graphql.user.types.UserType")
     )
-    status = graphene.String()
+    status = RS.as_graphene_enum()()
 
     class Meta:
         model = Relationship

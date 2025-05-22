@@ -52,6 +52,6 @@ class NotificationQuery(graphene.ObjectType):
             ) for n in event_notifications]
         )
 
-        return result
+        return sorted(result, key=lambda notification: notification.time, reverse=True)
 
 

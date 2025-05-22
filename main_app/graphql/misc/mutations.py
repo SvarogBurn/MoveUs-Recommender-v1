@@ -1,7 +1,8 @@
 import graphene
 
 from main_app.graphql.error import MUError, MUErrorCode
-from main_app.models import Event, EventReport, User, UserReport
+from main_app.models import Event, EventReport, User, UserReport, UserPrivacySetting
+from main_app.models.enums import PrivacyScope
 from main_app.util import require_auth
 
 
@@ -61,7 +62,27 @@ class ReportEventMutation(graphene.Mutation):
         )
 
         return ReportEventMutation(success=True)
+    
+class UpdateAllPrviacySettingsMutation(graphene.Mutation):
+
+    class Arguments:
+        scope = PrivacyScope.as_graphene_enum()(required=True)
+
+    success = graphene.Boolean()
+
+    @require_auth
+    def mutate(self, info, scope: PrivacyScope):
+
+        UserPrivacySetting.objects.filter(
+            user_id=info.context.user.id
+        ).update(
+            scope=scope
+        )
+
+        return UpdateAllPrviacySettingsMutation(success=True)
+
 
 class Mutation(graphene.ObjectType):
-    ReportUserMutation.Field()
-    ReportEventMutation.Field()
+    report_user_mutation = ReportUserMutation.Field()
+    report_event_mutation = ReportEventMutation.Field()
+    update_all_privacy_settings = UpdateAllPrviacySettingsMutation.Field()

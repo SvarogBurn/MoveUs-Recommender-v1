@@ -142,12 +142,38 @@ class MainInterest(BaseIntEnum):
     FUN = 1
     SPORT = 2
 
-class ActivityEnum(BaseIntEnum):
-    HIKING = 0
-    RUNNING = 1
-    SOCCER = 2
-    TENNIS = 3
+class Activity(BaseIntEnum):
+    AEROBICS = 5
+    BADMINTON = 6
+    BASEBALL = 7
+    BASKETBALL = 8
+    BIKING = 9
+    BOXING = 10
+    CLIMBING = 11
+    CRICKET = 12
+    CROSSFIT = 13
+    DANCING = 14
+    FOOTBALL = 15
+    GOLF = 16
     GYM = 4
+    HANDBALL = 17
+    HIKING = 0
+    KAYAKING = 18
+    MARTIAL_ARTS = 19
+    PILATES = 20
+    RUGBY = 21
+    RUNNING = 1
+    SAILING = 22
+    SKATEBOARDING = 23
+    SKIING = 24
+    SNOWBOARDING = 25
+    SOCCER = 2
+    SURFING = 26
+    SWIMMING = 27
+    TENNIS = 3
+    VOLLEYBALL = 28
+    WALKING = 29
+    YOGA = 30
 
 class NotificationEnum(BaseIntEnum):
     FRIEND_REQUEST = 0

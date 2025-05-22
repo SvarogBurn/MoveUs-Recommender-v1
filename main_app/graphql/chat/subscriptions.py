@@ -60,19 +60,18 @@ class Subscription(graphene.ObjectType):
 
         while True:
             messages = await get_chat_messages(chat_id, last_update)
-            if messages:
-                yield [
-                    WSChatMessageType(
-                        id=message['id'],
-                        user_id=message['user_id'],
-                        time_sent=message['time_sent'],
-                        text_content=message['text_content'],
-                        attachment_url=generate_attachment_url(message['attachment']) if message['attachment'] else None
-                    ) for message in messages
-                ]
-                last_update = datetime.datetime.now()
-                await update_last_open(chat_member)
-                notifiy_chat_event(ChatEventType.LastOpenEvent, chat_id)
+            yield [
+                WSChatMessageType(
+                    id=message['id'],
+                    user_id=message['user_id'],
+                    time_sent=message['time_sent'],
+                    text_content=message['text_content'],
+                    attachment_url=generate_attachment_url(message['attachment']) if message['attachment'] else None
+                ) for message in messages
+            ]
+            last_update = datetime.datetime.now()
+            await update_last_open(chat_member)
+            notifiy_chat_event(ChatEventType.LastOpenEvent, chat_id)
             await wait_for_chat_event(ChatEventType.MessageEvent, chat_id)
 
     async def subscribe_chat_last_open(root, info, chat_id: int):
@@ -82,8 +81,7 @@ class Subscription(graphene.ObjectType):
 
         while True:
             last_open = await get_last_open(chat_id, user_id, last_update)
-            if last_open:
-                yield last_open
-                last_update = datetime.datetime.now()
+            yield last_open
+            last_update = datetime.datetime.now()
             await wait_for_chat_event(ChatEventType.LastOpenEvent, chat_id)
 

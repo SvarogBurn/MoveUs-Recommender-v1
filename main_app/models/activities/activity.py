@@ -1,10 +1,10 @@
 from django.db import models
 
-from ..enums import ActivityEnum
+from ..enums import Activity
 
 
 class Activity(models.Model):
     id = models.SmallIntegerField (
-        choices = ActivityEnum.choices(),
+        choices = Activity.choices(),
         primary_key = True
     )
