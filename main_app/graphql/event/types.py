@@ -49,7 +49,6 @@ class EventTypeMixin(MUObjectType):
     def resolve_participant_count(self: Event, info):
         return EventMember.objects.filter(
             event = self,
-            participates = True
         ).count()
     
     def resolve_role(self: Event, info):
