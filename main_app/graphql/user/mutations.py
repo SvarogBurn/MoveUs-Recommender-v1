@@ -1,5 +1,6 @@
 import graphene
 
+from main_app.graphql.user.types import ProfileType
 from main_app.util import require_auth
 from main_app.validators import profile_validator
 
@@ -29,7 +30,7 @@ class UpdateBasicInfoMutation(graphene.Mutation):
         bio = graphene.String(required = False)
         gender = Gender.as_graphene_enum()(required=False)
 
-    success = graphene.Boolean()
+    my_profile = graphene.Field(ProfileType)
 
     @require_auth
     def mutate(
@@ -54,7 +55,7 @@ class UpdateBasicInfoMutation(graphene.Mutation):
 
         user.save()
 
-        return UpdateBasicInfoMutation(success = True)
+        return UpdateBasicInfoMutation(my_profile = user)
 
 class UpdateSurveyInfoMutation(graphene.Mutation):
 
@@ -83,7 +84,7 @@ class UpdateSurveyInfoMutation(graphene.Mutation):
             required=False
         )
 
-    success = graphene.Boolean()
+    my_profile = graphene.Field(ProfileType)
 
     @require_auth
     def mutate(
@@ -122,14 +123,14 @@ class UpdateSurveyInfoMutation(graphene.Mutation):
 
         user.save()
 
-        return UpdateBasicInfoMutation(success = True)
+        return UpdateBasicInfoMutation(my_profile = user)
 
 class UpdateMaxTravelDistanceMutation(graphene.Mutation):
 
     class Arguments:
         distance = graphene.Int(required = False)
 
-    success = graphene.Boolean()
+    my_profile = graphene.Field(ProfileType)
 
     @require_auth
     def mutate(self, info, distance: int = None):
@@ -137,7 +138,8 @@ class UpdateMaxTravelDistanceMutation(graphene.Mutation):
         if distance is not None and not 1 <= distance < 2e5:
             raise MUError(MUErrorCode.TRAVEL_DISTANCE_RANGE)
         user.max_travel_distance = distance
-        return UpdateMaxTravelDistanceMutation(success = True)
+        user.save()
+        return UpdateMaxTravelDistanceMutation(my_profile = user)
 
 class Mutation(graphene.ObjectType):
     update_survey_info = UpdateSurveyInfoMutation.Field()
