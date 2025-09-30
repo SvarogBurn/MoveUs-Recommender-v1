@@ -8,9 +8,14 @@ from ..object_type import MUObjectType
 
 
 class ChatMemberType(MUObjectType):
+    notifications = graphene.Field(ChatNotifications.as_graphene_enum())
+
     class Meta:
         model = ChatMember
-        fields = ('user', 'nickname', 'last_open')
+        fields = ('user', 'nickname', 'chat', 'last_open', 'notifications')
+
+    def resolve_notifications(self: ChatMember, info):
+        return self.notifications
 
 class ChatMessageType(MUObjectType):
     attachment_url = graphene.String()

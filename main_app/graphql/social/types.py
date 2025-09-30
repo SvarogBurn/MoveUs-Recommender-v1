@@ -27,5 +27,3 @@ class RelationshipType(MUObjectType):
     def resolve_user(self: Relationship, info):
         other = self.user_1 if self.user_2 == info.context.user else self.user_2
         return other
-    
-    
