@@ -6,7 +6,7 @@ from main_app.graphql.event.types import EventType
 from main_app.graphql.misc.types import AttachmentType
 from main_app.graphql.post.types import PostType
 from main_app.graphql.user.types import UserType
-from main_app.models.enums import MemberRole
+from main_app.models.enums import MemberRole, SearchCategory
 from main_app.models import User, Event, Post
 from main_app.util import (
     generate_attachment_upload_url,
@@ -49,23 +49,28 @@ class SearchUnion(graphene.Union):
         types = (UserType, EventType, PostType)
 
 class SearchQuery(graphene.ObjectType):
-    search_result = graphene.List(
+    search = graphene.List(
         SearchUnion,
-            search_string = graphene.String(required=True)
-        )
+        search_string = graphene.String(required=True),
+        categories = graphene.List(SearchCategory.as_graphene_enum())
+    )
 
-    def resolve_search_result(self, info, search_string: str):
-        userq1 = Q(username__istartswith=search_string)
-        userq2 = Q(first_name__istartswith=search_string)
+    def resolve_search(self, info, search_string: str, categories = None):
+        result_list = []
 
-        users = User.objects.filter(
-            userq1 | userq2
-        )
-        events = Event.objects.filter(
-            title__istartswith=search_string
-        )
-        posts = Post.objects.filter(
-            title__istartswith=search_string
-        )
+        if categories == None or SearchCategory.USERS in categories:
+            userq1 = Q(username__istartswith=search_string)
+            userq2 = Q(first_name__istartswith=search_string)
+            users = User.objects.filter(userq1 | userq2)
+            result_list += list(users)
 
-        return list(users) + list(events) + list(posts)
+        if categories == None or SearchCategory.EVENTS in categories:
+            events = Event.objects.filter(title__icontains=search_string)
+            result_list += list(events)
+
+        if categories == None or SearchCategory.POSTS in categories:
+            posts = Post.objects.filter(content__icontains=search_string)
+            result_list += list(posts)
+
+        return result_list
+    

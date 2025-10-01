@@ -9,7 +9,7 @@ from ...models import Event, EventMember, User
 from ...models.enums import CountryCode, MemberRole
 from ..error import MUError, MUErrorCode
 
-
+# TODO: Change mutations to NOT return boolean
 class UpdateProfileLocation(graphene.Mutation):
 
     class Arguments:

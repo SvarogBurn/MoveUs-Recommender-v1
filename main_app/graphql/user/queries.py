@@ -21,7 +21,7 @@ class ProfileQuery(graphene.ObjectType):
 
     @require_auth
     def resolve_my_profile(root, info, **kwargs):
-        return info.context.user;
+        return info.context.user
 
 
 

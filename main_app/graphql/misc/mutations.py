@@ -5,7 +5,7 @@ from main_app.models import Event, EventReport, User, UserReport, UserPrivacySet
 from main_app.models.enums import PrivacyScope
 from main_app.util import require_auth
 
-
+# TODO: Change mutations to NOT return boolean
 class ReportUserMutation(graphene.Mutation):
 
     class Arguments:

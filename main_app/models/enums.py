@@ -384,3 +384,8 @@ class CountryCode(BaseStringEnum):
     YE = 201  # Yemen
     ZM = 202  # Zambia
     ZW = 203  # Zimbabwe
+
+class SearchCategory(BaseIntEnum):
+    USERS = 0
+    EVENTS = 1
+    POSTS = 2

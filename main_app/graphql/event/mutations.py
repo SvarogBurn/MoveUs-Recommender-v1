@@ -128,7 +128,7 @@ class CreateEventMutation(graphene.Mutation):
 
         return CreateEventMutation(
             event = event
-        )      
+        )
 
 class AlterEventMutation(graphene.Mutation):
 

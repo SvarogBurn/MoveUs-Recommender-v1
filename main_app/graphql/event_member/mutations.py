@@ -7,7 +7,7 @@ from main_app.models import EventMember, User
 from main_app.models.enums import MemberRole
 from main_app.util import get_event, require_auth
 
-
+# TODO: Change these mutations to NOT return boolean
 class JoinEventMutation(graphene.Mutation):
     
     class Arguments:
