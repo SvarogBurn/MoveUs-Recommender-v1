@@ -19,7 +19,7 @@ class CreateEventMutation(graphene.Mutation):
         description = graphene.String(required = False)
         start_time = graphene.DateTime(required = True)
         end_time = graphene.DateTime(required = True)
-        requrements = graphene.String(required = False)
+        requirements = graphene.String(required = False)
         location_id = graphene.Int(required = False)
         location_longitude = graphene.Float(required = False)
         location_latitude = graphene.Float(required = False)
