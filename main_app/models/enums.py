@@ -386,6 +386,6 @@ class CountryCode(BaseStringEnum):
     ZW = 203  # Zimbabwe
 
 class SearchCategory(BaseIntEnum):
-    USERS = 0
-    EVENTS = 1
+    EVENTS = 0
+    USERS = 1
     POSTS = 2

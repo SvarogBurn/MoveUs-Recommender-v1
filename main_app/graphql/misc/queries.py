@@ -58,15 +58,15 @@ class SearchQuery(graphene.ObjectType):
     def resolve_search(self, info, search_string: str, categories = None):
         result_list = []
 
+        if categories == None or SearchCategory.EVENTS in categories:
+            events = Event.objects.filter(title__icontains=search_string)
+            result_list += list(events)
+        
         if categories == None or SearchCategory.USERS in categories:
             userq1 = Q(username__istartswith=search_string)
             userq2 = Q(first_name__istartswith=search_string)
             users = User.objects.filter(userq1 | userq2)
             result_list += list(users)
-
-        if categories == None or SearchCategory.EVENTS in categories:
-            events = Event.objects.filter(title__icontains=search_string)
-            result_list += list(events)
 
         if categories == None or SearchCategory.POSTS in categories:
             posts = Post.objects.filter(content__icontains=search_string)

@@ -2,6 +2,7 @@ import graphene
 from django.utils.timezone import now
 
 from main_app.graphql.error import MUError, MUErrorCode
+from main_app.graphql.event.types import EventType
 from main_app.graphql.event_member.types import EventMemberType
 from main_app.models import EventMember, User
 from main_app.models.enums import MemberRole
@@ -13,7 +14,8 @@ class JoinEventMutation(graphene.Mutation):
     class Arguments:
         event_id = graphene.Int(required=True)
 
-    success = graphene.Boolean()
+    event = graphene.Field(EventType)
+    member = graphene.Field(EventMemberType)
 
     @require_auth
     def mutate(self, info, event_id: int):
@@ -52,14 +54,15 @@ class JoinEventMutation(graphene.Mutation):
                 role=MemberRole.PARTICIPANT
             )
 
-        return JoinEventMutation(success=True)
+        return JoinEventMutation(event = event, member = member)
     
 class SpectateEventMutation(graphene.Mutation):
     
     class Arguments:
         event_id = graphene.Int(required=True)
 
-    event_member = graphene.Field(EventMemberType)
+    event = graphene.Field(EventType)
+    member = graphene.Field(EventMemberType)
 
     @require_auth
     def mutate(self, info, event_id: int):
@@ -69,8 +72,6 @@ class SpectateEventMutation(graphene.Mutation):
         if event.start_time <= now():
             raise MUError(MUErrorCode.EVENT_ALREADY_STARTED)
 
-        success = graphene.Boolean()
-        
         try:
             member = EventMember.objects.get(pk=(user.id, event_id))
             if member.role != MemberRole.PARTICIPANT:
@@ -84,14 +85,14 @@ class SpectateEventMutation(graphene.Mutation):
                 role=MemberRole.SPECTATOR
             )
 
-        return SpectateEventMutation(success = True)
+        return SpectateEventMutation(event = event, member = member)
     
 class LeaveEventMutation(graphene.Mutation):
     
     class Arguments:
         event_id = graphene.Int(required=True)
 
-    success = graphene.Boolean()
+    event = graphene.Field(EventType)
 
     @require_auth
     def mutate(self, info, event_id: int):
@@ -109,7 +110,7 @@ class LeaveEventMutation(graphene.Mutation):
         except EventMember.DoesNotExist:
             raise MUError(MUErrorCode.NOT_MEMBER)
 
-        return LeaveEventMutation(success=True)
+        return LeaveEventMutation(event = event)
     
 class KickEventMemberMutation(graphene.Mutation):
     
@@ -117,7 +118,7 @@ class KickEventMemberMutation(graphene.Mutation):
         event_id = graphene.Int(required=True)
         user_id = graphene.Int(required=True)
 
-    success = graphene.Boolean()
+    event = graphene.Field(EventType)
 
     @require_auth
     def mutate(self, info, event_id: int, user_id: int):
@@ -139,7 +140,7 @@ class KickEventMemberMutation(graphene.Mutation):
         except EventMember.DoesNotExist:
             raise MUError(MUErrorCode.EVENT_MEMBER_DOES_NOT_EXIST)
 
-        return LeaveEventMutation(success=True)
+        return LeaveEventMutation(event = event)
     
 class Mutation(graphene.ObjectType):
     join_event = JoinEventMutation.Field()
