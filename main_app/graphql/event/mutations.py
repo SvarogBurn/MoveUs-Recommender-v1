@@ -138,10 +138,10 @@ class AlterEventMutation(graphene.Mutation):
         description = graphene.String(required = False)
         start_time = graphene.DateTime(required = False)
         end_time = graphene.DateTime(required = False)
-        requrements = graphene.String(required = False)
+        requirements = graphene.String(required = False)
         max_participants = graphene.Int(required = False)
 
-    success = graphene.Boolean()
+    event = graphene.Field(EventType)
 
     @require_auth
     def mutate(
@@ -164,7 +164,7 @@ class AlterEventMutation(graphene.Mutation):
 
         event = get_event(event_id, user.id, MemberRole.ORGANIZER)
 
-        if max_participants < event.participant_count():
+        if max_participants and max_participants < event.participant_count():
             raise MUError(MUErrorCode.EVENT_MIN_MAX_PARTICIPANTS)
         
         if title is not None: event.title = title
@@ -176,7 +176,7 @@ class AlterEventMutation(graphene.Mutation):
 
         event.save()
 
-        return AlterEventMutation(success = True)
+        return AlterEventMutation(event = event)
 
 class DeleteEventMutation(graphene.Mutation):
 

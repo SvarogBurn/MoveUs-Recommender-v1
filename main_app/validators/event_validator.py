@@ -17,11 +17,11 @@ def event_validator(
         max_age: int = None,
         accepted_genders: list = None
     ):
-    
-    if len(title) < 4:
+
+    if title and len(title) < 4:
         raise MUError(MUErrorCode.EVENT_TITLE_MIN_LENGTH)
     
-    if len(title) > 32:
+    if title and len(title) > 32:
         raise MUError(MUErrorCode.EVENT_TITLE_MAX_LENGTH)
     
     if description and len(description) > 1024:
