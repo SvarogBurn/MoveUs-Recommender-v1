@@ -115,6 +115,8 @@ class CreateEventMutation(graphene.Mutation):
                 requirements = requirements,
                 activity_id = activity,
                 skill_level = skill_level,
+                min_age = min_age,
+                max_age = max_age,
                 max_participants = max_participants,
                 allow_spectators = allow_spectators
             )
