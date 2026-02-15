@@ -1,8 +1,6 @@
 import uuid
 
-from asgiref.sync import async_to_sync
-
-from core.gcs_client import bucket
+from core.gcs_client import get_bucket
 from core.redis_client import get_sync, set_sync
 from main_app.graphql.error import MUError, MUErrorCode
 from main_app.util.gcloud.generate import Method, generate_signed_url
@@ -38,6 +36,7 @@ def validate_attachment(attachment_id: str, user_id: int) -> None:
     if owner.decode() != str(user_id):
         raise MUError(MUErrorCode.ATTACHMENT_NOT_OWNED)
     
+    bucket = get_bucket()
     blob = bucket.blob(f'attachment/{attachment_id}')
     if not blob.exists():
         raise MUError(MUErrorCode.ATTACHMENT_NOT_UPLOADED)

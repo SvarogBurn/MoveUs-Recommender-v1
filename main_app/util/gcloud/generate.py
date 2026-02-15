@@ -1,7 +1,7 @@
 import datetime
 import enum
 
-from core.gcs_client import bucket
+from core.gcs_client import get_bucket
 
 
 class Method(enum.Enum):
@@ -14,7 +14,8 @@ def generate_signed_url(
         method: Method,
         expiration_minutes: int = 5,
         headers: dict = {}
-        ):
+    ):
+    bucket = get_bucket()
     blob = bucket.blob(blob_name) 
 
     url = blob.generate_signed_url(
