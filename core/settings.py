@@ -37,7 +37,9 @@ CORS_ALLOWED_ORIGINS = [
 
 ALLOWED_HOSTS = [
     web_host,
-    'localhost'
+    'localhost',
+    'api.moveusapp.com',
+    '.run.app' # For Google Cloud Run
 ]
 
 CORS_ALLOW_CREDENTIALS = True
