@@ -18,3 +18,9 @@ application = ProtocolTypeRouter({
         )
     ),
 })
+
+# When using daphne to run server, it doesn't automatically server static files in debug mode.
+from django.conf import settings
+if settings.DEBUG:
+    from django.contrib.staticfiles.handlers import ASGIStaticFilesHandler
+    application = ASGIStaticFilesHandler(application)
