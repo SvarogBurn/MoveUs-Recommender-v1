@@ -32,7 +32,8 @@ web_origin = os.getenv('WEB_ORIGIN', "http://localhost:3000")
 web_host = re.search(r'^(?:https?:\/\/)?([^\/:?#]+)', web_origin).group(1)
 
 CORS_ALLOWED_ORIGINS = [
-    web_origin
+    web_origin,
+    "http://localhost:3000"
 ]
 
 ALLOWED_HOSTS = [
