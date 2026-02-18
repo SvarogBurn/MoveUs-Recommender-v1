@@ -33,7 +33,7 @@ web_host = re.search(r'^(?:https?:\/\/)?([^\/:?#]+)', web_origin).group(1)
 
 CORS_ALLOWED_ORIGINS = [
     web_origin,
-    "http://localhost:3000"
+    "http://localhost:5173"
 ]
 
 ALLOWED_HOSTS = [
