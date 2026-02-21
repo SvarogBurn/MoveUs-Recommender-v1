@@ -34,7 +34,8 @@ class UserTypeMixin():
     dislikes = graphene.Int()
     friends = graphene.List(lambda: UserType)
     friend_count = graphene.Int()
-    organizes = graphene.List(EventType)
+    organizing_events = graphene.List(EventType)
+    attending_events = graphene.List(EventType)
 
     def resolve_likes(self: User, info):
         return EventMemberLike.objects.filter(
@@ -75,11 +76,19 @@ class UserTypeMixin():
 
         return Relationship.objects.filter(user1_q | user2_q, status = RelationshipStatus.FRIENDS).count()
     
-    def resolve_organizes(self: User, info):
+    def resolve_organizing_events(self: User, info):
         return Event.objects.filter(
             id__in = EventMember.objects.filter(
                 user = self,
                 role = MemberRole.ORGANIZER
+            ).values("event_id")
+        )
+    
+    def resolve_attending_events(self: User, info):
+        return Event.objects.filter(
+            id__in = EventMember.objects.filter(
+                user = self,
+                role = MemberRole.PARTICIPANT or MemberRole.MODERATOR or MemberRole.SPECTATOR
             ).values("event_id")
         )
 
@@ -224,8 +233,7 @@ class UserType(MUObjectType, UserTypeMixin):
             if len(rel): return self.gender
 
     def resolve_relationship(self: User, info):
-
-        if info.context.user is None: return None
+        if info.context.user is not User: return None
         q1 = Q(user_1 = self, user_2 = info.context.user)
         q2 = Q(user_2 = self, user_1 = info.context.user)
         rels = Relationship.objects.filter(q1 | q2)
