@@ -8,11 +8,24 @@ from .types import ProfileType, UserType
 
 
 class UserQuery(graphene.ObjectType):
-    user = graphene.Field(UserType, id = graphene.Int())
+    user = graphene.Field(
+        UserType, 
+        id=graphene.Int(),
+        username=graphene.String()
+    )
 
-    def resolve_user(root, info, id, **kwargs):
+    def resolve_user(root, info, id=None, username=None, **kwargs):
+        if not id and not username:
+            raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
+        
+        if id and username:
+            raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
+        
         try:
-            return User.objects.get(pk=id)
+            if id:
+                return User.objects.get(pk=id)
+            else:
+                return User.objects.get(username=username)
         except User.DoesNotExist:
             raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
 
