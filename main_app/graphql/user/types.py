@@ -233,7 +233,7 @@ class UserType(MUObjectType, UserTypeMixin):
             if len(rel): return self.gender
 
     def resolve_relationship(self: User, info):
-        if info.context.user is not User: return None
+        if not info.context.user or info.context.user.is_anonymous: return None
         q1 = Q(user_1 = self, user_2 = info.context.user)
         q2 = Q(user_2 = self, user_1 = info.context.user)
         rels = Relationship.objects.filter(q1 | q2)
