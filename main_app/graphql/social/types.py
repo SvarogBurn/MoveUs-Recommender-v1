@@ -20,13 +20,13 @@ class RelationshipType(MUObjectType):
         convert_choices_to_enum = False
 
     def resolve_status(self: Relationship, info):
-        if info.context.user is not User: return None
+        if info.context.user is None: return None
         status = RS(self.status).name
         if self.status == RS.PENDING:
             status = RS(RS.REQUEST_SENT).name if self.user_1 == info.context.user else RS(RS.REQUEST_RECEIVED).name
         return status
     
     def resolve_user(self: Relationship, info):
-        if info.context.user is not User: return None
+        if info.context.user is None: return None
         other = self.user_1 if self.user_2 == info.context.user else self.user_2
         return other
