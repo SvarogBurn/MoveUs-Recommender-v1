@@ -9,8 +9,8 @@ from .enums import EventRating, MemberRole, SkillLevel
 
 
 class Event(models.Model):
-    title = models.CharField(max_length=32)
-    description = models.CharField(max_length=1024, null = True)
+    title = models.CharField(max_length=256)
+    description = models.CharField(max_length=131072, null = True)
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     location = models.ForeignKey("Location", on_delete=models.DO_NOTHING)
