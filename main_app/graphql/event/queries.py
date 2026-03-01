@@ -11,6 +11,7 @@ from .types import EventType, UnfinishedEventType
 
 class EventQuery(graphene.ObjectType):
     event = graphene.Field(EventType, id=graphene.Int())
+    anonymous_user_events = graphene.List(EventType)
     joined_events = graphene.List(EventType)
     owned_events = graphene.List(EventType)
     past_joined_events = graphene.List(EventType)
@@ -25,7 +26,13 @@ class EventQuery(graphene.ObjectType):
             return Event.objects.get(pk=id)
         except Event.DoesNotExist:
             raise MUError(MUErrorCode.EVENT_DOES_NOT_EXIST)
-
+        
+    def resolve_anonymous_user_events(root, info, **kwargs):
+        # TODO: This should return 6 events near the anonymous user
+        # This is only really used on the landing page, when the user
+        # isn't signed in
+        return Event.objects.all()[:6]
+    
     def resolve_my_recommended_events(root, info, **kwargs):
         if not info.context.user.id:
             raise MUError(MUErrorCode.AUTHENTICATION_ERROR)
