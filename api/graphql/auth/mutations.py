@@ -11,8 +11,8 @@ from allauth.account.utils import (
 from django.contrib.auth import authenticate, logout
 
 from api.graphql.user.types import ProfileType
-from main.users.models import User
-from main.users.validators import validate_signup
+from main.user.models import User
+from main.user.validators import validate_signup
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.utils.decorators import require_auth
 

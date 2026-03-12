@@ -6,9 +6,9 @@ from api.graphql.notification.types import (
     EventNotificationType,
     UserNotificationType,
 )
-from main.events.models import Event
-from main.notifications.models import Notification
-from main.users.models import User
+from main.event.models import Event
+from main.notification.models import Notification
+from main.user.models import User
 from shared.utils.decorators import require_auth
 
 

@@ -1,7 +1,7 @@
 import graphene
 
 from api.graphql.activity.types import PreferredActivityType
-from main.users.models import PreferredActivity, User
+from main.user.models import PreferredActivity, User
 from shared.enums import ActivityType as Activity
 from shared.enums import SkillLevel
 from shared.errors.mu_error import MUError, MUErrorCode

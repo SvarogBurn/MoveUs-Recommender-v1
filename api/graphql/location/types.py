@@ -1,5 +1,5 @@
 from api.graphql.object_type import MUObjectType
-from main.locations.models import Location
+from main.location.models import Location
 
 
 class LocationType(MUObjectType):

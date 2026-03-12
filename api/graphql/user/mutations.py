@@ -1,8 +1,8 @@
 import graphene
 
 from api.graphql.user.types import ProfileType
-from main.users.models import User
-from main.users.validators import validate_profile
+from main.user.models import User
+from main.user.validators import validate_profile
 from shared.enums import (
     FormedRelationshipsType,
     FrequencyOfPhycicalActivity,

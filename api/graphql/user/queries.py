@@ -1,6 +1,6 @@
 import graphene
 
-from main.users.models import User
+from main.user.models import User
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.utils.decorators import require_auth
 

@@ -2,7 +2,7 @@ import graphene
 from django.db.models import Avg
 
 from api.graphql.object_type import MUObjectType
-from main.events.models import Event, EventMember
+from main.event.models import Event, EventMember
 from shared.enums import MemberRole
 
 

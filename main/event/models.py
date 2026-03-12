@@ -1,10 +1,10 @@
 from django.db import models
 from django.db.models.fields.composite import CompositePrimaryKey
 
-from main.activities.models import Activity
+from main.activity.models import Activity
 from main.chat.models import Chat
-from main.locations.models import Location
-from main.users.models import User
+from main.location.models import Location
+from main.user.models import User
 from shared.enums import EventRating, MemberRole, SkillLevel
 
 

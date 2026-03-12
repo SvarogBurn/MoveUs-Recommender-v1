@@ -1,4 +1,4 @@
-from main.users.models import User, UserPrivacySetting
+from main.user.models import User, UserPrivacySetting
 from shared.enums import PrivacyScope, PrivacySetting
 
 

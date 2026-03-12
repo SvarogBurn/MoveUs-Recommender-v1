@@ -1,9 +1,9 @@
 from django.db.models import Q
 
 from main.chat.services import ChatService
-from main.notifications.services import NotificationService
+from main.notification.services import NotificationService
 from main.social.models import Relationship
-from main.users.models import User
+from main.user.models import User
 from shared.enums import NotificationEnum, RelationshipStatus
 from shared.errors.mu_error import MUError, MUErrorCode
 

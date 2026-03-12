@@ -18,7 +18,7 @@ class Location(models.Model):
         db_table = "main_app_location"
 
     def reference_count(self) -> int:
-        from main.events.models import Event
+        from main.event.models import Event
 
         return Event.objects.filter(location=self).count()
 

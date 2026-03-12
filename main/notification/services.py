@@ -1,4 +1,4 @@
-from main.notifications.models import Notification
+from main.notification.models import Notification
 from shared.enums import MemberRole, NotificationEnum
 
 
@@ -9,7 +9,7 @@ class NotificationService:
 
     @staticmethod
     def send_event_finished(event_id: int) -> None:
-        from main.events.models import EventMember
+        from main.event.models import EventMember
 
         member_ids = [
             x["user_id"]

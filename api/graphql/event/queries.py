@@ -2,7 +2,7 @@ import graphene
 from django.db.models import Prefetch, QuerySet
 from django.utils.timezone import now
 
-from main.events.models import Event, EventMember
+from main.event.models import Event, EventMember
 from shared.enums import MemberRole
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.utils.decorators import require_auth

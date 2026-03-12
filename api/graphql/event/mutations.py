@@ -4,12 +4,12 @@ import graphene
 from django.utils.timezone import now
 
 from api.graphql.event.types import EventMemberType, EventType
-from main.events.models import EventMember, EventMemberLike
-from main.events.services import EventService
-from main.events.validators import validate_event
-from main.locations.models import Location
-from main.locations.validators import validate_location
-from main.users.models import User
+from main.event.models import EventMember, EventMemberLike
+from main.event.services import EventService
+from main.event.validators import validate_event
+from main.location.models import Location
+from main.location.validators import validate_location
+from main.user.models import User
 from shared.enums import ActivityType as Activity
 from shared.enums import CountryCode, EventRating, GenderNoPNTS, MemberRole, SkillLevel
 from shared.errors.mu_error import MUError, MUErrorCode

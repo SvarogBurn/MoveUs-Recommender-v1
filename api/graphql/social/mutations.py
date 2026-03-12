@@ -1,11 +1,11 @@
 import graphene
 
 from api.graphql.social.types import CreatePostType, PostCommentType, RelationshipType
-from main.events.services import EventService
+from main.event.services import EventService
 from main.social.models import Post, PostComment
 from main.social.services import RelationshipService
 from main.social.validators import validate_comment, validate_post
-from main.users.models import User
+from main.user.models import User
 from shared.enums import MemberRole
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.utils.decorators import require_auth

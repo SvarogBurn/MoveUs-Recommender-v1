@@ -5,9 +5,9 @@ from django.db.models import Q
 
 from api.graphql.event.types import EventType
 from api.graphql.social.types import RelationshipType
-from main.events.models import Event, EventMember, EventMemberLike
+from main.event.models import Event, EventMember, EventMemberLike
 from main.social.models import Relationship
-from main.users.models import User, UserPrivacySetting
+from main.user.models import User, UserPrivacySetting
 from shared.enums import (
     FormedRelationshipsType,
     FrequencyOfPhycicalActivity,

@@ -2,8 +2,8 @@ from django.db import models, transaction
 from django.db.models.fields.composite import CompositePrimaryKey
 
 from main.chat.models import Chat
-from main.events.models import Event
-from main.users.models import User
+from main.event.models import Event
+from main.user.models import User
 from shared.enums import RelationshipStatus
 
 

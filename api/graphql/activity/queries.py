@@ -1,7 +1,7 @@
 import graphene
 
 from api.graphql.activity.types import ActivityModelType
-from main.activities.models import Activity
+from main.activity.models import Activity
 
 
 class ActivityQuery(graphene.ObjectType):

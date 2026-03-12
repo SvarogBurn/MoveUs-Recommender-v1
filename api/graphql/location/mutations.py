@@ -1,11 +1,11 @@
 import graphene
 
 from api.graphql.user.types import ProfileType
-from main.events.models import Event, EventMember
-from main.events.services import EventService
-from main.locations.models import Location
-from main.locations.validators import validate_location
-from main.users.models import User
+from main.event.models import Event, EventMember
+from main.event.services import EventService
+from main.location.models import Location
+from main.location.validators import validate_location
+from main.user.models import User
 from shared.enums import CountryCode, MemberRole
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.utils.decorators import require_auth

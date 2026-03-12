@@ -3,11 +3,12 @@ from typing import Any
 
 from django.utils.timezone import now
 
-from main.events.models import Event, EventMember
-from main.locations.models import Location
-from main.users.models import User
+from main.event.models import Event, EventMember
+from main.location.models import Location
+from main.user.models import User
 from shared.enums import MemberRole, SkillLevel
 from shared.errors.mu_error import MUError, MUErrorCode
+from main.chat.services import ChatService
 
 
 def _get_event_error_code(role: MemberRole) -> MUErrorCode:
@@ -45,7 +46,6 @@ class EventService:
         EventMember.objects.create(
             event=event, user=user, role=MemberRole.ORGANIZER, has_participated=True
         )
-        from main.chat.services import ChatService
 
         ChatService.create_chat_for_event(event)
         return event
@@ -158,7 +158,7 @@ class EventService:
         event.finished = True
         event.save()
 
-        from main.notifications.services import NotificationService
+        from main.notification.services import NotificationService
 
         NotificationService.send_event_finished(event_id)
 
@@ -166,7 +166,7 @@ class EventService:
 
     @staticmethod
     def delete_event(event: Event) -> None:
-        from main.locations.services import LocationService
+        from main.location.services import LocationService
 
         LocationService.release(event.location)
         event.delete()

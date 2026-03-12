@@ -5,10 +5,10 @@ from api.graphql.event.types import EventType
 from api.graphql.misc.types import AttachmentType
 from api.graphql.social.types import PostType
 from api.graphql.user.types import UserType
-from main.events.models import Event
-from main.events.services import EventService
+from main.event.models import Event
+from main.event.services import EventService
 from main.social.models import Post
-from main.users.models import User
+from main.user.models import User
 from shared.enums import MemberRole, SearchCategory
 from shared.storage import storage_backend
 from shared.utils.decorators import require_auth

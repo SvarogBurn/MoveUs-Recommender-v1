@@ -28,7 +28,7 @@ def validate_signup(username: str, email: str, password: str):
     if not re.match(r"^[0-9A-Za-z_]*$", username):
         raise MUError(MUErrorCode.USERNAME_ALLOWED_CHARACTERS)
 
-    from main.users.models import User
+    from main.user.models import User
 
     if User.objects.filter(username=username).count():
         raise MUError(MUErrorCode.USERNAME_ALREADY_TAKEN)
@@ -36,7 +36,7 @@ def validate_signup(username: str, email: str, password: str):
     if not valid_email_or_none(email):
         raise MUError(MUErrorCode.EMAIL_INVALID)
 
-    from main.users.models import User
+    from main.user.models import User
 
     if User.objects.filter(email=email).count():
         raise MUError(MUErrorCode.EMAIL_ALREADY_TAKEN)

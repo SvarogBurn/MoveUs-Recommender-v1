@@ -2,8 +2,8 @@ import graphene
 from graphene_django import DjangoObjectType
 
 from api.graphql.object_type import MUObjectType
-from main.activities.models import Activity
-from main.users.models import PreferredActivity
+from main.activity.models import Activity
+from main.user.models import PreferredActivity
 from shared.enums import ActivityType as ActivityEnum
 
 

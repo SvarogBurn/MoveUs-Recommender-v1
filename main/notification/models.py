@@ -1,6 +1,6 @@
 from django.db import models
 
-from main.users.models import User
+from main.user.models import User
 from shared.enums import NotificationEnum
 
 

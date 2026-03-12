@@ -2,7 +2,7 @@ import graphene
 
 from api.graphql.object_type import MUObjectType
 from main.social.models import Post, PostComment, Relationship
-from main.users.models import User
+from main.user.models import User
 from shared.enums import RelationshipStatus as RS
 from shared.storage import storage_backend
 

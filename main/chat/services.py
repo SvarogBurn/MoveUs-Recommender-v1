@@ -7,7 +7,7 @@ from channels.layers import get_channel_layer
 from django.db.models.functions import Now
 
 from main.chat.models import Chat, ChatMember, ChatMessage
-from main.events.models import Event
+from main.event.models import Event
 from main.social.models import Relationship
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.storage import storage_backend

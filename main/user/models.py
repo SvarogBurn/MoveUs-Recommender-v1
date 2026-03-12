@@ -5,7 +5,7 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models.fields.composite import CompositePrimaryKey
 
-from main.activities.models import Activity
+from main.activity.models import Activity
 from shared.enums import (
     FrequencyOfPhycicalActivity,
     Gender,

@@ -4,7 +4,7 @@ from django.db.models import Prefetch
 from api.graphql.chat.types import ChatType
 from main.chat.models import Chat, ChatMember
 from main.social.services import SocialService
-from main.users.models import User
+from main.user.models import User
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.utils.decorators import require_auth
 

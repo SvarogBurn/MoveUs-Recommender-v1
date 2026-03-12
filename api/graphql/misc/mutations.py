@@ -1,7 +1,7 @@
 import graphene
 
-from main.events.models import Event, EventReport
-from main.users.models import User, UserPrivacySetting, UserReport
+from main.event.models import Event, EventReport
+from main.user.models import User, UserPrivacySetting, UserReport
 from shared.enums import PrivacyScope
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.utils.decorators import require_auth

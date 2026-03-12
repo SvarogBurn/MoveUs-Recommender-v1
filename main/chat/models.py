@@ -1,7 +1,7 @@
 from django.db import models
 from django.db.models.fields.composite import CompositePrimaryKey
 
-from main.users.models import User
+from main.user.models import User
 from shared.enums import ChatNotifications
 
 

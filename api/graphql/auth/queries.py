@@ -1,6 +1,6 @@
 import graphene
 
-from main.users.models import User
+from main.user.models import User
 
 
 class AuthUtilQuery(graphene.ObjectType):
