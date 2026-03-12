@@ -8,7 +8,7 @@ from shared.enums import NotificationEnum, RelationshipStatus
 from shared.errors.mu_error import MUError, MUErrorCode
 
 
-class SocialService:
+class RelationshipService:
     @staticmethod
     def get_or_create_relationship(user: User, target_user: User) -> Relationship:
         q1 = Q(user_1=user, user_2=target_user)
@@ -21,9 +21,7 @@ class SocialService:
             )
             relationship.refresh_from_db()
             return relationship
-
-
-class RelationshipService:
+        
     @staticmethod
     def _get_user_or_raise(user_id: int) -> User:
         try:

@@ -3,7 +3,7 @@ from django.db.models import Prefetch
 
 from api.graphql.chat.types import ChatType
 from main.chat.models import Chat, ChatMember
-from main.social.services import SocialService
+from main.social.services import RelationshipService
 from main.user.models import User
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.utils.decorators import require_auth
@@ -46,7 +46,7 @@ class MyChatsQuery(graphene.ObjectType):
         except User.DoesNotExist:
             raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
 
-        relationship = SocialService.get_or_create_relationship(
+        relationship = RelationshipService.get_or_create_relationship(
             info.context.user, target_user
         )
         return relationship.chat
