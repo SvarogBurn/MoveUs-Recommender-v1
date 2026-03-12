@@ -10,7 +10,7 @@ from shared.errors.mu_error import MUError, MUErrorCode
 
 class RelationshipService:
     @staticmethod
-    def get_or_create_relationship(user: User, target_user: User) -> Relationship:
+    def get_or_create(user: User, target_user: User) -> Relationship:
         q1 = Q(user_1=user, user_2=target_user)
         q2 = Q(user_2=user, user_1=target_user)
         try:

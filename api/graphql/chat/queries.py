@@ -46,7 +46,7 @@ class MyChatsQuery(graphene.ObjectType):
         except User.DoesNotExist:
             raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
 
-        relationship = RelationshipService.get_or_create_relationship(
+        relationship = RelationshipService.get_or_create(
             info.context.user, target_user
         )
         return relationship.chat
