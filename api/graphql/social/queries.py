@@ -43,31 +43,6 @@ class RelationshipQuery(graphene.ObjectType):
 
 class PostQuery(graphene.ObjectType):
     post = graphene.Field(PostType, id=graphene.Int())
-    event_posts = graphene.List(
-        PostType,
-        event_id=graphene.String(default_value=None),
-        start=graphene.Int(default_value=0),
-        end=graphene.Int(default_value=10),
-    )
-    global_posts = graphene.List(
-        PostType,
-        start=graphene.Int(default_value=0),
-        end=graphene.Int(default_value=10),
-    )
 
     def resolve_post(root, info: graphene.ResolveInfo, id: int) -> Post:
-        return Post.objects.get(pk=id)
-
-    def resolve_event_posts(
-        root, info: graphene.ResolveInfo, event_id: str | None, start: int, end: int
-    ):
-        if event_id:
-            return Post.objects.filter(event=event_id).order_by("-time_posted")[
-                start:end
-            ]
-        return Post.objects.filter(event__isnull=False).order_by("-time_posted")[
-            start:end
-        ]
-
-    def resolve_global_posts(root, info: graphene.ResolveInfo, start: int, end: int):
-        return Post.objects.order_by("-time_posted")[start:end]
+        return Post.objects.select_related("author").get(pk=id)

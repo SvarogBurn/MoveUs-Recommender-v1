@@ -53,8 +53,11 @@ class Post(models.Model):
     title = models.CharField(max_length=128)
     content = models.CharField()
     time_posted = models.DateTimeField(auto_now_add=True, db_index=True)
+    author = models.ForeignKey(
+        User, on_delete=models.CASCADE, null=False, related_name="authored_posts"
+    )
     event = models.ForeignKey(
-        Event, on_delete=models.CASCADE, null=True, related_name="posts"
+        Event, on_delete=models.SET_NULL, null=True, related_name="posts"
     )
     liked_by = models.ManyToManyField(
         User, through="PostLike", through_fields=("post", "user")

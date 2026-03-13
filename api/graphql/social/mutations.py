@@ -112,20 +112,24 @@ class UnblockUserMutation(graphene.Mutation):
 class CreatePostMutation(graphene.Mutation):
 
     class Arguments:
-        event_id = graphene.Int(required=True)
+        event_id = graphene.Int(required=False, default_value=None)
         title = graphene.String(required=True)
         content = graphene.String(required=True)
 
     post = graphene.Field(CreatePostType)
 
     @require_auth
-    def mutate(root, info: graphene.ResolveInfo, event_id: int, title: str, content: str):
+    def mutate(root, info: graphene.ResolveInfo, title: str, content: str, event_id: int | None = None):
         validate_post(title, content)
 
-        user_id: int = info.context.user.id
-        EventService.get_event(event_id, user_id, MemberRole.MODERATOR)
+        user = info.context.user
 
-        post = Post.objects.create(title=title, content=content, event_id=event_id)
+        if event_id is not None:
+            EventService.get_event(event_id, user.id, MemberRole.MODERATOR)
+
+        post = Post.objects.create(
+            title=title, content=content, author=user, event_id=event_id
+        )
 
         return CreatePostMutation(post=post)
 

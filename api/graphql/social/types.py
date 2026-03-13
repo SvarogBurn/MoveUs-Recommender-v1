@@ -19,6 +19,9 @@ class PostCommentType(MUObjectType):
 
 
 class PostTypeMixin(MUObjectType):
+    author = graphene.Field(
+        graphene.lazy_import("api.graphql.user.types.UserType")
+    )
     likes = graphene.Int()
     comments = graphene.List(
         PostCommentType,

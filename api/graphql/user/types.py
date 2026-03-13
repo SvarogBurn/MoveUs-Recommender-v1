@@ -62,6 +62,11 @@ class UserTypeMixin:
     friend_count = graphene.Int()
     organizing_events = graphene.List(EventType)
     attending_events = graphene.List(EventType)
+    posts = graphene.List(
+        graphene.lazy_import("api.graphql.social.types.PostType"),
+        start=graphene.Int(default_value=0),
+        end=graphene.Int(default_value=10),
+    )
 
     def resolve_likes(self: User, info: graphene.ResolveInfo) -> int:
         return EventMemberLike.objects.filter(user_2=self, like=True).count()
@@ -109,6 +114,11 @@ class UserTypeMixin:
             ).values("event_id")
         )
 
+    def resolve_posts(self: User, info: graphene.ResolveInfo, start: int, end: int):
+        return self.authored_posts.select_related("author").order_by("-time_posted")[
+            start:end
+        ]
+
 
 class ProfileType(MUObjectType, UserTypeMixin):
 
@@ -135,7 +145,7 @@ class ProfileType(MUObjectType, UserTypeMixin):
         exclude = (
             "is_superuser",
             "is_staff",
-            "post_set",
+            "authored_posts",
             "postcomment_set",
             "friends_added",
             "friends_added_by",
