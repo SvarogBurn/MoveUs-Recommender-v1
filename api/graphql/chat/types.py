@@ -3,8 +3,8 @@ import graphene
 from api.graphql.object_type import MUObjectType
 from main.chat.models import Chat, ChatMember, ChatMessage
 from shared.enums import ChatNotifications
-from shared.utils.decorators import require_auth
 from shared.storage import storage_backend
+from shared.utils.decorators import require_auth
 
 
 class ChatMemberType(MUObjectType):

@@ -1,7 +1,7 @@
 import graphene
 
 from api.graphql.user.types import ProfileType
-from main.user.models import User
+from main.user.models import User, UserPrivacySetting
 from main.user.validators import validate_profile
 from shared.enums import (
     FormedRelationshipsType,
@@ -13,6 +13,7 @@ from shared.enums import (
     PhysicalActivitySatisfaction,
     PreferredPartnerCharacteristics,
     PreferredPartySize,
+    PrivacyScope,
     SocialInteractionImportance,
     TimeOfTheDay,
 )
@@ -159,7 +160,25 @@ class UpdateMaxTravelDistanceMutation(graphene.Mutation):
         return UpdateMaxTravelDistanceMutation(my_profile=user)
 
 
+class UpdateAllPrivacySettingsMutation(graphene.Mutation):
+
+    class Arguments:
+        scope = PrivacyScope.as_graphene_enum()(required=True)
+
+    success = graphene.Boolean()
+
+    @require_auth
+    def mutate(self, info: graphene.ResolveInfo, scope: PrivacyScope):
+
+        UserPrivacySetting.objects.filter(user_id=info.context.user.id).update(
+            scope=scope
+        )
+
+        return UpdateAllPrivacySettingsMutation(success=True)
+
+
 class Mutation(graphene.ObjectType):
     update_survey_info = UpdateSurveyInfoMutation.Field()
     update_basic_info = UpdateBasicInfoMutation.Field()
     update_max_travel_distance = UpdateMaxTravelDistanceMutation.Field()
+    update_all_privacy_settings = UpdateAllPrivacySettingsMutation.Field()

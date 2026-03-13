@@ -4,12 +4,12 @@ from typing import Any
 from django.db.models import Prefetch, QuerySet
 from django.utils.timezone import now
 
+from main.chat.services import ChatService
 from main.event.models import Event, EventMember
 from main.location.models import Location
 from main.user.models import User
 from shared.enums import MemberRole, SkillLevel
 from shared.errors.mu_error import MUError, MUErrorCode
-from main.chat.services import ChatService
 
 
 def _get_event_error_code(role: MemberRole) -> MUErrorCode:

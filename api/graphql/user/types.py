@@ -30,6 +30,19 @@ from ..location.types import LocationType
 from ..object_type import MUObjectType
 
 
+def _check_privacy(user: User, viewer: User, setting: PrivacySetting) -> bool:
+    """Return True if the viewer is allowed to see this field."""
+    if user.id == viewer.id:
+        return True
+    ups = UserPrivacySetting.objects.filter(user=user, setting=setting).first()
+    if not ups or ups.scope == PrivacyScope.EVERYONE:
+        return True
+    if ups.scope == PrivacyScope.FRIENDS:
+        rel = _get_viewer_relationship(user, viewer)
+        return rel is not None and rel.status == RelationshipStatus.FRIENDS
+    return False
+
+
 def _get_viewer_relationship(user: User, viewer: User) -> Relationship | None:
     """Get and cache the relationship between user and viewer."""
     cache_attr = f"_rel_cache_{viewer.id}"
@@ -57,34 +70,22 @@ class UserTypeMixin:
         return EventMemberLike.objects.filter(user_2=self, like=False).count()
 
     def resolve_friends(self, info: graphene.ResolveInfo) -> list[User] | None:
+        if not _check_privacy(self, info.context.user, PrivacySetting.FRIENDS):
+            return None
 
-        def all_friends() -> list[User]:
-            user1_q = Q(user_1=self)
-            user2_q = Q(user_2=self)
-
-            rels = Relationship.objects.filter(
-                user1_q | user2_q, status=RelationshipStatus.FRIENDS
-            )
-            return [r.user_1 if self.id == r.user_2.id else r.user_2 for r in rels]
-
-        if self.id == info.context.user.id:
-            return all_friends()
-        ups = UserPrivacySetting.objects.get(user=self, setting=PrivacySetting.FRIENDS)
-        if ups.scope == PrivacyScope.EVERYONE:
-            return all_friends()
-        if ups.scope == PrivacyScope.FRIENDS and info.context.user.id:
-            q1 = Q(user_1=self, user_2=info.context.user)
-            q2 = Q(user_2=self, user_1=info.context.user)
-            rel = Relationship.objects.filter(
-                q1 | q2, status=RelationshipStatus.FRIENDS
-            )
-            if len(rel):
-                return all_friends()
-
-    def resolve_friend_count(self: User, info: graphene.ResolveInfo) -> int:
         user1_q = Q(user_1=self)
         user2_q = Q(user_2=self)
+        rels = Relationship.objects.filter(
+            user1_q | user2_q, status=RelationshipStatus.FRIENDS
+        )
+        return [r.user_1 if self.id == r.user_2.id else r.user_2 for r in rels]
 
+    def resolve_friend_count(self: User, info: graphene.ResolveInfo) -> int | None:
+        if not _check_privacy(self, info.context.user, PrivacySetting.FRIENDS):
+            return None
+
+        user1_q = Q(user_1=self)
+        user2_q = Q(user_2=self)
         return Relationship.objects.filter(
             user1_q | user2_q, status=RelationshipStatus.FRIENDS
         ).count()
@@ -240,48 +241,20 @@ class UserType(MUObjectType, UserTypeMixin):
         )
 
     def resolve_location(self: User, info: graphene.ResolveInfo):
-        if self.id == info.context.user.id:
+        if _check_privacy(self, info.context.user, PrivacySetting.LOCATION):
             return self.location
-        ups = UserPrivacySetting.objects.get(user=self, setting=PrivacySetting.LOCATION)
-        if ups.scope == PrivacyScope.EVERYONE:
-            return self.location
-        if ups.scope == PrivacyScope.FRIENDS and info.context.user.id:
-            rel = _get_viewer_relationship(self, info.context.user)
-            if rel and rel.status == RelationshipStatus.FRIENDS:
-                return self.location
 
     def resolve_email(self: User, info: graphene.ResolveInfo) -> str | None:
-        if self.id == info.context.user.id:
+        if _check_privacy(self, info.context.user, PrivacySetting.EMAIL):
             return self.email
-        ups = UserPrivacySetting.objects.get(user=self, setting=PrivacySetting.EMAIL)
-        if ups.scope == PrivacyScope.EVERYONE:
-            return self.email
-        if ups.scope == PrivacyScope.FRIENDS and info.context.user.id:
-            rel = _get_viewer_relationship(self, info.context.user)
-            if rel and rel.status == RelationshipStatus.FRIENDS:
-                return self.email
 
     def resolve_date_of_birth(self: User, info: graphene.ResolveInfo):
-        if self.id == info.context.user.id:
+        if _check_privacy(self, info.context.user, PrivacySetting.AGE):
             return self.date_of_birth
-        ups = UserPrivacySetting.objects.get(user=self, setting=PrivacySetting.AGE)
-        if ups.scope == PrivacyScope.EVERYONE:
-            return self.date_of_birth
-        if ups.scope == PrivacyScope.FRIENDS and info.context.user.id:
-            rel = _get_viewer_relationship(self, info.context.user)
-            if rel and rel.status == RelationshipStatus.FRIENDS:
-                return self.date_of_birth
 
     def resolve_gender(self: User, info: graphene.ResolveInfo) -> int | None:
-        if self.id == info.context.user.id:
+        if _check_privacy(self, info.context.user, PrivacySetting.GENDER):
             return self.gender
-        ups = UserPrivacySetting.objects.get(user=self, setting=PrivacySetting.GENDER)
-        if ups.scope == PrivacyScope.EVERYONE:
-            return self.gender
-        if ups.scope == PrivacyScope.FRIENDS and info.context.user.id:
-            rel = _get_viewer_relationship(self, info.context.user)
-            if rel and rel.status == RelationshipStatus.FRIENDS:
-                return self.gender
 
     def resolve_relationship(
         self: User, info: graphene.ResolveInfo

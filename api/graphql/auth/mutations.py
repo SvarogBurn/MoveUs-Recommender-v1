@@ -12,6 +12,7 @@ from django.contrib.auth import authenticate, logout
 
 from api.graphql.user.types import ProfileType
 from main.user.models import User
+from main.user.services import UserService
 from main.user.validators import validate_signup
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.utils.decorators import require_auth
@@ -71,6 +72,7 @@ class SignupMutation(graphene.Mutation):
         user.email = email
         user.set_password(password)
         user.save()
+        UserService.initialize_privacy_settings(user)
 
         if (
             allauth_settings.EMAIL_VERIFICATION
