@@ -138,7 +138,8 @@ class EventService:
             event=event, user=user, role=MemberRole.ORGANIZER, has_participated=True
         )
 
-        ChatService.create_chat_for_event(event)
+        chat = ChatService.create_chat_for_event(event)
+        ChatService.add_chat_member(chat, user)
         return event
 
     @staticmethod
@@ -228,6 +229,9 @@ class EventService:
             member = EventMember.objects.create(
                 user_id=user.id, event_id=event.id, role=MemberRole.PARTICIPANT
             )
+
+        if event.chat_id:
+            ChatService.add_chat_member(event.chat, user)
 
         return member
 

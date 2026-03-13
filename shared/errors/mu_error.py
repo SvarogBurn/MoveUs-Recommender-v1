@@ -76,6 +76,8 @@ class MUErrorCode(IntEnum):
     MESSAGE_MAX_LENGTH = 402
     CANNOT_MESSAGE_YOURSELF = 403
     NO_TEXT_OR_ATTACHMENT = 404
+    CANNOT_LEAVE_FRIEND_CHAT = 405
+    CANNOT_ADD_TO_FRIEND_CHAT = 406
 
     # 5xx – Post & Comment Errors
     POST_TITLE_MAX_LENGTH = 500
@@ -231,6 +233,8 @@ mu_error_code_messages = {
     EC.CANNOT_HAVE_RELATION_WITH_SELF: "Cannot run this query on yourself.",
     EC.CANNOT_MESSAGE_YOURSELF: "Cannot message yourself.",
     EC.NO_TEXT_OR_ATTACHMENT: "Chat message must include either text or an attachment.",
+    EC.CANNOT_LEAVE_FRIEND_CHAT: "You cannot leave a friend chat.",
+    EC.CANNOT_ADD_TO_FRIEND_CHAT: "You cannot add members to a friend chat.",
 }
 
 

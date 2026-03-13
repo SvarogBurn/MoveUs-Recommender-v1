@@ -9,6 +9,7 @@ from django.db.models.functions import Now
 from main.chat.models import Chat, ChatMember, ChatMessage
 from main.event.models import Event
 from main.social.models import Relationship
+from main.user.models import User
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.storage import storage_backend
 
@@ -44,6 +45,23 @@ class ChatService:
         event.chat = chat
         event.save(update_fields=["chat"])
         return chat
+
+    @staticmethod
+    def add_chat_member(chat: Chat, user: User) -> ChatMember:
+        if Relationship.objects.filter(chat_id=chat.id).exists():
+            raise MUError(MUErrorCode.CANNOT_ADD_TO_FRIEND_CHAT)
+        member, _ = ChatMember.objects.get_or_create(
+            user=user,
+            chat=chat,
+            defaults={"nickname": user.username},
+        )
+        return member
+
+    @staticmethod
+    def remove_chat_member(chat_id: int, user_id: int) -> None:
+        if Relationship.objects.filter(chat_id=chat_id).exists():
+            raise MUError(MUErrorCode.CANNOT_LEAVE_FRIEND_CHAT)
+        ChatMember.objects.filter(user_id=user_id, chat_id=chat_id).delete()
 
     @staticmethod
     def create_chat_for_relationship(relationship: Relationship) -> Chat:

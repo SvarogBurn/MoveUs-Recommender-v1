@@ -4,6 +4,7 @@ import graphene
 from django.utils.timezone import now
 
 from api.graphql.event.types import EventMemberType, EventType
+from main.chat.services import ChatService
 from main.event.models import EventMember, EventMemberLike
 from main.event.services import EventService
 from main.event.validators import validate_event
@@ -287,6 +288,8 @@ class LeaveEventMutation(graphene.Mutation):
             if member.role == MemberRole.ORGANIZER:
                 raise MUError(MUErrorCode.CANNOT_LEAVE_AS_ORGANIZATOR)
             member.delete()
+            if event.chat_id:
+                ChatService.remove_chat_member(event.chat_id, user.id)
         except EventMember.DoesNotExist:
             raise MUError(MUErrorCode.NOT_MEMBER)
 
@@ -318,6 +321,8 @@ class KickEventMemberMutation(graphene.Mutation):
             if member.role == MemberRole.ORGANIZER:
                 raise MUError(MUErrorCode.CANNOT_KICK_ORGANIZER)
             member.delete()
+            if event.chat_id:
+                ChatService.remove_chat_member(event.chat_id, user_id)
         except EventMember.DoesNotExist:
             raise MUError(MUErrorCode.EVENT_MEMBER_DOES_NOT_EXIST)
 
