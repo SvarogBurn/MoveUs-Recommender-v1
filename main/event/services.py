@@ -263,5 +263,7 @@ class EventService:
     def delete_event(event: Event) -> None:
         from main.location.services import LocationService
 
+        if event.chat:
+            event.chat.delete()
         LocationService.release(event.location)
         event.delete()

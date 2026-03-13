@@ -57,7 +57,7 @@ class Post(models.Model):
         User, on_delete=models.CASCADE, null=False, related_name="authored_posts"
     )
     event = models.ForeignKey(
-        Event, on_delete=models.SET_NULL, null=True, related_name="posts"
+        Event, on_delete=models.CASCADE, null=True, related_name="posts"
     )
     liked_by = models.ManyToManyField(
         User, through="PostLike", through_fields=("post", "user")
