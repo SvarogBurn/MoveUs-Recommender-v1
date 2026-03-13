@@ -11,17 +11,20 @@ from django.core.asgi import get_asgi_application
 
 import core.routing
 
-application = ProtocolTypeRouter(
-    {
-        "http": get_asgi_application(),
-        "websocket": AuthMiddlewareStack(URLRouter(core.routing.websocket_urlpatterns)),
-    }
-)
+http_application = get_asgi_application()
 
-# When using daphne to run server, it doesn't automatically server static files in debug mode.
+# When using daphne to run server, it doesn't automatically serve static files in debug mode.
+# Only wrap HTTP with ASGIStaticFilesHandler — wrapping WebSocket causes shutdown timeouts.
 from django.conf import settings
 
 if settings.DEBUG:
     from django.contrib.staticfiles.handlers import ASGIStaticFilesHandler
 
-    application = ASGIStaticFilesHandler(application)
+    http_application = ASGIStaticFilesHandler(http_application)
+
+application = ProtocolTypeRouter(
+    {
+        "http": http_application,
+        "websocket": AuthMiddlewareStack(URLRouter(core.routing.websocket_urlpatterns)),
+    }
+)
