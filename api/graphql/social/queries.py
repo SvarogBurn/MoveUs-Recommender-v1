@@ -1,9 +1,8 @@
 import graphene
-from django.db.models import Q
 
 from api.graphql.social.types import PostType, RelationshipType
-from main.social.models import Post, Relationship
-from shared.enums import RelationshipStatus
+from main.social.models import Post
+from main.social.services import RelationshipService
 from shared.utils.decorators import require_auth
 
 
@@ -19,44 +18,28 @@ class RelationshipQuery(graphene.ObjectType):
 
     @require_auth
     def resolve_requests_sent(root, info: graphene.ResolveInfo):
-        return Relationship.objects.filter(
-            user_1=info.context.user, status=RelationshipStatus.PENDING
-        )
+        return RelationshipService.get_requests_sent(info.context.user)
 
     @require_auth
     def resolve_count_requests_sent(root, info: graphene.ResolveInfo) -> int:
-        return Relationship.objects.filter(
-            user_1=info.context.user, status=RelationshipStatus.PENDING
-        ).count()
+        return RelationshipService.get_requests_sent(info.context.user).count()
 
     @require_auth
     def resolve_requests_pending(root, info: graphene.ResolveInfo):
-        return Relationship.objects.filter(
-            user_2=info.context.user, status=RelationshipStatus.PENDING
-        )
+        return RelationshipService.get_requests_pending(info.context.user)
 
     @require_auth
     def resolve_count_requests_pending(root, info: graphene.ResolveInfo) -> int:
-        return Relationship.objects.filter(
-            user_2=info.context.user, status=RelationshipStatus.PENDING
-        ).count()
+        return RelationshipService.get_requests_pending(info.context.user).count()
 
     @require_auth
     def resolve_friends(root, info: graphene.ResolveInfo):
-        q1 = Q(user_1=info.context.user)
-        q2 = Q(user_2=info.context.user)
-
-        return Relationship.objects.filter(q1 | q2, status=RelationshipStatus.FRIENDS)
+        return RelationshipService.get_friends(info.context.user)
 
     @require_auth
     def resolve_count_friends(root, info: graphene.ResolveInfo) -> int:
-        q1 = Q(user_1=info.context.user)
-        q2 = Q(user_2=info.context.user)
+        return RelationshipService.get_friends(info.context.user).count()
 
-        return Relationship.objects.filter(
-            q1 | q2, status=RelationshipStatus.FRIENDS
-        ).count()
-    
 
 class PostQuery(graphene.ObjectType):
     post = graphene.Field(PostType, id=graphene.Int())

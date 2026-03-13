@@ -31,7 +31,7 @@ class StorageBackend(ABC):
     def generate_signed_url(
         self,
         blob_name: str,
-        method: str,
+        method: Method,
         expiration_minutes: int = 5,
         headers: dict = None,
     ) -> str:

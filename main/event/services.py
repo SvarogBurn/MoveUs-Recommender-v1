@@ -1,6 +1,7 @@
 import datetime
 from typing import Any
 
+from django.db.models import Prefetch, QuerySet
 from django.utils.timezone import now
 
 from main.event.models import Event, EventMember
@@ -23,6 +24,96 @@ def _get_event_error_code(role: MemberRole) -> MUErrorCode:
 
 
 class EventService:
+    @staticmethod
+    def _queryset() -> QuerySet[Event]:
+        return Event.objects.select_related("location", "activity").prefetch_related(
+            Prefetch(
+                "members",
+                queryset=EventMember.objects.select_related("user"),
+                to_attr="_members",
+            )
+        )
+
+    @staticmethod
+    def get_event_by_id(event_id: int) -> Event:
+        try:
+            return EventService._queryset().get(pk=event_id)
+        except Event.DoesNotExist:
+            raise MUError(MUErrorCode.EVENT_DOES_NOT_EXIST)
+
+    @staticmethod
+    def get_anonymous_events() -> QuerySet[Event]:
+        return EventService._queryset().all()[:6]
+
+    @staticmethod
+    def get_recommended_events() -> QuerySet[Event]:
+        return EventService._queryset().all()
+
+    @staticmethod
+    def get_joined_events(user_id: int) -> QuerySet[Event]:
+        return EventService._queryset().filter(
+            id__in=EventMember.objects.filter(user_id=user_id)
+            .exclude(role=MemberRole.ORGANIZER)
+            .values("event_id")
+        )
+
+    @staticmethod
+    def get_owned_events(user_id: int) -> QuerySet[Event]:
+        return EventService._queryset().filter(
+            id__in=EventMember.objects.filter(
+                user_id=user_id, role=MemberRole.ORGANIZER
+            ).values("event_id")
+        )
+
+    @staticmethod
+    def get_past_joined_events(user_id: int) -> QuerySet[Event]:
+        return EventService._queryset().filter(
+            end_time__lte=now(),
+            id__in=EventMember.objects.filter(user_id=user_id)
+            .exclude(role=MemberRole.ORGANIZER)
+            .values("event_id"),
+        )
+
+    @staticmethod
+    def get_ongoing_joined_events(user_id: int) -> QuerySet[Event]:
+        time = now()
+        return EventService._queryset().filter(
+            start_time__lt=time,
+            end_time__gt=time,
+            id__in=EventMember.objects.filter(user_id=user_id)
+            .exclude(role=MemberRole.ORGANIZER)
+            .values("event_id"),
+        )
+
+    @staticmethod
+    def get_future_joined_events(user_id: int) -> QuerySet[Event]:
+        return EventService._queryset().filter(
+            start_time__gte=now(),
+            id__in=EventMember.objects.filter(user_id=user_id)
+            .exclude(role=MemberRole.ORGANIZER)
+            .values("event_id"),
+        )
+
+    @staticmethod
+    def get_unrated_events(user_id: int) -> QuerySet[Event]:
+        return EventService._queryset().filter(
+            finished=True,
+            id__in=EventMember.objects.filter(
+                user_id=user_id, score__isnull=True, has_participated=True
+            )
+            .exclude(role=MemberRole.ORGANIZER)
+            .values("event_id"),
+        )
+
+    @staticmethod
+    def get_unfinished_events(user_id: int) -> QuerySet[Event]:
+        return EventService._queryset().filter(
+            finished=False,
+            id__in=EventMember.objects.filter(
+                user_id=user_id, role__in=(MemberRole.ORGANIZER, MemberRole.MODERATOR)
+            ).values("event_id"),
+        )
+
     @staticmethod
     def create_event(
         user: User,

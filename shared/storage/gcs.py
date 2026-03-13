@@ -4,7 +4,7 @@ import os
 
 from google.cloud import storage
 
-from shared.storage.base import StorageBackend
+from shared.storage.base import Method, StorageBackend
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ class GCSStorageBackend(StorageBackend):
     def generate_signed_url(
         self,
         blob_name: str,
-        method: str,
+        method: Method,
         expiration_minutes: int = 5,
         headers: dict = None,
     ) -> str:
@@ -78,7 +78,7 @@ class GCSStorageBackend(StorageBackend):
         return blob.generate_signed_url(
             version="v4",
             expiration=datetime.timedelta(minutes=expiration_minutes),
-            method=method,
+            method=method.value,
             headers=headers or {},
         )
 

@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 
 from main.chat.services import ChatService
 from main.notification.services import NotificationService
@@ -22,6 +22,24 @@ class RelationshipService:
             relationship.refresh_from_db()
             return relationship
         
+    @staticmethod
+    def get_requests_sent(user: User) -> QuerySet[Relationship]:
+        return Relationship.objects.filter(
+            user_1=user, status=RelationshipStatus.PENDING
+        )
+
+    @staticmethod
+    def get_requests_pending(user: User) -> QuerySet[Relationship]:
+        return Relationship.objects.filter(
+            user_2=user, status=RelationshipStatus.PENDING
+        )
+
+    @staticmethod
+    def get_friends(user: User) -> QuerySet[Relationship]:
+        q1 = Q(user_1=user)
+        q2 = Q(user_2=user)
+        return Relationship.objects.filter(q1 | q2, status=RelationshipStatus.FRIENDS)
+
     @staticmethod
     def _get_user_or_raise(user_id: int) -> User:
         try:
