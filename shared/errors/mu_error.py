@@ -22,7 +22,7 @@ class MUErrorCode(IntEnum):
     LOCATION_DOES_NOT_EXIST = 204
     EVENT_MEMBER_DOES_NOT_EXIST = 205
     POST_DOES_NOT_EXIST = 206
-    POST_COMMENT_DOES_NOT_EXIST = 207
+    COMMENT_DOES_NOT_EXIST = 207
     CHAT_DOES_NOT_EXIST = 208
 
     # 3xx – Invalid Actions / Preconditions Not Met
@@ -80,11 +80,11 @@ class MUErrorCode(IntEnum):
     CANNOT_ADD_TO_FRIEND_CHAT = 406
 
     # 5xx – Post & Comment Errors
-    POST_TITLE_MAX_LENGTH = 500
     POST_CONTENT_MAX_LENGTH = 501
     POST_ALREADY_LIKED = 502
     POST_NOT_LIKED = 503
-    POST_COMMENT_MAX_LENGTH = 504
+    COMMENT_MAX_LENGTH = 504
+    COMMENT_NESTING_TOO_DEEP = 505
 
     # 6xx – Attachment Errors
     ATTACHMENT_NOT_OWNED = 600
@@ -152,7 +152,7 @@ mu_error_code_messages = {
     EC.LOCATION_DOES_NOT_EXIST: "Location does not found.",
     EC.EVENT_MEMBER_DOES_NOT_EXIST: "Event member does not exist.",
     EC.POST_DOES_NOT_EXIST: "Post does not exist.",
-    EC.POST_COMMENT_DOES_NOT_EXIST: "Post comment does not exist.",
+    EC.COMMENT_DOES_NOT_EXIST: "Comment does not exist.",
     EC.INVALID_FRIEND_REQUEST: "Cannot send friend request to this user.",
     EC.MINIMAL_LOCATION_REQUIREMENTS_MISSING: "You either need to provide a location id or longitude and latitude.",
     EC.EVENT_START_TIME_INVALID: "Event has to start in the future.",
@@ -191,11 +191,11 @@ mu_error_code_messages = {
     EC.NOT_IN_CHAT: "You are not a member of this chat.",
     EC.NICKNAME_MAX_LENGTH: "Nickname cannot be longer than 24 characters.",
     EC.MESSAGE_MAX_LENGTH: "Messages cannot be longer than 512 characters.",
-    EC.POST_TITLE_MAX_LENGTH: "Post title cannot be longer than 128 characters.",
     EC.POST_CONTENT_MAX_LENGTH: "Post content cannot be longer than 2048 characters.",
     EC.POST_ALREADY_LIKED: "You cannot like the same post twice.",
     EC.POST_NOT_LIKED: "You cannot unlike post you didn't like.",
-    EC.POST_COMMENT_MAX_LENGTH: "Post comment cannot be longer than 512 characters.",
+    EC.COMMENT_MAX_LENGTH: "Comment cannot be longer than 512 characters.",
+    EC.COMMENT_NESTING_TOO_DEEP: "Replies can only be one level deep.",
     EC.ATTACHMENT_NOT_OWNED: "You can only send messages with attachments you have created.",
     EC.ATTACHMENT_NOT_UPLOADED: "You need to upload a file to the attachment link before you can use it.",
     EC.USERNAME_ALREADY_TAKEN: "Username already taken.",

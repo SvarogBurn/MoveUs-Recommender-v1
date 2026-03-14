@@ -2,7 +2,9 @@ import graphene
 from django.db.models import Avg
 
 from api.graphql.object_type import MUObjectType
+from api.graphql.social.types import CommentType
 from main.event.models import Event, EventMember
+from main.social.services import CommentService
 from shared.enums import MemberRole
 
 
@@ -20,7 +22,7 @@ class EventMemberType(MUObjectType):
         )
 
 
-class EventCommentType(graphene.ObjectType):
+class EventReviewType(graphene.ObjectType):
     member = graphene.Field(EventMemberType)
     comment = graphene.String()
 
@@ -33,7 +35,12 @@ class EventTypeMixin(MUObjectType):
     participant_count = graphene.Int()
     role = graphene.Field(MemberRole.as_graphene_enum())
     average_score = graphene.Float()
-    comments = graphene.List(EventCommentType)
+    reviews = graphene.List(EventReviewType)
+    comments = graphene.List(
+        CommentType,
+        start=graphene.Int(default_value=0),
+        end=graphene.Int(default_value=10),
+    )
 
     class Meta:
         model = Event
@@ -100,15 +107,20 @@ class EventTypeMixin(MUObjectType):
         ]
         return score + 1 if score is not None else None
 
-    def resolve_comments(
+    def resolve_reviews(
         self: Event, info: graphene.ResolveInfo
-    ) -> list[EventCommentType]:
+    ) -> list[EventReviewType]:
         members = getattr(self, "_members", None)
         if members is not None:
             source = [m for m in members if m.comment is not None]
         else:
             source = EventMember.objects.filter(event_id=self.id, comment__isnull=False)
-        return [EventCommentType(member=m, comment=m.comment) for m in source]
+        return [EventReviewType(member=m, comment=m.comment) for m in source]
+
+    def resolve_comments(
+        self: Event, info: graphene.ResolveInfo, start: int, end: int
+    ):
+        return CommentService.get_comments_for_event(self, start, end)
 
 
 class UnfinishedEventType(EventTypeMixin):

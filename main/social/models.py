@@ -41,16 +41,7 @@ class Relationship(models.Model):
         return user == self.user_2 and self.status == RelationshipStatus.BLOCKED_BY_ONE
 
 
-class PostLike(models.Model):
-    post = models.ForeignKey("Post", on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-
-    class Meta:
-        db_table = "main_app_post_liked_by"
-
-
 class Post(models.Model):
-    title = models.CharField(max_length=128)
     content = models.CharField()
     time_posted = models.DateTimeField(auto_now_add=True, db_index=True)
     author = models.ForeignKey(
@@ -67,21 +58,36 @@ class Post(models.Model):
         db_table = "main_app_post"
 
 
-class PostComment(models.Model):
+class PostLike(models.Model):
+    post = models.ForeignKey("Post", on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = "main_app_post_liked_by"
+
+
+class Comment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=False)
     post = models.ForeignKey(
-        Post, on_delete=models.CASCADE, related_name="comments", null=False
+        Post, on_delete=models.CASCADE, related_name="comments", null=True
+    )
+    event = models.ForeignKey(
+        Event, on_delete=models.CASCADE, related_name="social_comments", null=True
     )
     text = models.CharField(max_length=512)
     time_posted = models.DateTimeField(auto_now_add=True)
-    is_reply_to = models.ForeignKey(
-        "PostComment", on_delete=models.CASCADE, related_name="replies", null=True
+    parent = models.ForeignKey(
+        "Comment", on_delete=models.CASCADE, related_name="replies", null=True
     )
 
     class Meta:
-        db_table = "main_app_postcomment"
+        db_table = "main_app_comment"
 
-    def get_tree(self) -> None:
-        self.descendents = list(self.replies.all())
-        for child in self.descendents:
-            child.get_tree()
+
+class CommentLike(models.Model):
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = "main_app_comment_liked_by"
+        unique_together = ("comment", "user")

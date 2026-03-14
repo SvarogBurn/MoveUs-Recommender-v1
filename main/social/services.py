@@ -1,10 +1,13 @@
+from django.db import IntegrityError
 from django.db.models import Q, QuerySet
 
 from main.chat.services import ChatService
+from main.event.models import Event
 from main.notification.services import NotificationService
-from main.social.models import Relationship
+from main.social.models import Comment, CommentLike, Post, PostLike, Relationship
+from main.social.validators import validate_comment, validate_post
 from main.user.models import User
-from shared.enums import NotificationEnum, RelationshipStatus
+from shared.enums import MemberRole, NotificationEnum, RelationshipStatus
 from shared.errors.mu_error import MUError, MUErrorCode
 
 
@@ -203,3 +206,106 @@ class RelationshipService:
 
         except Relationship.DoesNotExist:
             raise MUError(MUErrorCode.NOT_FRIENDS)
+
+
+class PostService:
+    @staticmethod
+    def create_post(user: User, content: str, event_id: int | None = None) -> Post:
+        validate_post(content)
+
+        if event_id is not None:
+            from main.event.services import EventService
+
+            EventService.get_event(event_id, user.id, MemberRole.MODERATOR)
+
+        return Post.objects.create(content=content, author=user, event_id=event_id)
+
+    @staticmethod
+    def like_post(user: User, post_id: int) -> None:
+        try:
+            post = Post.objects.get(pk=post_id)
+        except Post.DoesNotExist:
+            raise MUError(MUErrorCode.POST_DOES_NOT_EXIST)
+        post.liked_by.add(user)
+
+    @staticmethod
+    def unlike_post(user: User, post_id: int) -> None:
+        try:
+            post = Post.objects.get(pk=post_id)
+        except Post.DoesNotExist:
+            raise MUError(MUErrorCode.POST_DOES_NOT_EXIST)
+        post.liked_by.remove(user)
+
+
+class CommentService:
+    @staticmethod
+    def comment_on_post(user: User, post_id: int, text: str) -> Comment:
+        validate_comment(text)
+        try:
+            Post.objects.get(pk=post_id)
+        except Post.DoesNotExist:
+            raise MUError(MUErrorCode.POST_DOES_NOT_EXIST)
+        return Comment.objects.create(user=user, post_id=post_id, text=text)
+
+    @staticmethod
+    def comment_on_event(user: User, event_id: int, text: str) -> Comment:
+        validate_comment(text)
+        try:
+            Event.objects.get(pk=event_id)
+        except Event.DoesNotExist:
+            raise MUError(MUErrorCode.EVENT_DOES_NOT_EXIST)
+        return Comment.objects.create(user=user, event_id=event_id, text=text)
+
+    @staticmethod
+    def reply_to_comment(user: User, comment_id: int, text: str) -> Comment:
+        validate_comment(text)
+        try:
+            parent = Comment.objects.get(pk=comment_id)
+        except Comment.DoesNotExist:
+            raise MUError(MUErrorCode.COMMENT_DOES_NOT_EXIST)
+
+        if parent.parent is not None:
+            raise MUError(MUErrorCode.COMMENT_NESTING_TOO_DEEP)
+
+        return Comment.objects.create(
+            user=user,
+            text=text,
+            parent=parent,
+            post_id=parent.post_id,
+            event_id=parent.event_id,
+        )
+
+    @staticmethod
+    def like_comment(user: User, comment_id: int) -> None:
+        try:
+            Comment.objects.get(pk=comment_id)
+        except Comment.DoesNotExist:
+            raise MUError(MUErrorCode.COMMENT_DOES_NOT_EXIST)
+        try:
+            CommentLike.objects.create(comment_id=comment_id, user=user)
+        except IntegrityError:
+            pass
+
+    @staticmethod
+    def unlike_comment(user: User, comment_id: int) -> None:
+        try:
+            Comment.objects.get(pk=comment_id)
+        except Comment.DoesNotExist:
+            raise MUError(MUErrorCode.COMMENT_DOES_NOT_EXIST)
+        CommentLike.objects.filter(comment_id=comment_id, user=user).delete()
+
+    @staticmethod
+    def get_comments_for_post(post: Post, start: int, end: int) -> QuerySet[Comment]:
+        return (
+            Comment.objects.filter(post=post, parent__isnull=True)
+            .order_by("-time_posted")[start:end]
+        )
+
+    @staticmethod
+    def get_comments_for_event(
+        event: Event, start: int, end: int
+    ) -> QuerySet[Comment]:
+        return (
+            Comment.objects.filter(event=event, parent__isnull=True)
+            .order_by("-time_posted")[start:end]
+        )

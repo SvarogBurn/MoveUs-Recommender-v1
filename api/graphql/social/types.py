@@ -1,21 +1,32 @@
 import graphene
 
 from api.graphql.object_type import MUObjectType
-from main.social.models import Post, PostComment, Relationship
+from main.social.models import Comment, CommentLike, Post, Relationship
+from main.social.services import CommentService
 from main.user.models import User
 from shared.enums import RelationshipStatus as RS
 from shared.storage import storage_backend
 
 
-class PostCommentType(MUObjectType):
+class CommentType(MUObjectType):
     has_replies = graphene.Boolean()
+    likes = graphene.Int()
+    is_liked = graphene.Boolean()
 
     class Meta:
-        model = PostComment
+        model = Comment
         include = ("id", "user", "text", "time_posted", "replies")
 
-    def resolve_has_replies(self: PostComment, info: graphene.ResolveInfo) -> bool:
-        return self.replies.count() != 0
+    def resolve_has_replies(self: Comment, info: graphene.ResolveInfo) -> bool:
+        return self.replies.exists()
+
+    def resolve_likes(self: Comment, info: graphene.ResolveInfo) -> int:
+        return CommentLike.objects.filter(comment=self).count()
+
+    def resolve_is_liked(self: Comment, info: graphene.ResolveInfo) -> bool:
+        return CommentLike.objects.filter(
+            comment=self, user=info.context.user
+        ).exists()
 
 
 class PostTypeMixin(MUObjectType):
@@ -23,8 +34,9 @@ class PostTypeMixin(MUObjectType):
         graphene.lazy_import("api.graphql.user.types.UserType")
     )
     likes = graphene.Int()
+    is_liked = graphene.Boolean()
     comments = graphene.List(
-        PostCommentType,
+        CommentType,
         start=graphene.Int(default_value=0),
         end=graphene.Int(default_value=10),
     )
@@ -35,14 +47,13 @@ class PostTypeMixin(MUObjectType):
     def resolve_likes(self: Post, info: graphene.ResolveInfo, **kwargs) -> int:
         return self.liked_by.count()
 
+    def resolve_is_liked(self: Post, info: graphene.ResolveInfo, **kwargs) -> bool:
+        return self.liked_by.filter(id=info.context.user.id).exists()
+
     def resolve_comments(
         self: Post, info: graphene.ResolveInfo, start: int, end: int, **kwargs
     ):
-        return (
-            PostComment.objects.order_by("time_posted")
-            .reverse()
-            .filter(post=self, is_reply_to__isnull=True)[start:end]
-        )
+        return CommentService.get_comments_for_post(self, start, end)
 
 
 class CreatePostType(PostTypeMixin):

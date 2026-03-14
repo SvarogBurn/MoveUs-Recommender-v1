@@ -146,7 +146,7 @@ class ProfileType(MUObjectType, UserTypeMixin):
             "is_superuser",
             "is_staff",
             "authored_posts",
-            "postcomment_set",
+            "comment_set",
             "friends_added",
             "friends_added_by",
         )
