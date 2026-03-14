@@ -1,48 +1,16 @@
 from django.db import IntegrityError
 from django.db.models import Q, QuerySet
 
-from main.chat.services import ChatService
 from main.event.models import Event
 from main.notification.services import NotificationService
-from main.social.models import Comment, CommentLike, Post, PostLike, Relationship
+from main.social.models import Block, Comment, CommentLike, Follow, Post, PostLike
 from main.social.validators import validate_comment, validate_post
 from main.user.models import User
-from shared.enums import MemberRole, NotificationEnum, RelationshipStatus
+from shared.enums import MemberRole, NotificationEnum
 from shared.errors.mu_error import MUError, MUErrorCode
 
 
-class RelationshipService:
-    @staticmethod
-    def get_or_create(user: User, target_user: User) -> Relationship:
-        q1 = Q(user_1=user, user_2=target_user)
-        q2 = Q(user_2=user, user_1=target_user)
-        try:
-            return Relationship.objects.get(q1 | q2)
-        except Relationship.DoesNotExist:
-            relationship = Relationship.objects.create(
-                user_1=user, user_2=target_user, status=RelationshipStatus.NONE
-            )
-            relationship.refresh_from_db()
-            return relationship
-        
-    @staticmethod
-    def get_requests_sent(user: User) -> QuerySet[Relationship]:
-        return Relationship.objects.filter(
-            user_1=user, status=RelationshipStatus.PENDING
-        )
-
-    @staticmethod
-    def get_requests_pending(user: User) -> QuerySet[Relationship]:
-        return Relationship.objects.filter(
-            user_2=user, status=RelationshipStatus.PENDING
-        )
-
-    @staticmethod
-    def get_friends(user: User) -> QuerySet[Relationship]:
-        q1 = Q(user_1=user)
-        q2 = Q(user_2=user)
-        return Relationship.objects.filter(q1 | q2, status=RelationshipStatus.FRIENDS)
-
+class FollowService:
     @staticmethod
     def _get_user_or_raise(user_id: int) -> User:
         try:
@@ -51,161 +19,90 @@ class RelationshipService:
             raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
 
     @staticmethod
-    def send_friend_request(from_user: User, to_user_id: int) -> Relationship:
-        if to_user_id == from_user.id:
-            raise MUError(MUErrorCode.CANNOT_HAVE_RELATION_WITH_SELF)
+    def follow(user: User, target_user_id: int) -> Follow:
+        if target_user_id == user.id:
+            raise MUError(MUErrorCode.CANNOT_TARGET_SELF)
 
-        other = RelationshipService._get_user_or_raise(to_user_id)
+        target = FollowService._get_user_or_raise(target_user_id)
 
-        q_1 = Q(user_1=from_user, user_2=other)
-        q_2 = Q(user_2=from_user, user_1=other)
+        if BlockService.is_blocked(user, target):
+            raise MUError(MUErrorCode.BLOCKED_USER)
 
-        try:
-            relationship = Relationship.objects.get(q_1 | q_2)
-            if relationship.status != RelationshipStatus.NONE:
-                raise MUError(MUErrorCode.INVALID_FRIEND_REQUEST)
+        if Follow.objects.filter(follower=user, following=target).exists():
+            raise MUError(MUErrorCode.ALREADY_FOLLOWING)
 
-            relationship.status = RelationshipStatus.PENDING
-            relationship.save()
-
-            if relationship.user_1 != from_user:
-                relationship.swap_users()
-
-        except Relationship.DoesNotExist:
-            relationship = Relationship.objects.create(
-                user_1=from_user, user_2=other, status=RelationshipStatus.PENDING
-            )
+        follow = Follow.objects.create(follower=user, following=target)
 
         NotificationService.send(
-            to_user_id, from_user.id, NotificationEnum.FRIEND_REQUEST
+            target_user_id, user.id, NotificationEnum.NEW_FOLLOWER
         )
-        return relationship
+        return follow
 
     @staticmethod
-    def accept_friend_request(accepting_user: User, from_user_id: int) -> Relationship:
-        other = RelationshipService._get_user_or_raise(from_user_id)
+    def unfollow(user: User, target_user_id: int) -> None:
+        target = FollowService._get_user_or_raise(target_user_id)
 
-        try:
-            relationship = Relationship.objects.get(user_1=other, user_2=accepting_user)
-            if relationship.status != RelationshipStatus.PENDING:
-                raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)
-
-            relationship.status = RelationshipStatus.FRIENDS
-            relationship.save()
-
-            ChatService.create_chat_for_relationship(relationship)
-
-            NotificationService.send(
-                from_user_id, accepting_user.id, NotificationEnum.FRIEND_ACCEPTED
-            )
-            return relationship
-        except Relationship.DoesNotExist:
-            raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)
+        deleted, _ = Follow.objects.filter(
+            follower=user, following=target
+        ).delete()
+        if not deleted:
+            raise MUError(MUErrorCode.NOT_FOLLOWING)
 
     @staticmethod
-    def cancel_friend_request(from_user: User, to_user_id: int) -> Relationship:
-        other = RelationshipService._get_user_or_raise(to_user_id)
-
-        try:
-            relationship = Relationship.objects.get(user_1=from_user, user_2=other)
-            if relationship.status != RelationshipStatus.PENDING:
-                raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)
-
-            relationship.status = RelationshipStatus.NONE
-            relationship.save()
-            return relationship
-        except Relationship.DoesNotExist:
-            raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)
+    def get_followers(user: User) -> QuerySet[Follow]:
+        return Follow.objects.filter(following=user).select_related("follower")
 
     @staticmethod
-    def reject_friend_request(rejecting_user: User, from_user_id: int) -> Relationship:
-        other = RelationshipService._get_user_or_raise(from_user_id)
-
-        try:
-            relationship = Relationship.objects.get(user_1=other, user_2=rejecting_user)
-            if relationship.status != RelationshipStatus.PENDING:
-                raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)
-
-            relationship.status = RelationshipStatus.NONE
-            relationship.save()
-            return relationship
-        except Relationship.DoesNotExist:
-            raise MUError(MUErrorCode.FRIEND_REQUEST_DOES_NOT_EXIST)
+    def get_following(user: User) -> QuerySet[Follow]:
+        return Follow.objects.filter(follower=user).select_related("following")
 
     @staticmethod
-    def remove_friend(user: User, other_user_id: int) -> Relationship:
-        other = RelationshipService._get_user_or_raise(other_user_id)
+    def are_mutual(user: User, other: User) -> bool:
+        return (
+            Follow.objects.filter(follower=user, following=other).exists()
+            and Follow.objects.filter(follower=other, following=user).exists()
+        )
 
-        q_1 = Q(user_1=user, user_2=other)
-        q_2 = Q(user_2=user, user_1=other)
 
+class BlockService:
+    @staticmethod
+    def _get_user_or_raise(user_id: int) -> User:
         try:
-            relationship = Relationship.objects.get(q_1 | q_2)
-            if relationship.status != RelationshipStatus.FRIENDS:
-                raise MUError(MUErrorCode.NOT_FRIENDS)
-
-            relationship.status = RelationshipStatus.NONE
-            relationship.save()
-            return relationship
-        except Relationship.DoesNotExist:
-            raise MUError(MUErrorCode.NOT_FRIENDS)
+            return User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
 
     @staticmethod
-    def block_user(blocking_user: User, target_user_id: int) -> Relationship:
-        if target_user_id == blocking_user.id:
-            raise MUError(MUErrorCode.CANNOT_HAVE_RELATION_WITH_SELF)
+    def block_user(user: User, target_user_id: int) -> Block:
+        if target_user_id == user.id:
+            raise MUError(MUErrorCode.CANNOT_TARGET_SELF)
 
-        other = RelationshipService._get_user_or_raise(target_user_id)
+        target = BlockService._get_user_or_raise(target_user_id)
 
-        q_1 = Q(user_1=blocking_user, user_2=other)
-        q_2 = Q(user_2=blocking_user, user_1=other)
+        if Block.objects.filter(blocker=user, blocked=target).exists():
+            raise MUError(MUErrorCode.BLOCKED_USER)
 
-        try:
-            relationship = Relationship.objects.get(q_1 | q_2)
+        # Remove follows in both directions
+        Follow.objects.filter(
+            Q(follower=user, following=target)
+            | Q(follower=target, following=user)
+        ).delete()
 
-            if relationship.is_blocked(blocking_user.id):
-                relationship.status = RelationshipStatus.BLOCKED_BY_BOTH
-            else:
-                relationship.status = RelationshipStatus.BLOCKED_BY_ONE
-                if blocking_user.id == relationship.user_2_id:
-                    relationship.swap_users()
-
-            relationship.save()
-            return relationship
-
-        except Relationship.DoesNotExist:
-            return Relationship.objects.create(
-                user_1=blocking_user,
-                user_2=other,
-                status=RelationshipStatus.BLOCKED_BY_ONE,
-            )
+        return Block.objects.create(blocker=user, blocked=target)
 
     @staticmethod
-    def unblock_user(unblocking_user: User, target_user_id: int) -> Relationship:
-        if target_user_id == unblocking_user.id:
-            raise MUError(MUErrorCode.CANNOT_HAVE_RELATION_WITH_SELF)
+    def unblock_user(user: User, target_user_id: int) -> None:
+        target = BlockService._get_user_or_raise(target_user_id)
 
-        other = RelationshipService._get_user_or_raise(target_user_id)
+        deleted, _ = Block.objects.filter(blocker=user, blocked=target).delete()
+        if not deleted:
+            raise MUError(MUErrorCode.NOT_BLOCKED)
 
-        q_1 = Q(user_1=unblocking_user, user_2=other)
-        q_2 = Q(user_2=unblocking_user, user_1=other)
-
-        try:
-            relationship = Relationship.objects.get(q_1 | q_2)
-
-            if relationship.is_blocked(target_user_id):
-                if relationship.status == RelationshipStatus.BLOCKED_BY_BOTH:
-                    relationship.status = RelationshipStatus.BLOCKED_BY_ONE
-                    if unblocking_user.id == relationship.user_1_id:
-                        relationship.swap_users()
-                else:
-                    relationship.status = RelationshipStatus.NONE
-
-            relationship.save()
-            return relationship
-
-        except Relationship.DoesNotExist:
-            raise MUError(MUErrorCode.NOT_FRIENDS)
+    @staticmethod
+    def is_blocked(user: User, other: User) -> bool:
+        return Block.objects.filter(
+            Q(blocker=user, blocked=other) | Q(blocker=other, blocked=user)
+        ).exists()
 
 
 class PostService:

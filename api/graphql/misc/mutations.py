@@ -22,7 +22,7 @@ class ReportUserMutation(graphene.Mutation):
             raise MUError(MUErrorCode.REPORT_COMMENT_MAX_LENGTH)
 
         if user_id == info.context.user.id:
-            raise MUError(MUErrorCode.CANNOT_HAVE_RELATION_WITH_SELF)
+            raise MUError(MUErrorCode.CANNOT_TARGET_SELF)
 
         try:
             User.objects.get(pk=user_id)

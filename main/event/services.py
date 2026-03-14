@@ -4,7 +4,6 @@ from typing import Any
 from django.db.models import Prefetch, QuerySet
 from django.utils.timezone import now
 
-from main.chat.services import ChatService
 from main.event.models import Event, EventMember
 from main.location.models import Location
 from main.user.models import User
@@ -138,8 +137,6 @@ class EventService:
             event=event, user=user, role=MemberRole.ORGANIZER, has_participated=True
         )
 
-        chat = ChatService.create_chat_for_event(event)
-        ChatService.add_chat_member(chat, user)
         return event
 
     @staticmethod
@@ -230,9 +227,6 @@ class EventService:
                 user_id=user.id, event_id=event.id, role=MemberRole.PARTICIPANT
             )
 
-        if event.chat_id:
-            ChatService.add_chat_member(event.chat, user)
-
         return member
 
     @staticmethod
@@ -263,7 +257,5 @@ class EventService:
     def delete_event(event: Event) -> None:
         from main.location.services import LocationService
 
-        if event.chat:
-            event.chat.delete()
         LocationService.release(event.location)
         event.delete()

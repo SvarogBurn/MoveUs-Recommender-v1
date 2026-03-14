@@ -2,7 +2,6 @@ from django.db import models
 from django.db.models.fields.composite import CompositePrimaryKey
 
 from main.activity.models import Activity
-from main.chat.models import Chat
 from main.location.models import Location
 from main.user.models import User
 from shared.enums import EventRating, MemberRole, SkillLevel
@@ -15,7 +14,6 @@ class Event(models.Model):
     end_time = models.DateTimeField()
     location = models.ForeignKey(Location, on_delete=models.DO_NOTHING)
     requirements = models.JSONField(null=True)
-    chat = models.ForeignKey(Chat, on_delete=models.DO_NOTHING, null=True)
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE)
     skill_level = models.SmallIntegerField(choices=SkillLevel.choices())
     max_participants = models.IntegerField(null=True)

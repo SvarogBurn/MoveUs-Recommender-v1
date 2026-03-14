@@ -26,6 +26,22 @@ class ChatMember(models.Model):
         db_table = "main_app_chatmember"
 
 
+class DirectChat(models.Model):
+    pk = CompositePrimaryKey("user_1", "user_2")
+    user_1 = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="direct_chats_as_user_1"
+    )
+    user_2 = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="direct_chats_as_user_2"
+    )
+    chat = models.OneToOneField(
+        Chat, on_delete=models.CASCADE, related_name="direct_chat"
+    )
+
+    class Meta:
+        db_table = "main_app_directchat"
+
+
 class ChatMessage(models.Model):
     chat = models.ForeignKey(
         Chat, on_delete=models.CASCADE, null=False, related_name="messages"

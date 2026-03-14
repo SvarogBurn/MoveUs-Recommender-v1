@@ -1,81 +1,39 @@
 import graphene
 
-from api.graphql.social.types import CommentType, CreatePostType, RelationshipType
-from main.social.services import CommentService, PostService, RelationshipService
+from api.graphql.social.types import CommentType, CreatePostType, FollowType
+from main.social.services import (
+    BlockService,
+    CommentService,
+    FollowService,
+    PostService,
+)
 from shared.utils.decorators import require_auth
 
 
-class SendFriendRequestMutation(graphene.Mutation):
+class FollowUserMutation(graphene.Mutation):
 
     class Arguments:
         user_id = graphene.Int()
 
-    relationship = graphene.Field(RelationshipType)
+    follow = graphene.Field(FollowType)
 
     @require_auth
     def mutate(self, info: graphene.ResolveInfo, user_id: int):
-        relationship = RelationshipService.send_friend_request(
-            info.context.user, user_id
-        )
-        return SendFriendRequestMutation(relationship=relationship)
+        follow = FollowService.follow(info.context.user, user_id)
+        return FollowUserMutation(follow=follow)
 
 
-class AcceptFriendRequestMutation(graphene.Mutation):
+class UnfollowUserMutation(graphene.Mutation):
 
     class Arguments:
         user_id = graphene.Int()
 
-    relationship = graphene.Field(RelationshipType)
+    success = graphene.Boolean()
 
     @require_auth
     def mutate(self, info: graphene.ResolveInfo, user_id: int):
-        relationship = RelationshipService.accept_friend_request(
-            info.context.user, user_id
-        )
-        return AcceptFriendRequestMutation(relationship=relationship)
-
-
-class CancelFriendRequestMutation(graphene.Mutation):
-
-    class Arguments:
-        user_id = graphene.Int()
-
-    relationship = graphene.Field(RelationshipType)
-
-    @require_auth
-    def mutate(self, info: graphene.ResolveInfo, user_id: int):
-        relationship = RelationshipService.cancel_friend_request(
-            info.context.user, user_id
-        )
-        return CancelFriendRequestMutation(relationship=relationship)
-
-
-class RejectFriendRequestMutation(graphene.Mutation):
-
-    class Arguments:
-        user_id = graphene.Int()
-
-    relationship = graphene.Field(RelationshipType)
-
-    @require_auth
-    def mutate(self, info: graphene.ResolveInfo, user_id: int):
-        relationship = RelationshipService.reject_friend_request(
-            info.context.user, user_id
-        )
-        return RejectFriendRequestMutation(relationship=relationship)
-
-
-class RemoveFriendMutation(graphene.Mutation):
-
-    class Arguments:
-        user_id = graphene.Int()
-
-    relationship = graphene.Field(RelationshipType)
-
-    @require_auth
-    def mutate(self, info: graphene.ResolveInfo, user_id: int):
-        relationship = RelationshipService.remove_friend(info.context.user, user_id)
-        return RemoveFriendMutation(relationship=relationship)
+        FollowService.unfollow(info.context.user, user_id)
+        return UnfollowUserMutation(success=True)
 
 
 class BlockUserMutation(graphene.Mutation):
@@ -83,12 +41,12 @@ class BlockUserMutation(graphene.Mutation):
     class Arguments:
         user_id = graphene.Int()
 
-    relationship = graphene.Field(RelationshipType)
+    success = graphene.Boolean()
 
     @require_auth
     def mutate(self, info: graphene.ResolveInfo, user_id: int):
-        relationship = RelationshipService.block_user(info.context.user, user_id)
-        return BlockUserMutation(relationship=relationship)
+        BlockService.block_user(info.context.user, user_id)
+        return BlockUserMutation(success=True)
 
 
 class UnblockUserMutation(graphene.Mutation):
@@ -96,12 +54,12 @@ class UnblockUserMutation(graphene.Mutation):
     class Arguments:
         user_id = graphene.Int()
 
-    relationship = graphene.Field(RelationshipType)
+    success = graphene.Boolean()
 
     @require_auth
     def mutate(self, info: graphene.ResolveInfo, user_id: int):
-        relationship = RelationshipService.unblock_user(info.context.user, user_id)
-        return UnblockUserMutation(relationship=relationship)
+        BlockService.unblock_user(info.context.user, user_id)
+        return UnblockUserMutation(success=True)
 
 
 class CreatePostMutation(graphene.Mutation):
@@ -215,11 +173,8 @@ class UnlikeCommentMutation(graphene.Mutation):
 
 
 class Mutation(graphene.ObjectType):
-    send_friend_request = SendFriendRequestMutation.Field()
-    accept_friend_request = AcceptFriendRequestMutation.Field()
-    cancel_friend_request = CancelFriendRequestMutation.Field()
-    reject_friend_request = RejectFriendRequestMutation.Field()
-    remove_friend = RemoveFriendMutation.Field()
+    follow_user = FollowUserMutation.Field()
+    unfollow_user = UnfollowUserMutation.Field()
     block_user = BlockUserMutation.Field()
     unblock_user = UnblockUserMutation.Field()
     create_post = CreatePostMutation.Field()

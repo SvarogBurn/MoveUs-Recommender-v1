@@ -6,9 +6,7 @@ from channels.db import database_sync_to_async
 from channels.layers import get_channel_layer
 from django.db.models.functions import Now
 
-from main.chat.models import Chat, ChatMember, ChatMessage
-from main.event.models import Event
-from main.social.models import Relationship
+from main.chat.models import Chat, ChatMember, ChatMessage, DirectChat
 from main.user.models import User
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.storage import storage_backend
@@ -40,16 +38,38 @@ def serialize_message(
 
 class ChatService:
     @staticmethod
-    def create_chat_for_event(event: Event) -> Chat:
+    def get_or_create_direct_chat(user: User, other_user: User) -> Chat:
+        u1, u2 = (user, other_user) if user.id < other_user.id else (other_user, user)
+        try:
+            return DirectChat.objects.select_related("chat").get(
+                user_1=u1, user_2=u2
+            ).chat
+        except DirectChat.DoesNotExist:
+            chat = Chat.objects.create()
+            DirectChat.objects.create(user_1=u1, user_2=u2, chat=chat)
+            ChatMember.objects.create(user=u1, chat=chat, nickname=u1.username)
+            ChatMember.objects.create(user=u2, chat=chat, nickname=u2.username)
+            return chat
+
+    @staticmethod
+    def create_group_chat(creator: User, user_ids: list[int]) -> Chat:
+        users = list(User.objects.filter(id__in=user_ids))
+        found_ids = {u.id for u in users}
+        for uid in user_ids:
+            if uid not in found_ids:
+                raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
+
         chat = Chat.objects.create()
-        event.chat = chat
-        event.save(update_fields=["chat"])
+        ChatMember.objects.create(user=creator, chat=chat, nickname=creator.username)
+        for u in users:
+            if u.id != creator.id:
+                ChatMember.objects.create(user=u, chat=chat, nickname=u.username)
         return chat
 
     @staticmethod
     def add_chat_member(chat: Chat, user: User) -> ChatMember:
-        if Relationship.objects.filter(chat_id=chat.id).exists():
-            raise MUError(MUErrorCode.CANNOT_ADD_TO_FRIEND_CHAT)
+        if DirectChat.objects.filter(chat_id=chat.id).exists():
+            raise MUError(MUErrorCode.CANNOT_ADD_TO_DIRECT_CHAT)
         member, _ = ChatMember.objects.get_or_create(
             user=user,
             chat=chat,
@@ -59,22 +79,9 @@ class ChatService:
 
     @staticmethod
     def remove_chat_member(chat_id: int, user_id: int) -> None:
-        if Relationship.objects.filter(chat_id=chat_id).exists():
-            raise MUError(MUErrorCode.CANNOT_LEAVE_FRIEND_CHAT)
+        if DirectChat.objects.filter(chat_id=chat_id).exists():
+            raise MUError(MUErrorCode.CANNOT_LEAVE_DIRECT_CHAT)
         ChatMember.objects.filter(user_id=user_id, chat_id=chat_id).delete()
-
-    @staticmethod
-    def create_chat_for_relationship(relationship: Relationship) -> Chat:
-        chat = Chat.objects.create()
-        ChatMember.objects.create(
-            user=relationship.user_1, chat=chat, nickname=relationship.user_1.username
-        )
-        ChatMember.objects.create(
-            user=relationship.user_2, chat=chat, nickname=relationship.user_2.username
-        )
-        relationship.chat = chat
-        relationship.save(update_fields=["chat"])
-        return chat
 
     @staticmethod
     def get_chat_member(chat_id: int, user_id: int) -> ChatMember:

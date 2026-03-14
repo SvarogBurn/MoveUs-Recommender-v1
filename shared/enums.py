@@ -24,7 +24,7 @@ class BaseStringEnum(BaseEnum, Enum):
 
 class PrivacyScope(BaseIntEnum):
     NOONE = 0
-    FRIENDS = 1
+    FOLLOWERS = 1
     EVERYONE = 2
 
 
@@ -110,17 +110,6 @@ class EventRating(BaseIntEnum):
     GREAT = 4
 
 
-class RelationshipStatus(BaseIntEnum):
-    NONE = 0
-    PENDING = 1
-    FRIENDS = 2
-    BLOCKED_BY_ONE = 3
-    # BLOCKED_BY_SECOND = 4
-    BLOCKED_BY_BOTH = 5
-    REQUEST_SENT = 6
-    REQUEST_RECEIVED = 7
-
-
 class PersonalityTrait(BaseIntEnum):
     INTROVERSION = 0
 
@@ -128,7 +117,7 @@ class PersonalityTrait(BaseIntEnum):
 class PrivacySetting(BaseIntEnum):
     LOCATION = 0
     AGE = 1
-    FRIENDS = 2
+    FOLLOWERS = 2
     EMAIL = 3
     GENDER = 4
 
@@ -200,8 +189,7 @@ class ActivityType(BaseIntEnum):
 
 
 class NotificationEnum(BaseIntEnum):
-    FRIEND_REQUEST = 0
-    FRIEND_ACCEPTED = 1
+    NEW_FOLLOWER = 0
     EVENT_FINISHED = 2
 
 

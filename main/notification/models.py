@@ -12,10 +12,7 @@ class Notification(models.Model):
     time_added = models.DateTimeField(auto_now_add=True)
     type = models.SmallIntegerField(choices=NotificationEnum.choices())
 
-    USER_NOTIFICATION_TYPES = (
-        NotificationEnum.FRIEND_ACCEPTED,
-        NotificationEnum.FRIEND_REQUEST,
-    )
+    USER_NOTIFICATION_TYPES = (NotificationEnum.NEW_FOLLOWER,)
     EVENT_NOTIFICATION_TYPES = (NotificationEnum.EVENT_FINISHED,)
 
     class Meta:

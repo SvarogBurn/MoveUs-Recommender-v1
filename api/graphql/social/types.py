@@ -1,10 +1,9 @@
 import graphene
 
 from api.graphql.object_type import MUObjectType
-from main.social.models import Comment, CommentLike, Post, Relationship
+from main.social.models import Comment, CommentLike, Follow, Post
 from main.social.services import CommentService
 from main.user.models import User
-from shared.enums import RelationshipStatus as RS
 from shared.storage import storage_backend
 
 
@@ -71,34 +70,17 @@ class PostType(PostTypeMixin):
     class Meta:
         model = Post
 
-class RelationshipType(MUObjectType):
+class FollowType(MUObjectType):
 
     user = graphene.Field(graphene.lazy_import("api.graphql.user.types.UserType"))
-    status = RS.as_graphene_enum()()
 
     class Meta:
-        model = Relationship
-        fields = ("last_update", "status", "chat")
-        convert_choices_to_enum = False
+        model = Follow
+        fields = ("time_created",)
 
-    def resolve_status(
-        self: Relationship, info: graphene.ResolveInfo
-    ) -> str | None:
+    def resolve_user(self: Follow, info: graphene.ResolveInfo) -> User | None:
         if info.context.user is None:
             return None
-        status = RS(self.status).name
-        if self.status == RS.PENDING:
-            status = (
-                RS(RS.REQUEST_SENT).name
-                if self.user_1 == info.context.user
-                else RS(RS.REQUEST_RECEIVED).name
-            )
-        return status
-
-    def resolve_user(
-        self: Relationship, info: graphene.ResolveInfo
-    ) -> User | None:
-        if info.context.user is None:
-            return None
-        other = self.user_1 if self.user_2 == info.context.user else self.user_2
-        return other
+        if self.follower_id == info.context.user.id:
+            return self.following
+        return self.follower

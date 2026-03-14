@@ -4,9 +4,8 @@ import graphene
 from django.db.models import Q
 
 from api.graphql.event.types import EventType
-from api.graphql.social.types import RelationshipType
 from main.event.models import Event, EventMember, EventMemberLike
-from main.social.models import Relationship
+from main.social.services import FollowService
 from main.user.models import User, UserPrivacySetting
 from shared.enums import (
     FormedRelationshipsType,
@@ -21,7 +20,6 @@ from shared.enums import (
     PreferredPartySize,
     PrivacyScope,
     PrivacySetting,
-    RelationshipStatus,
     SocialInteractionImportance,
     TimeOfTheDay,
 )
@@ -37,29 +35,18 @@ def _check_privacy(user: User, viewer: User, setting: PrivacySetting) -> bool:
     ups = UserPrivacySetting.objects.filter(user=user, setting=setting).first()
     if not ups or ups.scope == PrivacyScope.EVERYONE:
         return True
-    if ups.scope == PrivacyScope.FRIENDS:
-        rel = _get_viewer_relationship(user, viewer)
-        return rel is not None and rel.status == RelationshipStatus.FRIENDS
+    if ups.scope == PrivacyScope.FOLLOWERS:
+        return FollowService.are_mutual(user, viewer)
     return False
-
-
-def _get_viewer_relationship(user: User, viewer: User) -> Relationship | None:
-    """Get and cache the relationship between user and viewer."""
-    cache_attr = f"_rel_cache_{viewer.id}"
-    if hasattr(user, cache_attr):
-        return getattr(user, cache_attr)
-    q1 = Q(user_1=user, user_2=viewer)
-    q2 = Q(user_2=user, user_1=viewer)
-    rel = Relationship.objects.filter(q1 | q2).first()
-    setattr(user, cache_attr, rel)
-    return rel
 
 
 class UserTypeMixin:
     likes = graphene.Int()
     dislikes = graphene.Int()
-    friends = graphene.List(lambda: UserType)
-    friend_count = graphene.Int()
+    followers = graphene.List(lambda: UserType)
+    follower_count = graphene.Int()
+    following = graphene.List(lambda: UserType)
+    following_count = graphene.Int()
     organizing_events = graphene.List(EventType)
     attending_events = graphene.List(EventType)
     posts = graphene.List(
@@ -74,26 +61,27 @@ class UserTypeMixin:
     def resolve_dislikes(self: User, info: graphene.ResolveInfo) -> int:
         return EventMemberLike.objects.filter(user_2=self, like=False).count()
 
-    def resolve_friends(self, info: graphene.ResolveInfo) -> list[User] | None:
-        if not _check_privacy(self, info.context.user, PrivacySetting.FRIENDS):
+    def resolve_followers(self, info: graphene.ResolveInfo) -> list[User] | None:
+        if not _check_privacy(self, info.context.user, PrivacySetting.FOLLOWERS):
             return None
+        follows = FollowService.get_followers(self)
+        return [f.follower for f in follows]
 
-        user1_q = Q(user_1=self)
-        user2_q = Q(user_2=self)
-        rels = Relationship.objects.filter(
-            user1_q | user2_q, status=RelationshipStatus.FRIENDS
-        )
-        return [r.user_1 if self.id == r.user_2.id else r.user_2 for r in rels]
-
-    def resolve_friend_count(self: User, info: graphene.ResolveInfo) -> int | None:
-        if not _check_privacy(self, info.context.user, PrivacySetting.FRIENDS):
+    def resolve_follower_count(self: User, info: graphene.ResolveInfo) -> int | None:
+        if not _check_privacy(self, info.context.user, PrivacySetting.FOLLOWERS):
             return None
+        return FollowService.get_followers(self).count()
 
-        user1_q = Q(user_1=self)
-        user2_q = Q(user_2=self)
-        return Relationship.objects.filter(
-            user1_q | user2_q, status=RelationshipStatus.FRIENDS
-        ).count()
+    def resolve_following(self, info: graphene.ResolveInfo) -> list[User] | None:
+        if not _check_privacy(self, info.context.user, PrivacySetting.FOLLOWERS):
+            return None
+        follows = FollowService.get_following(self)
+        return [f.following for f in follows]
+
+    def resolve_following_count(self: User, info: graphene.ResolveInfo) -> int | None:
+        if not _check_privacy(self, info.context.user, PrivacySetting.FOLLOWERS):
+            return None
+        return FollowService.get_following(self).count()
 
     def resolve_organizing_events(self: User, info: graphene.ResolveInfo):
         return Event.objects.filter(
@@ -147,8 +135,12 @@ class ProfileType(MUObjectType, UserTypeMixin):
             "is_staff",
             "authored_posts",
             "comment_set",
-            "friends_added",
-            "friends_added_by",
+            "following_set",
+            "followers_set",
+            "blocking_set",
+            "blocked_by_set",
+            "direct_chats_as_user_1",
+            "direct_chats_as_user_2",
         )
         convert_choices_to_enum = True
 
@@ -232,7 +224,8 @@ class UserType(MUObjectType, UserTypeMixin):
     email = graphene.String()
     date_of_birth = graphene.Date()
     gender = Gender.as_graphene_enum()()
-    relationship = graphene.Field(RelationshipType)
+    is_following = graphene.Boolean()
+    is_followed_by = graphene.Boolean()
 
     class Meta:
         model = User
@@ -266,12 +259,21 @@ class UserType(MUObjectType, UserTypeMixin):
         if _check_privacy(self, info.context.user, PrivacySetting.GENDER):
             return self.gender
 
-    def resolve_relationship(
-        self: User, info: graphene.ResolveInfo
-    ) -> Relationship | None:
-        if not info.context.user or info.context.user.is_anonymous:
+    def resolve_is_following(self: User, info: graphene.ResolveInfo) -> bool | None:
+        viewer = info.context.user
+        if not viewer or viewer.is_anonymous:
             return None
-        return _get_viewer_relationship(self, info.context.user)
+        from main.social.models import Follow
+
+        return Follow.objects.filter(follower=viewer, following=self).exists()
+
+    def resolve_is_followed_by(self: User, info: graphene.ResolveInfo) -> bool | None:
+        viewer = info.context.user
+        if not viewer or viewer.is_anonymous:
+            return None
+        from main.social.models import Follow
+
+        return Follow.objects.filter(follower=self, following=viewer).exists()
 
 
 class PrivacySettingType(MUObjectType):

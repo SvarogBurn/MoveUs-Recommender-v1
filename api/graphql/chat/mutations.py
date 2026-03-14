@@ -1,9 +1,12 @@
 import graphene
 
-from api.graphql.chat.types import ChatMemberType, ChatMessageType
+from api.graphql.chat.types import ChatMemberType, ChatMessageType, ChatType
+from main.chat.models import Chat, ChatMember
 from main.chat.services import ChatService
 from main.chat.validators import validate_message, validate_nickname
+from main.user.models import User
 from shared.enums import ChatNotifications
+from shared.errors.mu_error import MUError, MUErrorCode
 from shared.storage import storage_backend
 from shared.utils.decorators import require_auth
 
@@ -79,7 +82,63 @@ class SendChatMessage(graphene.Mutation):
         return SendChatMessage(chat_message=msg)
 
 
+class CreateGroupChat(graphene.Mutation):
+
+    class Arguments:
+        user_ids = graphene.List(graphene.Int, required=True)
+
+    chat = graphene.Field(ChatType)
+
+    @require_auth
+    def mutate(self, info: graphene.ResolveInfo, user_ids: list[int]):
+        chat = ChatService.create_group_chat(info.context.user, user_ids)
+        return CreateGroupChat(chat=chat)
+
+
+class AddChatMember(graphene.Mutation):
+
+    class Arguments:
+        chat_id = graphene.Int(required=True)
+        user_id = graphene.Int(required=True)
+
+    chat = graphene.Field(ChatType)
+
+    @require_auth
+    def mutate(self, info: graphene.ResolveInfo, chat_id: int, user_id: int):
+        try:
+            chat = Chat.objects.get(pk=chat_id)
+        except Chat.DoesNotExist:
+            raise MUError(MUErrorCode.CHAT_DOES_NOT_EXIST)
+
+        ChatService.get_chat_member(chat_id, info.context.user.id)
+
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
+
+        ChatService.add_chat_member(chat, user)
+        return AddChatMember(chat=chat)
+
+
+class LeaveChat(graphene.Mutation):
+
+    class Arguments:
+        chat_id = graphene.Int(required=True)
+
+    success = graphene.Boolean()
+
+    @require_auth
+    def mutate(self, info: graphene.ResolveInfo, chat_id: int):
+        ChatService.get_chat_member(chat_id, info.context.user.id)
+        ChatService.remove_chat_member(chat_id, info.context.user.id)
+        return LeaveChat(success=True)
+
+
 class Mutation(graphene.ObjectType):
     set_chat_notifications = SetChatNotifications.Field()
     set_chat_nickname = SetChatNickname.Field()
     send_chat_message = SendChatMessage.Field()
+    create_group_chat = CreateGroupChat.Field()
+    add_chat_member = AddChatMember.Field()
+    leave_chat = LeaveChat.Field()

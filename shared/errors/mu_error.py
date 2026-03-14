@@ -16,7 +16,6 @@ class MUErrorCode(IntEnum):
 
     # 2xx – Resource Not Found / Existence Errors
     USER_DOES_NOT_EXIST = 200
-    FRIEND_REQUEST_DOES_NOT_EXIST = 201
     EVENT_DOES_NOT_EXIST = 202
     PREFERRED_ACTIVITY_DOES_NOT_EXIST = 203
     LOCATION_DOES_NOT_EXIST = 204
@@ -26,7 +25,6 @@ class MUErrorCode(IntEnum):
     CHAT_DOES_NOT_EXIST = 208
 
     # 3xx – Invalid Actions / Preconditions Not Met
-    INVALID_FRIEND_REQUEST = 300
     MINIMAL_LOCATION_REQUIREMENTS_MISSING = 301
 
     EVENT_START_TIME_INVALID = 310
@@ -67,8 +65,11 @@ class MUErrorCode(IntEnum):
     CANNOT_LIKE_NOT_PARTICIPANT = 372
     CANNOT_LIKE_DIDNT_PARTICIPATE = 373
 
-    NOT_FRIENDS = 380
-    CANNOT_HAVE_RELATION_WITH_SELF = 381
+    NOT_FOLLOWING = 380
+    CANNOT_TARGET_SELF = 381
+    ALREADY_FOLLOWING = 382
+    NOT_BLOCKED = 383
+    BLOCKED_USER = 384
 
     # 4xx – Chat & Messaging Errors
     NOT_IN_CHAT = 400
@@ -76,8 +77,8 @@ class MUErrorCode(IntEnum):
     MESSAGE_MAX_LENGTH = 402
     CANNOT_MESSAGE_YOURSELF = 403
     NO_TEXT_OR_ATTACHMENT = 404
-    CANNOT_LEAVE_FRIEND_CHAT = 405
-    CANNOT_ADD_TO_FRIEND_CHAT = 406
+    CANNOT_LEAVE_DIRECT_CHAT = 405
+    CANNOT_ADD_TO_DIRECT_CHAT = 406
 
     # 5xx – Post & Comment Errors
     POST_CONTENT_MAX_LENGTH = 501
@@ -146,19 +147,17 @@ mu_error_code_messages = {
     EC.NOT_PARTICIPANT: "You need to participate in the event to perform this mutation",
     EC.NOT_MEMBER: "You need to be in the event to perform this mutation",
     EC.USER_DOES_NOT_EXIST: "User does not exits.",
-    EC.FRIEND_REQUEST_DOES_NOT_EXIST: "Friendship request does not exist.",
     EC.EVENT_DOES_NOT_EXIST: "Event does not exist.",
     EC.PREFERRED_ACTIVITY_DOES_NOT_EXIST: "Activity not on user's preferred activity list.",
     EC.LOCATION_DOES_NOT_EXIST: "Location does not found.",
     EC.EVENT_MEMBER_DOES_NOT_EXIST: "Event member does not exist.",
     EC.POST_DOES_NOT_EXIST: "Post does not exist.",
     EC.COMMENT_DOES_NOT_EXIST: "Comment does not exist.",
-    EC.INVALID_FRIEND_REQUEST: "Cannot send friend request to this user.",
     EC.MINIMAL_LOCATION_REQUIREMENTS_MISSING: "You either need to provide a location id or longitude and latitude.",
     EC.EVENT_START_TIME_INVALID: "Event has to start in the future.",
     EC.EVENT_END_TIME_INVALID: "Event has to end in the future.",
     EC.EVENT_TIMES_RELATION_INVALID: "Event start time has to be before event end time.",
-    EC.NOT_FRIENDS: "You need to be friends with this user to run this mutation.",
+    EC.NOT_FOLLOWING: "You are not following this user.",
     EC.EVENT_MIN_AGE: "Minimal age for an event has to be between 18 and 100 years.",
     EC.EVENT_MAX_AGE: "Maximum age for an event has to be between 18 and 100 years.",
     EC.EVENT_MIN_MAX_AGE: "Event minimal age must be lower than even maximal age.",
@@ -230,11 +229,14 @@ mu_error_code_messages = {
     EC.EVENT_DESCRIPTION_MAX_LENGTH: "Event description cannot be longer than 131072 characters.",
     EC.EVENT_MIN_MAX_PARTICIPANTS: "Max participant count cannot be smaller than one or smaller than the number of currently joined participants.",
     EC.REPORT_COMMENT_MAX_LENGTH: "Report comment cannot be longer than 512 characters.",
-    EC.CANNOT_HAVE_RELATION_WITH_SELF: "Cannot run this query on yourself.",
+    EC.CANNOT_TARGET_SELF: "Cannot run this query on yourself.",
+    EC.ALREADY_FOLLOWING: "You are already following this user.",
+    EC.NOT_BLOCKED: "You have not blocked this user.",
+    EC.BLOCKED_USER: "Cannot interact with a blocked user.",
     EC.CANNOT_MESSAGE_YOURSELF: "Cannot message yourself.",
     EC.NO_TEXT_OR_ATTACHMENT: "Chat message must include either text or an attachment.",
-    EC.CANNOT_LEAVE_FRIEND_CHAT: "You cannot leave a friend chat.",
-    EC.CANNOT_ADD_TO_FRIEND_CHAT: "You cannot add members to a friend chat.",
+    EC.CANNOT_LEAVE_DIRECT_CHAT: "You cannot leave a direct chat.",
+    EC.CANNOT_ADD_TO_DIRECT_CHAT: "You cannot add members to a direct chat.",
 }
 
 

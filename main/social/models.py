@@ -1,44 +1,36 @@
-from django.db import models, transaction
+from django.db import models
 from django.db.models.fields.composite import CompositePrimaryKey
 
-from main.chat.models import Chat
 from main.event.models import Event
 from main.user.models import User
-from shared.enums import RelationshipStatus
 
 
-class Relationship(models.Model):
-    pk = CompositePrimaryKey("user_1", "user_2")
-    user_1 = models.ForeignKey(
-        User, on_delete=models.CASCADE, null=False, related_name="friends_added"
+class Follow(models.Model):
+    pk = CompositePrimaryKey("follower", "following")
+    follower = models.ForeignKey(
+        User, on_delete=models.CASCADE, null=False, related_name="following_set"
     )
-    user_2 = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        null=False,
-        related_name="friends_added_by",
+    following = models.ForeignKey(
+        User, on_delete=models.CASCADE, null=False, related_name="followers_set"
     )
-    last_update = models.DateTimeField(auto_now_add=True)
-    status = models.SmallIntegerField(
-        choices=RelationshipStatus.choices(), db_index=True
-    )
-    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, null=True)
+    time_created = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "main_app_relationship"
+        db_table = "main_app_follow"
 
-    def swap_users(self) -> None:
-        user_1, user_2 = self.user_1, self.user_2
 
-        with transaction.atomic():
-            Relationship.objects.filter(user_1=user_1, user_2=user_2).update(
-                user_1=user_2, user_2=user_1
-            )
+class Block(models.Model):
+    pk = CompositePrimaryKey("blocker", "blocked")
+    blocker = models.ForeignKey(
+        User, on_delete=models.CASCADE, null=False, related_name="blocking_set"
+    )
+    blocked = models.ForeignKey(
+        User, on_delete=models.CASCADE, null=False, related_name="blocked_by_set"
+    )
+    time_created = models.DateTimeField(auto_now_add=True)
 
-    def is_blocked(self, user) -> bool:
-        if self.status == RelationshipStatus.BLOCKED_BY_BOTH:
-            return True
-        return user == self.user_2 and self.status == RelationshipStatus.BLOCKED_BY_ONE
+    class Meta:
+        db_table = "main_app_block"
 
 
 class Post(models.Model):
@@ -59,6 +51,7 @@ class Post(models.Model):
 
 
 class PostLike(models.Model):
+    pk = CompositePrimaryKey("post", "user")
     post = models.ForeignKey("Post", on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
@@ -85,9 +78,9 @@ class Comment(models.Model):
 
 
 class CommentLike(models.Model):
+    pk = CompositePrimaryKey("comment", "user")
     comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     class Meta:
         db_table = "main_app_comment_liked_by"
-        unique_together = ("comment", "user")
