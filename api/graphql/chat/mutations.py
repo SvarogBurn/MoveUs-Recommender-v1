@@ -86,12 +86,13 @@ class CreateGroupChat(graphene.Mutation):
 
     class Arguments:
         user_ids = graphene.List(graphene.Int, required=True)
+        name = graphene.String(required=False, default_value="")
 
     chat = graphene.Field(ChatType)
 
     @require_auth
-    def mutate(self, info: graphene.ResolveInfo, user_ids: list[int]):
-        chat = ChatService.create_group_chat(info.context.user, user_ids)
+    def mutate(self, info: graphene.ResolveInfo, user_ids: list[int], name: str = ""):
+        chat = ChatService.create_group_chat(info.context.user, user_ids, name=name)
         return CreateGroupChat(chat=chat)
 
 

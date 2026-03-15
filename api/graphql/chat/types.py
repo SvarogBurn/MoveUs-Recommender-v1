@@ -1,8 +1,8 @@
 import graphene
 
 from api.graphql.object_type import MUObjectType
-from main.chat.models import Chat, ChatMember, ChatMessage
-from shared.enums import ChatNotifications
+from main.chat.models import Chat, ChatMember, ChatMessage, DirectChat, GroupChat
+from shared.enums import ChatKind, ChatNotifications
 from shared.storage import storage_backend
 from shared.utils.decorators import require_auth
 
@@ -54,6 +54,8 @@ class WSChatMemberType(graphene.ObjectType):
 class WSChatType(graphene.ObjectType):
     id = graphene.Int()
     time_created = graphene.DateTime()
+    kind = graphene.String()
+    group_name = graphene.String()
     members = graphene.List(WSChatMemberType)
     last_message = graphene.Field(WSChatMessageType)
 
@@ -68,6 +70,8 @@ class WSMyChatUpdateType(graphene.ObjectType):
 
 
 class ChatType(MUObjectType):
+    kind = graphene.Field(ChatKind.as_graphene_enum())
+    group_name = graphene.String()
     notifications = ChatNotifications.as_graphene_enum()()
     last_message = graphene.Field(ChatMessageType)
     members = graphene.List(ChatMemberType, required=True)
@@ -75,6 +79,17 @@ class ChatType(MUObjectType):
     class Meta:
         model = Chat
         fields = ("id", "time_created", "members", "messages")
+
+    def resolve_kind(self: Chat, info: graphene.ResolveInfo) -> int:
+        if DirectChat.objects.filter(chat_id=self.id).exists():
+            return ChatKind.DIRECT
+        return ChatKind.GROUP
+
+    def resolve_group_name(self: Chat, info: graphene.ResolveInfo) -> str | None:
+        try:
+            return self.group_chat.name
+        except GroupChat.DoesNotExist:
+            return None
 
     @require_auth
     def resolve_notifications(self: Chat, info: graphene.ResolveInfo) -> int:

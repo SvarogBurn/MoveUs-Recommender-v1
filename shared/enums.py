@@ -96,6 +96,11 @@ class MemberRole(BaseIntEnum):
     ORGANIZER = 3
 
 
+class ChatKind(BaseIntEnum):
+    DIRECT = 0
+    GROUP = 1
+
+
 class ChatNotifications(BaseIntEnum):
     NONE = 0
     ALL = 1

@@ -42,6 +42,16 @@ class DirectChat(models.Model):
         db_table = "main_app_directchat"
 
 
+class GroupChat(models.Model):
+    chat = models.OneToOneField(
+        Chat, on_delete=models.CASCADE, related_name="group_chat"
+    )
+    name = models.CharField(max_length=64, default="")
+
+    class Meta:
+        db_table = "main_app_groupchat"
+
+
 class ChatMessage(models.Model):
     chat = models.ForeignKey(
         Chat, on_delete=models.CASCADE, null=False, related_name="messages"

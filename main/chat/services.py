@@ -6,7 +6,7 @@ from channels.db import database_sync_to_async
 from channels.layers import get_channel_layer
 from django.db.models.functions import Now
 
-from main.chat.models import Chat, ChatMember, ChatMessage, DirectChat
+from main.chat.models import Chat, ChatMember, ChatMessage, DirectChat, GroupChat
 from main.user.models import User
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.storage import storage_backend
@@ -79,9 +79,14 @@ def _serialize_chat(chat: Chat, exclude_user_id: int | None = None) -> dict[str,
         .order_by("-time_sent")
         .first()
     )
+    is_direct = DirectChat.objects.filter(chat_id=chat.id).exists()
+    group_chat = None if is_direct else GroupChat.objects.filter(chat_id=chat.id).first()
+
     return {
         "id": chat.id,
         "timeCreated": str(chat.time_created),
+        "kind": "DIRECT" if is_direct else "GROUP",
+        "groupName": group_chat.name if group_chat else None,
         "members": [
             {
                 "userId": m.user_id,
@@ -189,7 +194,9 @@ class ChatService:
             return chat
 
     @staticmethod
-    def create_group_chat(creator: User, user_ids: list[int]) -> Chat:
+    def create_group_chat(
+        creator: User, user_ids: list[int], name: str = ""
+    ) -> Chat:
         users = list(User.objects.filter(id__in=user_ids))
         found_ids = {u.id for u in users}
         for uid in user_ids:
@@ -197,6 +204,7 @@ class ChatService:
                 raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
 
         chat = Chat.objects.create()
+        GroupChat.objects.create(chat=chat, name=name)
         ChatMemberService.create_member(creator, chat)
         for u in users:
             if u.id != creator.id:
