@@ -11,18 +11,9 @@ from shared.utils.decorators import require_auth
 _MEMBERS_PREFETCH = Prefetch("members", to_attr="_members")
 
 
-class MyChatsQuery(graphene.ObjectType):
-    my_chats = graphene.List(ChatType)
+class ChatQuery(graphene.ObjectType):
     chat = graphene.Field(ChatType, chat_id=graphene.Int(required=True))
     user_chat = graphene.Field(ChatType, user_id=graphene.Int())
-
-    @require_auth
-    def resolve_my_chats(self, info: graphene.ResolveInfo):
-        return Chat.objects.filter(
-            id__in=ChatMember.objects.filter(user_id=info.context.user.id).values(
-                "chat_id"
-            )
-        ).prefetch_related(_MEMBERS_PREFETCH)
 
     @require_auth
     def resolve_chat(self, info: graphene.ResolveInfo, chat_id: int) -> Chat:

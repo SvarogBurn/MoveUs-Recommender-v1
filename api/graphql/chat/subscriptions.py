@@ -1,6 +1,10 @@
 import graphene
 
-from api.graphql.chat.types import WSChatMessageType, WSLastOpenType
+from api.graphql.chat.types import (
+    WSChatMessageType,
+    WSLastOpenType,
+    WSMyChatUpdateType,
+)
 
 
 class Subscription(graphene.ObjectType):
@@ -13,3 +17,5 @@ class Subscription(graphene.ObjectType):
         WSLastOpenType,
         chat_id=graphene.Int(required=True),
     )
+
+    my_chats = graphene.List(WSMyChatUpdateType)

@@ -141,6 +141,10 @@ class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
             # Extract subscription field name from AST
             field_name = self._get_subscription_field(document)
 
+            if field_name == "myChats":
+                await self._chat_handler.start_my_chats(subscription_id)
+                return
+
             if field_name in ("chatMessages", "chatLastOpen"):
                 chat_id = variables.get("chatId")
                 if chat_id is None:
@@ -192,6 +196,10 @@ class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
     async def chat_last_open(self, event: dict[str, Any]) -> None:
         """Channel layer handler for chat.last_open events."""
         await self._chat_handler.handle_chat_last_open(event)
+
+    async def my_chats_update(self, event: dict[str, Any]) -> None:
+        """Channel layer handler for my_chats.update events."""
+        await self._chat_handler.handle_my_chats_update(event)
 
     async def handle_subscription_results(self, subscription_id: str, result) -> None:
         try:

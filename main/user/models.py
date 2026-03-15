@@ -69,7 +69,7 @@ class User(AbstractUser):
 
     @property
     def display_name(self) -> str:
-        return self.first_name if self.first_name else self.username
+        return f"{self.first_name} {self.last_name}" if (self.first_name and self.last_name) else self.username
 
     @property
     def age(self) -> float:

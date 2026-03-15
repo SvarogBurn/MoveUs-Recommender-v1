@@ -2,7 +2,13 @@ import datetime
 import logging
 from typing import TYPE_CHECKING, Any
 
-from main.chat.services import ChatService, last_open_group, messages_group
+from main.chat.services import (
+    ChatMemberService,
+    ChatService,
+    last_open_group,
+    messages_group,
+    my_chats_group,
+)
 
 if TYPE_CHECKING:
     from core.consumers import GraphQLSubscriptionConsumer
@@ -15,11 +21,13 @@ class ChatSubscriptionHandler:
     def __init__(self, consumer: "GraphQLSubscriptionConsumer") -> None:
         self.consumer = consumer
         self.chat_groups: dict[str, set[str]] = {}
+        self.my_chats_subs: set[str] = set()
+        self._my_chats_group: str | None = None
 
     async def start_chat_messages(self, sub_id: str, chat_id: int) -> None:
         user_id = self.consumer.scope["user_id"]
         try:
-            chat_member = await ChatService.get_chat_member_async(chat_id, user_id)
+            chat_member = await ChatMemberService.get_chat_member_async(chat_id, user_id)
         except Exception as e:
             await self.consumer.send_message("error", sub_id, {"message": str(e)})
             return
@@ -47,7 +55,7 @@ class ChatSubscriptionHandler:
             )
 
         # Update last_open and broadcast
-        last_open = await ChatService.update_member_last_open(chat_member)
+        last_open = await ChatMemberService.update_member_last_open(chat_member)
         await self.consumer.channel_layer.group_send(
             last_open_group(chat_id),
             {
@@ -60,7 +68,7 @@ class ChatSubscriptionHandler:
     async def start_chat_last_open(self, sub_id: str, chat_id: int) -> None:
         user_id = self.consumer.scope["user_id"]
         try:
-            await ChatService.get_chat_member_async(chat_id, user_id)
+            await ChatMemberService.get_chat_member_async(chat_id, user_id)
         except Exception as e:
             await self.consumer.send_message("error", sub_id, {"message": str(e)})
             return
@@ -112,10 +120,10 @@ class ChatSubscriptionHandler:
                 chat_id = sub["chat_id"]
                 user_id = self.consumer.scope["user_id"]
                 try:
-                    chat_member = await ChatService.get_chat_member_async(
+                    chat_member = await ChatMemberService.get_chat_member_async(
                         chat_id, user_id
                     )
-                    last_open = await ChatService.update_member_last_open(chat_member)
+                    last_open = await ChatMemberService.update_member_last_open(chat_member)
                     await self.consumer.channel_layer.group_send(
                         last_open_group(chat_id),
                         {
@@ -141,10 +149,69 @@ class ChatSubscriptionHandler:
                         "next", sub_id, {"data": {"chatLastOpen": [data]}}
                     )
 
+    async def start_my_chats(self, sub_id: str) -> None:
+        user_id = self.consumer.scope["user_id"]
+        group = my_chats_group(user_id)
+        self._my_chats_group = group
+
+        self.consumer.subscriptions[sub_id] = {
+            "type": "my_chats",
+            "group": group,
+        }
+
+        # Join BEFORE querying to avoid missing updates
+        await self.consumer.channel_layer.group_add(group, self.consumer.channel_name)
+        self.my_chats_subs.add(sub_id)
+        logger.debug("User %s joined my_chats group %s", user_id, group)
+
+        # Send initial chat list
+        chats = await ChatService.get_user_chats(int(user_id))
+        initial_payload = [
+            {"eventType": "chat_added", "chatId": c["id"], "chat": c}
+            for c in chats
+        ]
+        if initial_payload:
+            await self.consumer.send_message(
+                "next", sub_id, {"data": {"myChats": initial_payload}}
+            )
+
+    async def handle_my_chats_update(self, event: dict[str, Any]) -> None:
+        logger.debug("Received my_chats.update event: %s", event)
+        payload = {
+            "eventType": event["event_type"],
+            "chatId": event["chat_id"],
+        }
+        if "last_message" in event:
+            payload["lastMessage"] = event["last_message"]
+        if "chat" in event:
+            payload["chat"] = event["chat"]
+        if "member" in event:
+            payload["member"] = event["member"]
+        if "removed_user_id" in event:
+            payload["removedUserId"] = event["removed_user_id"]
+
+        for sub_id in list(self.my_chats_subs):
+            if sub_id in self.consumer.subscriptions:
+                await self.consumer.send_message(
+                    "next", sub_id, {"data": {"myChats": [payload]}}
+                )
+
     async def cleanup(self, sub_id: str, subscription: dict[str, Any]) -> bool:
         if not isinstance(subscription, dict) or "group" not in subscription:
             return False
+
+        sub_type = subscription.get("type")
         group = subscription["group"]
+
+        if sub_type == "my_chats":
+            self.my_chats_subs.discard(sub_id)
+            if not self.my_chats_subs and self._my_chats_group:
+                await self.consumer.channel_layer.group_discard(
+                    self._my_chats_group, self.consumer.channel_name
+                )
+                self._my_chats_group = None
+            return True
+
         if group in self.chat_groups:
             self.chat_groups[group].discard(sub_id)
             if not self.chat_groups[group]:
@@ -160,3 +227,9 @@ class ChatSubscriptionHandler:
                 group, self.consumer.channel_name
             )
         self.chat_groups.clear()
+        if self._my_chats_group:
+            await self.consumer.channel_layer.group_discard(
+                self._my_chats_group, self.consumer.channel_name
+            )
+            self._my_chats_group = None
+        self.my_chats_subs.clear()

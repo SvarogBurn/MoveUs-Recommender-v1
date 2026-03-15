@@ -2,7 +2,7 @@ import graphene
 
 from api.graphql.chat.types import ChatMemberType, ChatMessageType, ChatType
 from main.chat.models import Chat, ChatMember
-from main.chat.services import ChatService
+from main.chat.services import ChatMemberService, ChatService
 from main.chat.validators import validate_message, validate_nickname
 from main.user.models import User
 from shared.enums import ChatNotifications
@@ -24,7 +24,7 @@ class SetChatNotifications(graphene.Mutation):
         self, info: graphene.ResolveInfo, chat_id: int, notifications: ChatNotifications
     ):
         user_id: int = info.context.user.id
-        member = ChatService.get_chat_member(chat_id, user_id)
+        member = ChatMemberService.get_chat_member(chat_id, user_id)
         member.notifications = notifications
         member.save()
 
@@ -44,7 +44,7 @@ class SetChatNickname(graphene.Mutation):
         validate_nickname(nickname)
 
         user_id: int = info.context.user.id
-        member = ChatService.get_chat_member(chat_id, user_id)
+        member = ChatMemberService.get_chat_member(chat_id, user_id)
         member.nickname = nickname
         member.save()
 
@@ -72,7 +72,7 @@ class SendChatMessage(graphene.Mutation):
         validate_message(message, attachment_id)
 
         user_id: int = info.context.user.id
-        ChatService.get_chat_member(chat_id, user_id)
+        ChatMemberService.get_chat_member(chat_id, user_id)
 
         if attachment_id:
             storage_backend.validate_attachment(attachment_id, user_id)
@@ -110,14 +110,14 @@ class AddChatMember(graphene.Mutation):
         except Chat.DoesNotExist:
             raise MUError(MUErrorCode.CHAT_DOES_NOT_EXIST)
 
-        ChatService.get_chat_member(chat_id, info.context.user.id)
+        ChatMemberService.get_chat_member(chat_id, info.context.user.id)
 
         try:
             user = User.objects.get(pk=user_id)
         except User.DoesNotExist:
             raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
 
-        ChatService.add_chat_member(chat, user)
+        ChatMemberService.add_chat_member(chat, user)
         return AddChatMember(chat=chat)
 
 
@@ -130,8 +130,8 @@ class LeaveChat(graphene.Mutation):
 
     @require_auth
     def mutate(self, info: graphene.ResolveInfo, chat_id: int):
-        ChatService.get_chat_member(chat_id, info.context.user.id)
-        ChatService.remove_chat_member(chat_id, info.context.user.id)
+        ChatMemberService.get_chat_member(chat_id, info.context.user.id)
+        ChatMemberService.remove_chat_member(chat_id, info.context.user.id)
         return LeaveChat(success=True)
 
 

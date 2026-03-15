@@ -45,6 +45,28 @@ class WSLastOpenType(graphene.ObjectType):
     last_open = graphene.DateTime()
 
 
+class WSChatMemberType(graphene.ObjectType):
+    user_id = graphene.Int()
+    nickname = graphene.String()
+    last_open = graphene.DateTime()
+
+
+class WSChatType(graphene.ObjectType):
+    id = graphene.Int()
+    time_created = graphene.DateTime()
+    members = graphene.List(WSChatMemberType)
+    last_message = graphene.Field(WSChatMessageType)
+
+
+class WSMyChatUpdateType(graphene.ObjectType):
+    event_type = graphene.String()
+    chat_id = graphene.Int()
+    last_message = graphene.Field(WSChatMessageType)
+    chat = graphene.Field(WSChatType)
+    member = graphene.Field(WSChatMemberType)
+    removed_user_id = graphene.Int()
+
+
 class ChatType(MUObjectType):
     notifications = ChatNotifications.as_graphene_enum()()
     last_message = graphene.Field(ChatMessageType)
