@@ -1,20 +1,7 @@
 import graphene
-from allauth.account import app_settings as allauth_settings
-from allauth.account.adapter import get_adapter
-from allauth.account.forms import ResetPasswordForm
-from allauth.account.models import EmailAddress
-from allauth.account.utils import (
-    complete_signup,
-    perform_login,
-    send_email_confirmation,
-)
-from django.contrib.auth import authenticate, logout
 
 from api.graphql.user.types import ProfileType
-from main.user.models import User
-from main.user.services import UserService
-from main.user.validators import validate_signup
-from shared.errors.mu_error import MUError, MUErrorCode
+from main.auth.services import AuthService
 from shared.utils.decorators import require_auth
 
 
@@ -26,32 +13,17 @@ class LoginMutation(graphene.Mutation):
 
     my_profile = graphene.Field(ProfileType)
 
-    @classmethod
     def mutate(
-        cls,
-        root,
+        self,
         info: graphene.ResolveInfo,
         user: str = None,
         password: str = None,
     ):
-        is_email = "@" in user
-        request = info.context
-
-        profile = None
-        if is_email:
-            profile = authenticate(request, email=user, password=password)
-        else:
-            profile = authenticate(request, username=user.lower(), password=password)
-
-        if profile is None:
-            raise MUError(MUErrorCode.INVALID_LOGIN)
-
-        perform_login(request, profile)
-
+        profile = AuthService.login(info.context, user, password)
         return LoginMutation(my_profile=profile)
 
 
-class SignupMutation(graphene.Mutation):
+class SignUpMutation(graphene.Mutation):
 
     class Arguments:
         username = graphene.String(required=True)
@@ -61,43 +33,21 @@ class SignupMutation(graphene.Mutation):
     my_profile = graphene.Field(ProfileType)
 
     def mutate(
-        self, info: graphene.ResolveInfo, username: str, email: str, password: str
+        self,
+        info: graphene.ResolveInfo,
+        username: str,
+        email: str,
+        password: str
     ):
-        request = info.context
-
-        validate_signup(username, email, password)
-
-        user = get_adapter(request).new_user(request)
-        user.username = username
-        user.email = email
-        user.set_password(password)
-        user.save()
-        UserService.initialize_privacy_settings(user)
-
-        if (
-            allauth_settings.EMAIL_VERIFICATION
-            == allauth_settings.EmailVerificationMethod.MANDATORY
-        ):
-            EmailAddress.objects.create(
-                user=user, email=email, primary=True, verified=False
-            )
-        else:
-            EmailAddress.objects.create(
-                user=user, email=email, primary=True, verified=True
-            )
-
-        complete_signup(request, user, allauth_settings.EMAIL_VERIFICATION, None)
-        perform_login(request, user, allauth_settings.EMAIL_VERIFICATION)
-
-        return SignupMutation(my_profile=user)
+        profile = AuthService.sign_up(info.context, email, username, password)
+        return SignUpMutation(my_profile=profile)
 
 
 class LogoutMutation(graphene.Mutation):
     success = graphene.Boolean()
 
     def mutate(self, info: graphene.ResolveInfo) -> "LogoutMutation":
-        request = info.context
-        logout(request)
+        AuthService.logout(info.context)
         return LogoutMutation(success=True)
 
 
@@ -105,13 +55,7 @@ class DeleteAccountMutation(graphene.Mutation):
     success = graphene.Boolean()
 
     def mutate(self, info: graphene.ResolveInfo) -> "DeleteAccountMutation":
-        request = info.context
-        user: User = request.user
-        if not user.id:
-            raise MUError(MUErrorCode.AUTHENTICATION_ERROR)
-        logout(request)
-        user.delete()
-
+        AuthService.delete_account(info.context)
         return DeleteAccountMutation(success=True)
 
 
@@ -120,8 +64,7 @@ class SendConfirmationEmailMutation(graphene.Mutation):
 
     @require_auth
     def mutate(self, info: graphene.ResolveInfo) -> "SendConfirmationEmailMutation":
-        request = info.context
-        send_email_confirmation(request, request.user)
+        AuthService.send_confirmation_email(info.context)
         return SendConfirmationEmailMutation(success=True)
 
 
@@ -130,16 +73,13 @@ class SendPasswordResetEmailMutation(graphene.Mutation):
 
     @require_auth
     def mutate(self, info: graphene.ResolveInfo):
-        email = info.context.user.email
-        form = ResetPasswordForm(data={"email": email})
-        if form.is_valid():
-            form.save(request=None)
+        form = AuthService.send_password_reset_email(info.context)
         return SendPasswordResetEmailMutation(success=form.is_valid())
 
 
 class Mutation(graphene.ObjectType):
     login = LoginMutation.Field()
-    signup = SignupMutation.Field()
+    sign_up = SignUpMutation.Field()
     logout = LogoutMutation.Field()
     delete_account = DeleteAccountMutation.Field()
     send_confirmation_email = SendConfirmationEmailMutation.Field()

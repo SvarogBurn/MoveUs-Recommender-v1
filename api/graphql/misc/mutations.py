@@ -1,8 +1,7 @@
 import graphene
 
-from main.event.models import Event, EventReport
-from main.user.models import User, UserReport
-from shared.errors.mu_error import MUError, MUErrorCode
+from main.event.services import EventService
+from main.user.services import UserService
 from shared.utils.decorators import require_auth
 
 
@@ -18,20 +17,7 @@ class ReportUserMutation(graphene.Mutation):
     @require_auth
     def mutate(root, info: graphene.ResolveInfo, user_id: int, comment: str = None):
 
-        if comment and len(comment) > 512:
-            raise MUError(MUErrorCode.REPORT_COMMENT_MAX_LENGTH)
-
-        if user_id == info.context.user.id:
-            raise MUError(MUErrorCode.CANNOT_TARGET_SELF)
-
-        try:
-            User.objects.get(pk=user_id)
-        except User.DoesNotExist:
-            raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
-
-        UserReport.objects.create(
-            reporter_id=info.context.user.id, reported_id=user_id, comment=comment
-        )
+        UserService.report_user(info.context.user.id, user_id, comment)
 
         return ReportUserMutation(success=True)
 
@@ -47,17 +33,7 @@ class ReportEventMutation(graphene.Mutation):
     @require_auth
     def mutate(root, info: graphene.ResolveInfo, event_id: int, comment: str = None):
 
-        if comment and len(comment) > 512:
-            raise MUError(MUErrorCode.REPORT_COMMENT_MAX_LENGTH)
-
-        try:
-            Event.objects.get(pk=event_id)
-        except Event.DoesNotExist:
-            raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
-
-        EventReport.objects.create(
-            reporter_id=info.context.user.id, reported_id=event_id, comment=comment
-        )
+        EventService.report_event(info.context.user.id, event_id, comment)
 
         return ReportEventMutation(success=True)
 

@@ -6,7 +6,7 @@ from main.notification.services import NotificationService
 from main.social.models import Block, Comment, CommentLike, Follow, Post, PostLike
 from main.social.validators import validate_comment, validate_post
 from main.user.models import User
-from shared.enums import MemberRole, NotificationEnum
+from shared.enums import MemberRole, NotificationKind
 from shared.errors.mu_error import MUError, MUErrorCode
 
 
@@ -34,7 +34,7 @@ class FollowService:
         follow = Follow.objects.create(follower=user, following=target)
 
         NotificationService.send(
-            target_user_id, user.id, NotificationEnum.NEW_FOLLOWER
+            target_user_id, user.id, NotificationKind.NEW_FOLLOWER
         )
         return follow
 

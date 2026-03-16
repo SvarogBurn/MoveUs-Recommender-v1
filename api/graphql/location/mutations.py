@@ -1,18 +1,14 @@
 import graphene
 
-from api.graphql.user.types import ProfileType
-from main.event.models import Event, EventMember
 from main.event.services import EventService
-from main.location.models import Location
-from main.location.validators import validate_location
+from main.location.services import LocationService
 from main.user.models import User
 from shared.enums import CountryCode, MemberRole
-from shared.errors.mu_error import MUError, MUErrorCode
 from shared.utils.decorators import require_auth
 
 
 # TODO: Change mutations to NOT return boolean
-class UpdateProfileLocation(graphene.Mutation):
+class AlterProfileLocation(graphene.Mutation):
 
     class Arguments:
         longitude = graphene.Float()
@@ -30,13 +26,9 @@ class UpdateProfileLocation(graphene.Mutation):
 
         user: User = info.context.user
 
-        validate_location(location_longitude=longitude, location_latitude=latitude)
+        LocationService.alter_profile_location(user, longitude, latitude)
 
-        user.latitude = latitude
-        user.longitude = longitude
-        user.save()
-
-        return UpdateProfileLocation(success=True)
+        return AlterProfileLocation(success=True)
 
 
 class AlterEventLocation(graphene.Mutation):
@@ -73,38 +65,17 @@ class AlterEventLocation(graphene.Mutation):
 
         event = EventService.get_event(event_id, user.id, MemberRole.ORGANIZER)
 
-        validate_location(
-            location_longitude,
-            location_latitude,
-            location_address_line1,
-            location_address_line2,
-            location_zip_code,
-            location_region,
-            location_name,
+        LocationService.alter_event_location(
+            event,
+            location_longitude=location_longitude,
+            location_latitude=location_latitude,
+            location_address_line1=location_address_line1,
+            location_address_line2=location_address_line2,
+            location_zip_code=location_zip_code,
+            location_country_code=location_country_code,
+            location_region=location_region,
+            location_name=location_name,
         )
-
-        location: Location = event.location
-
-        if location.reference_count() > 1:
-            location.pk = None
-
-        if location_longitude:
-            location.longitude = location_longitude
-        if location_latitude:
-            location.latitude = location_latitude
-        if location_address_line1:
-            location.address_line_1 = location_address_line1
-        if location_address_line2:
-            location.address_line_2 = location_address_line2
-        if location_zip_code:
-            location.zip_code = location_zip_code
-        if location_country_code:
-            location.country_code = location_country_code
-        if location_region:
-            location.region = (location_region,)
-        if location_name:
-            location.name = location_name
-        location.save()
 
         return AlterEventLocation(success=True)
 
@@ -127,33 +98,13 @@ class SetEventLocation(graphene.Mutation):
 
         user: User = info.context.user
 
-        event = None
-
-        try:
-            event = Event.objects.get(pk=event_id)
-        except Event.DoesNotExist:
-            raise MUError(MUErrorCode.EVENT_DOES_NOT_EXIST)
-
-        try:
-            em = EventMember.objects.get(pk=(user.id, event.id))
-            if em.role != MemberRole.ORGANIZER:
-                raise MUError(MUErrorCode.NOT_ORGANIZER)
-        except EventMember.DoesNotExist:
-            raise MUError(MUErrorCode.NOT_ORGANIZER)
-
-        try:
-            new_location = Location.objects.get(pk=location_id)
-            old_location = event.location
-            event.location = new_location
-            event.save()
-            old_location.consider_dying()
-        except Location.DoesNotExist:
-            raise MUError(MUErrorCode.LOCATION_DOES_NOT_EXIST)
+        event = EventService.get_event(event_id, user.id, MemberRole.ORGANIZER)
+        LocationService.set_event_location(event, location_id)
 
         return SetEventLocation(success=True)
 
 
 class Mutation(graphene.ObjectType):
-    update_profile_location = UpdateProfileLocation.Field()
+    alter_profile_location = AlterProfileLocation.Field()
     alter_event_location = AlterEventLocation.Field()
     set_event_location = SetEventLocation.Field()

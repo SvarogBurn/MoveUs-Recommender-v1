@@ -4,8 +4,10 @@ from typing import Any
 from django.db.models import Prefetch, QuerySet
 from django.utils.timezone import now
 
-from main.event.models import Event, EventMember
+from main.event.models import Event, EventMember, EventMemberLike, EventReport
+from main.event.validators import validate_event, validate_location_requirements
 from main.location.models import Location
+from main.location.validators import validate_location
 from main.user.models import User
 from shared.enums import MemberRole, SkillLevel
 from shared.errors.mu_error import MUError, MUErrorCode
@@ -119,11 +121,54 @@ class EventService:
         title: str,
         start_time: datetime.datetime,
         end_time: datetime.datetime,
-        location: Location,
-        activity_id: int,
-        skill_level: SkillLevel,
+        location_id: int | None,
+        location_longitude: float | None,
+        location_latitude: float | None,
+        location_address_line1: str | None,
+        location_address_line2: str | None,
+        location_zip_code: int | None,
+        location_country_code=None,
+        location_region: str | None = None,
+        location_name: str | None = None,
+        activity_id: int = None,
+        skill_level: SkillLevel = None,
         **kwargs: Any,
     ) -> Event:
+        validate_location_requirements(location_id, location_longitude, location_latitude)
+        validate_location(
+            location_longitude,
+            location_latitude,
+            location_address_line1,
+            location_address_line2,
+            location_zip_code,
+            location_region,
+            location_name,
+        )
+        validate_event(
+            title,
+            kwargs.get("description"),
+            start_time,
+            end_time,
+            kwargs.get("max_participants"),
+            kwargs.get("min_age"),
+            kwargs.get("max_age"),
+            kwargs.get("accepted_genders"),
+        )
+
+        from main.location.services import LocationService
+
+        location = LocationService.get_or_create(
+            location_id=location_id,
+            longitude=location_longitude,
+            latitude=location_latitude,
+            address_line_1=location_address_line1,
+            address_line_2=location_address_line2,
+            zip_code=location_zip_code,
+            country_code=location_country_code,
+            region=location_region,
+            name=location_name,
+        )
+
         event = Event.objects.create(
             title=title,
             start_time=start_time,
@@ -187,6 +232,13 @@ class EventService:
 
     @staticmethod
     def alter_event(event: Event, **fields: Any) -> Event:
+        validate_event(
+            fields.get("title"),
+            fields.get("description"),
+            fields.get("start_time"),
+            fields.get("end_time"),
+            fields.get("max_participants"),
+        )
         for field, value in fields.items():
             if value is not None:
                 setattr(event, field, value)
@@ -259,3 +311,143 @@ class EventService:
 
         LocationService.release(event.location)
         event.delete()
+
+    @staticmethod
+    def spectate_event(event: Event, user: User) -> EventMember:
+        if event.start_time <= now():
+            raise MUError(MUErrorCode.EVENT_ALREADY_STARTED)
+
+        try:
+            member = EventMember.objects.get(pk=(user.id, event.id))
+            if member.role != MemberRole.PARTICIPANT:
+                raise MUError(MUErrorCode.CANNOT_DEMOTE_YOURSELF)
+            member.role = MemberRole.SPECTATOR
+            member.save()
+        except EventMember.DoesNotExist:
+            member = EventMember.objects.create(
+                user_id=user.id, event_id=event.id, role=MemberRole.SPECTATOR
+            )
+
+        return member
+
+    @staticmethod
+    def leave_event(event: Event, user: User) -> None:
+        if event.end_time <= now():
+            raise MUError(MUErrorCode.EVENT_ALREADY_ENDED)
+
+        try:
+            member = EventMember.objects.get(pk=(user.id, event.id))
+            if member.role == MemberRole.ORGANIZER:
+                raise MUError(MUErrorCode.CANNOT_LEAVE_AS_ORGANIZATOR)
+            member.delete()
+        except EventMember.DoesNotExist:
+            raise MUError(MUErrorCode.NOT_MEMBER)
+
+    @staticmethod
+    def kick_member(
+        event: Event, requesting_user_id: int, target_user_id: int
+    ) -> None:
+        if requesting_user_id == target_user_id:
+            raise MUError(MUErrorCode.CANNOT_KICK_YOURSELF)
+
+        if event.end_time <= now():
+            raise MUError(MUErrorCode.EVENT_ALREADY_ENDED)
+
+        try:
+            member = EventMember.objects.get(pk=(target_user_id, event.id))
+            if member.role == MemberRole.ORGANIZER:
+                raise MUError(MUErrorCode.CANNOT_KICK_ORGANIZER)
+            member.delete()
+        except EventMember.DoesNotExist:
+            raise MUError(MUErrorCode.EVENT_MEMBER_DOES_NOT_EXIST)
+
+    @staticmethod
+    def confirm_participation(
+        target_user_id: int, event_id: int, participated: bool
+    ) -> None:
+        try:
+            member = EventMember.objects.get(pk=(target_user_id, event_id))
+            if member.role == MemberRole.PARTICIPANT:
+                member.has_participated = participated
+                member.save()
+                return
+        except EventMember.DoesNotExist:
+            pass
+
+        raise MUError(MUErrorCode.CANNOT_CONFIRM_NON_PARTICIPATING_MEMBER)
+
+    @staticmethod
+    def rate_event(
+        event: Event, member: EventMember, score, comment: str = None
+    ) -> None:
+        if comment and len(comment) > 512:
+            raise MUError(MUErrorCode.RATE_COMMENT_MAX_LENGTH)
+
+        if not event.finished:
+            raise MUError(MUErrorCode.CANNOT_RATE_UNFINISHED_EVENT)
+
+        if member.role == MemberRole.ORGANIZER:
+            raise MUError(MUErrorCode.CANNOT_RATE_OWN_EVENT)
+
+        if not member.has_participated:
+            raise MUError(MUErrorCode.CANNOT_RATE_NO_PARTICIPATION)
+
+        member.score = score
+        if comment:
+            member.comment = comment
+        member.save()
+
+    @staticmethod
+    def like_member(
+        event: Event,
+        member: EventMember,
+        user_id: int,
+        target_user_id: int,
+        like: bool,
+    ) -> None:
+        if user_id == target_user_id:
+            raise MUError(MUErrorCode.CANNOT_LIKE_YOURSELF)
+
+        if not event.finished:
+            raise MUError(MUErrorCode.CANNOT_LIKE_BEFORE_FINISH)
+
+        if not member.has_participated:
+            raise MUError(MUErrorCode.CANNOT_LIKE_DIDNT_PARTICIPATE)
+
+        try:
+            other = EventMember.objects.get(pk=(target_user_id, event.id))
+            if other.participates and other.has_participated:
+                try:
+                    eml = EventMemberLike.objects.get(
+                        pk=(event.id, user_id, target_user_id)
+                    )
+                    eml.like = like
+                    eml.save()
+                except EventMemberLike.DoesNotExist:
+                    EventMemberLike.objects.create(
+                        user_1_id=user_id,
+                        user_2_id=target_user_id,
+                        event_id=event.id,
+                        like=like,
+                    )
+                return
+        except EventMember.DoesNotExist:
+            pass
+
+        raise MUError(MUErrorCode.CANNOT_LIKE_NOT_PARTICIPANT)
+
+    @staticmethod
+    def report_event(
+        reporter_id: int, event_id: int, comment: str = None
+    ) -> None:
+        if comment and len(comment) > 512:
+            raise MUError(MUErrorCode.REPORT_COMMENT_MAX_LENGTH)
+
+        try:
+            Event.objects.get(pk=event_id)
+        except Event.DoesNotExist:
+            raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
+
+        EventReport.objects.create(
+            reporter_id=reporter_id, reported_id=event_id, comment=comment
+        )

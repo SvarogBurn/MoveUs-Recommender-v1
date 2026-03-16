@@ -159,7 +159,7 @@ class ChatMemberService:
 
     @staticmethod
     @database_sync_to_async
-    def update_member_last_open(chat_member: ChatMember) -> datetime.datetime:
+    def alter_member_last_open(chat_member: ChatMember) -> datetime.datetime:
         chat_member.last_open = Now()
         chat_member.save(update_fields=["last_open"])
         chat_member.refresh_from_db(fields=["last_open"])

@@ -1,10 +1,10 @@
 import graphene
 
 from api.graphql.user.types import ProfileType
-from main.user.models import User, UserPrivacySetting
-from main.user.validators import validate_profile
+from main.user.models import User
+from main.user.services import UserService
 from shared.enums import (
-    FormedRelationshipsType,
+    FormedRelationshipsKind,
     FrequencyOfPhycicalActivity,
     Gender,
     GenderNoPNTS,
@@ -17,11 +17,10 @@ from shared.enums import (
     SocialInteractionImportance,
     TimeOfTheDay,
 )
-from shared.errors.mu_error import MUError, MUErrorCode
 from shared.utils.decorators import require_auth
 
 
-class UpdateBasicInfoMutation(graphene.Mutation):
+class AlterBasicInfoMutation(graphene.Mutation):
 
     class Arguments:
         date_of_birth = graphene.Date(required=False)
@@ -45,25 +44,24 @@ class UpdateBasicInfoMutation(graphene.Mutation):
 
         user: User = info.context.user
 
-        validate_profile(first_name, last_name, date_of_birth, bio)
-
+        fields = {}
         if first_name is not None:
-            user.first_name = first_name
+            fields["first_name"] = first_name
         if last_name is not None:
-            user.last_name = last_name
+            fields["last_name"] = last_name
         if date_of_birth:
-            user.date_of_birth = date_of_birth
+            fields["date_of_birth"] = date_of_birth
         if bio is not None:
-            user.bio = bio
+            fields["bio"] = bio
         if gender is not None:
-            user.gender = gender
+            fields["gender"] = gender
 
-        user.save()
+        UserService.alter_basic_info(user, **fields)
 
-        return UpdateBasicInfoMutation(my_profile=user)
+        return AlterBasicInfoMutation(my_profile=user)
 
 
-class UpdateSurveyInfoMutation(graphene.Mutation):
+class AlterSurveyInfoMutation(graphene.Mutation):
 
     class Arguments:
         frequency_of_physical_activity = FrequencyOfPhycicalActivity.as_graphene_enum()(
@@ -81,8 +79,8 @@ class UpdateSurveyInfoMutation(graphene.Mutation):
         )
         main_interest = MainInterest.as_graphene_enum()(required=False)
         preferred_event_duration = graphene.Int(required=False)
-        formed_relationship_types = graphene.List(
-            FormedRelationshipsType.as_graphene_enum(), required=False
+        formed_relationship_kinds = graphene.List(
+            FormedRelationshipsKind.as_graphene_enum(), required=False
         )
         preferred_partner_characteristics = graphene.List(
             PreferredPartnerCharacteristics.as_graphene_enum(), required=False
@@ -107,43 +105,44 @@ class UpdateSurveyInfoMutation(graphene.Mutation):
         matched_participation_likelihood: MatchedParticipationLikelihood = None,
         main_interest: MainInterest = None,
         preferred_event_duration: int = None,
-        formed_relationship_types: list = [],
+        formed_relationship_kinds: list = [],
         preferred_partner_characteristics: list = [],
         preferred_time_of_the_day: list = [],
         gender_preference: list = [],
         **kwargs
     ):
 
-        if preferred_event_duration and not 1 <= preferred_event_duration <= 200:
-            raise MUError(MUErrorCode.PREFERRED_EVENT_DURATION_RANGE)
-
         user: User = info.context.user
 
+        fields = {}
         if frequency_of_physical_activity is not None:
-            user.frequency_of_physical_activity = frequency_of_physical_activity
+            fields["frequency_of_physical_activity"] = frequency_of_physical_activity
         if social_interaction_importance is not None:
-            user.social_interaction_importance = social_interaction_importance
+            fields["social_interaction_importance"] = social_interaction_importance
         if preferred_party_size is not None:
-            user.preferred_party_size = preferred_party_size
+            fields["preferred_party_size"] = preferred_party_size
         if physical_activity_satisfaction is not None:
-            user.physical_activity_satisfaction = physical_activity_satisfaction
+            fields["physical_activity_satisfaction"] = physical_activity_satisfaction
         if matched_participation_likelihood is not None:
-            user.matched_participation_likelihood = matched_participation_likelihood
+            fields["matched_participation_likelihood"] = matched_participation_likelihood
         if main_interest is not None:
-            user.main_interest = main_interest
+            fields["main_interest"] = main_interest
         if preferred_event_duration is not None:
-            user.preferred_event_duration = preferred_event_duration
-        user.formed_relationship_types = formed_relationship_types
-        user.preferred_partner_characteristics = preferred_partner_characteristics
-        user.preferred_time_of_the_day = preferred_time_of_the_day
-        user.gender_preference = gender_preference
+            fields["preferred_event_duration"] = preferred_event_duration
 
-        user.save()
+        UserService.alter_survey_info(
+            user,
+            formed_relationship_kinds=formed_relationship_kinds,
+            preferred_partner_characteristics=preferred_partner_characteristics,
+            preferred_time_of_the_day=preferred_time_of_the_day,
+            gender_preference=gender_preference,
+            **fields,
+        )
 
-        return UpdateBasicInfoMutation(my_profile=user)
+        return AlterSurveyInfoMutation(my_profile=user)
 
 
-class UpdateMaxTravelDistanceMutation(graphene.Mutation):
+class AlterMaxTravelDistanceMutation(graphene.Mutation):
 
     class Arguments:
         distance = graphene.Int(required=False)
@@ -153,14 +152,11 @@ class UpdateMaxTravelDistanceMutation(graphene.Mutation):
     @require_auth
     def mutate(self, info: graphene.ResolveInfo, distance: int = None):
         user: User = info.context.user
-        if distance is not None and not 1 <= distance < 2e5:
-            raise MUError(MUErrorCode.TRAVEL_DISTANCE_RANGE)
-        user.max_travel_distance = distance
-        user.save()
-        return UpdateMaxTravelDistanceMutation(my_profile=user)
+        UserService.alter_max_travel_distance(user, distance)
+        return AlterMaxTravelDistanceMutation(my_profile=user)
 
 
-class UpdateAllPrivacySettingsMutation(graphene.Mutation):
+class AlterAllPrivacySettingsMutation(graphene.Mutation):
 
     class Arguments:
         scope = PrivacyScope.as_graphene_enum()(required=True)
@@ -170,15 +166,13 @@ class UpdateAllPrivacySettingsMutation(graphene.Mutation):
     @require_auth
     def mutate(self, info: graphene.ResolveInfo, scope: PrivacyScope):
 
-        UserPrivacySetting.objects.filter(user_id=info.context.user.id).update(
-            scope=scope
-        )
+        UserService.alter_all_privacy_settings(info.context.user.id, scope)
 
-        return UpdateAllPrivacySettingsMutation(success=True)
+        return AlterAllPrivacySettingsMutation(success=True)
 
 
 class Mutation(graphene.ObjectType):
-    update_survey_info = UpdateSurveyInfoMutation.Field()
-    update_basic_info = UpdateBasicInfoMutation.Field()
-    update_max_travel_distance = UpdateMaxTravelDistanceMutation.Field()
-    update_all_privacy_settings = UpdateAllPrivacySettingsMutation.Field()
+    alter_survey_info = AlterSurveyInfoMutation.Field()
+    alter_basic_info = AlterBasicInfoMutation.Field()
+    alter_max_travel_distance = AlterMaxTravelDistanceMutation.Field()
+    alter_all_privacy_settings = AlterAllPrivacySettingsMutation.Field()

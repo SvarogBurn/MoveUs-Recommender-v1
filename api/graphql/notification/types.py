@@ -2,12 +2,12 @@ import graphene
 
 from api.graphql.event.types import EventType
 from api.graphql.user.types import UserType
-from shared.enums import NotificationEnum
+from shared.enums import NotificationKind
 
 
 class BaseNotificationType(graphene.Interface):
     id = graphene.Int()
-    notification_type = NotificationEnum.as_graphene_enum()()
+    notification_type = NotificationKind.as_graphene_enum()()
     time = graphene.DateTime()
 
 

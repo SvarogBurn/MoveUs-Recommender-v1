@@ -18,10 +18,11 @@ class Location(models.Model):
         db_table = "main_app_location"
 
     def reference_count(self) -> int:
-        from main.event.models import Event
+        from main.location.services import LocationService
 
-        return Event.objects.filter(location=self).count()
+        return LocationService.reference_count(self)
 
     def consider_dying(self) -> None:
-        if self.reference_count() <= 1:
-            self.delete()
+        from main.location.services import LocationService
+
+        LocationService.consider_dying(self)

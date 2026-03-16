@@ -57,7 +57,7 @@ class PreferredPartySize(BaseIntEnum):
     LARGE_GROUP = 2
 
 
-class FormedRelationshipsType(BaseIntEnum):
+class FormedRelationshipsKind(BaseIntEnum):
     ACQUAINTANCES = 0
     FRIENDS = 1
     ROMANTIC_RELATIONSHIPS = 2
@@ -130,7 +130,7 @@ class PrivacySetting(BaseIntEnum):
 class OtherOption(BaseIntEnum):
     PREFERRED_PARTNER_CHARACTERISTICS = 0
     ACTIVITY = 1
-    FORMED_RELATIONSHIPS_TYPE = 2
+    FORMED_RELATIONSHIPS_KIND = 2
 
 
 class Gender(BaseIntEnum):
@@ -159,7 +159,7 @@ class MainInterest(BaseIntEnum):
     SPORT = 2
 
 
-class ActivityType(BaseIntEnum):
+class ActivityKind(BaseIntEnum):
     AEROBICS = 5
     BADMINTON = 6
     BASEBALL = 7
@@ -193,7 +193,7 @@ class ActivityType(BaseIntEnum):
     YOGA = 30
 
 
-class NotificationEnum(BaseIntEnum):
+class NotificationKind(BaseIntEnum):
     NEW_FOLLOWER = 0
     EVENT_FINISHED = 2
 

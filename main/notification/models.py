@@ -1,7 +1,7 @@
 from django.db import models
 
 from main.user.models import User
-from shared.enums import NotificationEnum
+from shared.enums import NotificationKind
 
 
 class Notification(models.Model):
@@ -10,14 +10,14 @@ class Notification(models.Model):
     )
     target_id = models.IntegerField()
     time_added = models.DateTimeField(auto_now_add=True)
-    type = models.SmallIntegerField(choices=NotificationEnum.choices())
+    kind = models.SmallIntegerField(choices=NotificationKind.choices())
 
-    USER_NOTIFICATION_TYPES = (NotificationEnum.NEW_FOLLOWER,)
-    EVENT_NOTIFICATION_TYPES = (NotificationEnum.EVENT_FINISHED,)
+    USER_NOTIFICATION_KINDS = (NotificationKind.NEW_FOLLOWER,)
+    EVENT_NOTIFICATION_KINDS = (NotificationKind.EVENT_FINISHED,)
 
     class Meta:
         db_table = "main_app_notification"
         indexes = [
             models.Index(fields=["user", "time_added"]),
-            models.Index(fields=["user", "type"]),
+            models.Index(fields=["user", "kind"]),
         ]

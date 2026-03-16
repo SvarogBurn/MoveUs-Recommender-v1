@@ -1,10 +1,10 @@
 import graphene
 
 from api.graphql.activity.types import PreferredActivityType
-from main.user.models import PreferredActivity, User
-from shared.enums import ActivityType as Activity
+from main.activity.services import ActivityService
+from main.user.models import User
+from shared.enums import ActivityKind as Activity
 from shared.enums import SkillLevel
-from shared.errors.mu_error import MUError, MUErrorCode
 from shared.utils.decorators import require_auth
 
 
@@ -22,16 +22,7 @@ class SetPreferredActivity(graphene.Mutation):
     ):
 
         user: User = info.context.user
-
-        try:
-            pa = PreferredActivity.objects.get(pk=(user.id, activity))
-            pa.skill_level = skill_level
-            pa.save()
-        except PreferredActivity.DoesNotExist:
-            PreferredActivity.objects.create(
-                activity_id=activity, user_id=user.id, skill_level=skill_level
-            )
-
+        ActivityService.set_preferred_activity(user, activity, skill_level)
         return SetPreferredActivity(success=True)
 
 
@@ -46,13 +37,7 @@ class RemovePreferredActivity(graphene.Mutation):
     def mutate(cls, root, info: graphene.ResolveInfo, activity: Activity):
 
         user: User = info.context.user
-
-        try:
-            pa = PreferredActivity.objects.get(pk=(user.id, activity))
-            pa.delete()
-        except PreferredActivity.DoesNotExist:
-            raise MUError(MUErrorCode.PREFERRED_ACTIVITY_DOES_NOT_EXIST)
-
+        ActivityService.remove_preferred_activity(user, activity)
         return RemovePreferredActivity(success=True)
 
 

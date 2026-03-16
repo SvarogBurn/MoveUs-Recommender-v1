@@ -8,7 +8,7 @@ from main.event.models import Event, EventMember, EventMemberLike
 from main.social.services import FollowService
 from main.user.models import User, UserPrivacySetting
 from shared.enums import (
-    FormedRelationshipsType,
+    FormedRelationshipsKind,
     FrequencyOfPhycicalActivity,
     Gender,
     GenderNoPNTS,
@@ -110,8 +110,8 @@ class UserTypeMixin:
 
 class ProfileType(MUObjectType, UserTypeMixin):
 
-    formed_relationship_types = graphene.List(
-        FormedRelationshipsType.as_graphene_enum()
+    formed_relationship_kinds = graphene.List(
+        FormedRelationshipsKind.as_graphene_enum()
     )
     preferred_partner_characteristics = graphene.List(
         PreferredPartnerCharacteristics.as_graphene_enum()
@@ -144,14 +144,14 @@ class ProfileType(MUObjectType, UserTypeMixin):
         )
         convert_choices_to_enum = True
 
-    def resolve_formed_relationship_types(
+    def resolve_formed_relationship_kinds(
         self: User, info: graphene.ResolveInfo
     ) -> list[str]:
-        if self.formed_relationship_types is None:
+        if self.formed_relationship_kinds is None:
             return []
         frt_formatted = [
-            next(n for n, v in vars(FormedRelationshipsType).items() if v == x)
-            for x in self.formed_relationship_types
+            next(n for n, v in vars(FormedRelationshipsKind).items() if v == x)
+            for x in self.formed_relationship_kinds
         ]
         return frt_formatted
 

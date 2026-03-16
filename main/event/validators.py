@@ -6,6 +6,15 @@ from shared.enums import Gender
 from shared.errors.mu_error import MUError, MUErrorCode
 
 
+def validate_location_requirements(
+    location_id: int = None,
+    location_longitude: float = None,
+    location_latitude: float = None,
+) -> None:
+    if not location_id and not (location_longitude and location_latitude):
+        raise MUError(MUErrorCode.MINIMAL_LOCATION_REQUIREMENTS_MISSING)
+
+
 def validate_event(
     title: str = None,
     description: str = None,

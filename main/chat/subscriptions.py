@@ -55,7 +55,7 @@ class ChatSubscriptionHandler:
             )
 
         # Update last_open and broadcast
-        last_open = await ChatMemberService.update_member_last_open(chat_member)
+        last_open = await ChatMemberService.alter_member_last_open(chat_member)
         await self.consumer.channel_layer.group_send(
             last_open_group(chat_id),
             {
@@ -123,7 +123,7 @@ class ChatSubscriptionHandler:
                     chat_member = await ChatMemberService.get_chat_member_async(
                         chat_id, user_id
                     )
-                    last_open = await ChatMemberService.update_member_last_open(chat_member)
+                    last_open = await ChatMemberService.alter_member_last_open(chat_member)
                     await self.consumer.channel_layer.group_send(
                         last_open_group(chat_id),
                         {

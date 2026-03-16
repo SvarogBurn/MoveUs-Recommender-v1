@@ -1,16 +1,11 @@
 from datetime import datetime
 
 import graphene
-from django.utils.timezone import now
 
 from api.graphql.event.types import EventMemberType, EventType
-from main.event.models import EventMember, EventMemberLike
 from main.event.services import EventService
-from main.event.validators import validate_event
-from main.location.models import Location
-from main.location.validators import validate_location
 from main.user.models import User
-from shared.enums import ActivityType as Activity
+from shared.enums import ActivityKind as Activity
 from shared.enums import CountryCode, EventRating, GenderNoPNTS, MemberRole, SkillLevel
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.utils.decorators import require_auth
@@ -74,47 +69,6 @@ class CreateEventMutation(graphene.Mutation):
 
         user: User = info.context.user
 
-        if not location_id and not (location_longitude and location_latitude):
-            raise MUError(MUErrorCode.MINIMAL_LOCATION_REQUIREMENTS_MISSING)
-
-        validate_location(
-            location_longitude,
-            location_latitude,
-            location_address_line1,
-            location_address_line2,
-            location_zip_code,
-            location_region,
-            location_name,
-        )
-
-        validate_event(
-            title,
-            description,
-            start_time,
-            end_time,
-            max_participants,
-            min_age,
-            max_age,
-            accepted_genders,
-        )
-
-        if location_id:
-            try:
-                location = Location.objects.get(pk=location_id)
-            except Location.DoesNotExist:
-                raise MUError(MUErrorCode.LOCATION_DOES_NOT_EXIST)
-        else:
-            location = Location.objects.create(
-                longitude=location_longitude,
-                latitude=location_latitude,
-                address_line_1=location_address_line1,
-                address_line_2=location_address_line2,
-                zip_code=location_zip_code,
-                country_code=location_country_code,
-                region=location_region,
-                name=location_name,
-            )
-
         kwargs = {}
         if description is not None:
             kwargs["description"] = description
@@ -134,7 +88,15 @@ class CreateEventMutation(graphene.Mutation):
             title=title,
             start_time=start_time,
             end_time=end_time,
-            location=location,
+            location_id=location_id,
+            location_longitude=location_longitude,
+            location_latitude=location_latitude,
+            location_address_line1=location_address_line1,
+            location_address_line2=location_address_line2,
+            location_zip_code=location_zip_code,
+            location_country_code=location_country_code,
+            location_region=location_region,
+            location_name=location_name,
             activity_id=activity,
             skill_level=skill_level,
             **kwargs
@@ -170,8 +132,6 @@ class AlterEventMutation(graphene.Mutation):
     ):
 
         user: User = info.context.user
-
-        validate_event(title, description, start_time, end_time, max_participants)
 
         event = EventService.get_event(event_id, user.id, MemberRole.ORGANIZER)
 
@@ -247,20 +207,7 @@ class SpectateEventMutation(graphene.Mutation):
     ) -> "SpectateEventMutation":
         user: User = info.context.user
         event = EventService.get_event(event_id)
-
-        if event.start_time <= now():
-            raise MUError(MUErrorCode.EVENT_ALREADY_STARTED)
-
-        try:
-            member = EventMember.objects.get(pk=(user.id, event_id))
-            if member.role != MemberRole.PARTICIPANT:
-                raise MUError(MUErrorCode.CANNOT_DEMOTE_YOURSELF)
-            member.role = MemberRole.SPECTATOR
-            member.save()
-        except EventMember.DoesNotExist:
-            member = EventMember.objects.create(
-                user_id=user.id, event_id=event_id, role=MemberRole.SPECTATOR
-            )
+        member = EventService.spectate_event(event, user)
 
         return SpectateEventMutation(event=event, member=member)
 
@@ -278,17 +225,7 @@ class LeaveEventMutation(graphene.Mutation):
     ) -> "LeaveEventMutation":
         user: User = info.context.user
         event = EventService.get_event(event_id)
-
-        if event.end_time <= now():
-            raise MUError(MUErrorCode.EVENT_ALREADY_ENDED)
-
-        try:
-            member = EventMember.objects.get(pk=(user.id, event_id))
-            if member.role == MemberRole.ORGANIZER:
-                raise MUError(MUErrorCode.CANNOT_LEAVE_AS_ORGANIZATOR)
-            member.delete()
-        except EventMember.DoesNotExist:
-            raise MUError(MUErrorCode.NOT_MEMBER)
+        EventService.leave_event(event, user)
 
         return LeaveEventMutation(event=event)
 
@@ -305,23 +242,10 @@ class KickEventMemberMutation(graphene.Mutation):
     def mutate(self, info: graphene.ResolveInfo, event_id: int, user_id: int):
         user: User = info.context.user
 
-        if user.id == user_id:
-            raise MUError(MUErrorCode.CANNOT_KICK_YOURSELF)
-
         event = EventService.get_event(event_id, user.id, MemberRole.MODERATOR)
+        EventService.kick_member(event, user.id, user_id)
 
-        if event.end_time <= now():
-            raise MUError(MUErrorCode.EVENT_ALREADY_ENDED)
-
-        try:
-            member = EventMember.objects.get(pk=(user_id, event_id))
-            if member.role == MemberRole.ORGANIZER:
-                raise MUError(MUErrorCode.CANNOT_KICK_ORGANIZER)
-            member.delete()
-        except EventMember.DoesNotExist:
-            raise MUError(MUErrorCode.EVENT_MEMBER_DOES_NOT_EXIST)
-
-        return LeaveEventMutation(event=event)
+        return KickEventMemberMutation(event=event)
 
 
 class ConfirmMemberParticipationMutation(graphene.Mutation):
@@ -344,17 +268,9 @@ class ConfirmMemberParticipationMutation(graphene.Mutation):
         user: User = info.context.user
 
         EventService.get_event(event_id, user.id, MemberRole.MODERATOR)
+        EventService.confirm_participation(user_id, event_id, participated)
 
-        try:
-            member = EventMember.objects.get(pk=(user_id, event_id))
-            if member.role == MemberRole.PARTICIPANT:
-                member.has_participated = participated
-                member.save()
-                return ConfirmMemberParticipationMutation(success=True)
-        except EventMember.DoesNotExist:
-            pass
-
-        raise MUError(MUErrorCode.CANNOT_CONFIRM_NON_PARTICIPATING_MEMBER)
+        return ConfirmMemberParticipationMutation(success=True)
 
 
 class FinishEventMutation(graphene.Mutation):
@@ -387,7 +303,7 @@ class RateEventMutation(graphene.Mutation):
         self,
         info: graphene.ResolveInfo,
         event_id: int,
-        score: EventMember,
+        score: EventRating,
         comment: str = None,
     ):
         user: User = info.context.user
@@ -396,23 +312,7 @@ class RateEventMutation(graphene.Mutation):
             event_id, user.id, MemberRole.PARTICIPANT
         )
 
-        if comment and len(comment) > 512:
-            raise MUError(MUErrorCode.RATE_COMMENT_MAX_LENGTH)
-
-        if not event.finished:
-            raise MUError(MUErrorCode.CANNOT_RATE_UNFINISHED_EVENT)
-
-        if member.role == MemberRole.ORGANIZER:
-            raise MUError(MUErrorCode.CANNOT_RATE_OWN_EVENT)
-
-        if not member.has_participated:
-            raise MUError(MUErrorCode.CANNOT_RATE_NO_PARTICIPATION)
-
-        member.score = score
-        if comment:
-            member.comment = comment
-
-        member.save()
+        EventService.rate_event(event, member, score, comment)
 
         return RateEventMutation(event=event)
 
@@ -432,40 +332,13 @@ class LikeEventMemberMutation(graphene.Mutation):
     ):
         user: User = info.context.user
 
-        if user.id == user_id:
-            raise MUError(MUErrorCode.CANNOT_LIKE_YOURSELF)
-
         event, member = EventService.get_event_with_member(
             event_id, user.id, MemberRole.PARTICIPANT
         )
 
-        if not event.finished:
-            raise MUError(MUErrorCode.CANNOT_LIKE_BEFORE_FINISH)
+        EventService.like_member(event, member, user.id, user_id, like)
 
-        if not member.has_participated:
-            raise MUError(MUErrorCode.CANNOT_LIKE_DIDNT_PARTICIPATE)
-
-        try:
-            other = EventMember.objects.get(pk=(user_id, event_id))
-            if other.participates and other.has_participated:
-
-                try:
-                    eml = EventMemberLike.objects.get(pk=(event_id, user.id, user_id))
-                    eml.like = like
-                    eml.save()
-                except EventMemberLike.DoesNotExist:
-                    EventMemberLike.objects.create(
-                        user_1_id=user.id,
-                        user_2_id=user_id,
-                        event_id=event_id,
-                        like=like,
-                    )
-
-                return LikeEventMemberMutation(success=True)
-        except EventMember.DoesNotExist:
-            pass
-
-        raise MUError(MUErrorCode.CANNOT_LIKE_NOT_PARTICIPANT)
+        return LikeEventMemberMutation(success=True)
 
 
 class Mutation(graphene.ObjectType):

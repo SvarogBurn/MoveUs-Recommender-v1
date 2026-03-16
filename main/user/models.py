@@ -43,7 +43,7 @@ class User(AbstractUser):
     preferred_party_size = models.SmallIntegerField(
         choices=PreferredPartySize.choices(), null=True
     )
-    formed_relationship_types = models.JSONField(null=True)
+    formed_relationship_kinds = models.JSONField(null=True)
     physical_activity_satisfaction = models.SmallIntegerField(
         choices=PhysicalActivitySatisfaction.choices(), null=True
     )
