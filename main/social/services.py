@@ -19,49 +19,81 @@ class FollowService:
             raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
 
     @staticmethod
-    def follow(user: User, target_user_id: int) -> Follow:
-        if target_user_id == user.id:
+    def follow(user_id: int, target_user_id: int) -> Follow:
+        if target_user_id == user_id:
             raise MUError(MUErrorCode.CANNOT_TARGET_SELF)
 
-        target = FollowService._get_user_or_raise(target_user_id)
+        FollowService._get_user_or_raise(target_user_id)
 
-        if BlockService.is_blocked(user, target):
+        if BlockService.is_blocked(user_id, target_user_id):
             raise MUError(MUErrorCode.BLOCKED_USER)
 
-        if Follow.objects.filter(follower=user, following=target).exists():
+        if Follow.objects.filter(
+            follower_id=user_id, following_id=target_user_id
+        ).exists():
             raise MUError(MUErrorCode.ALREADY_FOLLOWING)
 
-        follow = Follow.objects.create(follower=user, following=target)
+        follow = Follow.objects.create(
+            follower_id=user_id, following_id=target_user_id
+        )
 
         NotificationService.send(
-            target_user_id, user.id, NotificationKind.NEW_FOLLOWER
+            target_user_id, user_id, NotificationKind.NEW_FOLLOWER
         )
         return follow
 
     @staticmethod
-    def unfollow(user: User, target_user_id: int) -> None:
-        target = FollowService._get_user_or_raise(target_user_id)
+    def unfollow(user_id: int, target_user_id: int) -> None:
+        FollowService._get_user_or_raise(target_user_id)
 
         deleted, _ = Follow.objects.filter(
-            follower=user, following=target
+            follower_id=user_id, following_id=target_user_id
         ).delete()
         if not deleted:
             raise MUError(MUErrorCode.NOT_FOLLOWING)
 
     @staticmethod
-    def get_followers(user: User) -> QuerySet[Follow]:
-        return Follow.objects.filter(following=user).select_related("follower")
+    def get_followers(user_id: int) -> QuerySet[Follow]:
+        return Follow.objects.filter(following_id=user_id).select_related("follower")
 
     @staticmethod
-    def get_following(user: User) -> QuerySet[Follow]:
-        return Follow.objects.filter(follower=user).select_related("following")
+    def get_following(user_id: int) -> QuerySet[Follow]:
+        return Follow.objects.filter(follower_id=user_id).select_related("following")
 
     @staticmethod
-    def are_mutual(user: User, other: User) -> bool:
+    def are_mutual(user_id: int, other_id: int) -> bool:
         return (
-            Follow.objects.filter(follower=user, following=other).exists()
-            and Follow.objects.filter(follower=other, following=user).exists()
+            Follow.objects.filter(
+                follower_id=user_id, following_id=other_id
+            ).exists()
+            and Follow.objects.filter(
+                follower_id=other_id, following_id=user_id
+            ).exists()
         )
+
+    @staticmethod
+    def is_following(follower_id: int, following_id: int) -> bool:
+        return Follow.objects.filter(
+            follower_id=follower_id, following_id=following_id
+        ).exists()
+
+    @staticmethod
+    def get_follower_users(user_id: int) -> list[User]:
+        follows = FollowService.get_followers(user_id)
+        return [f.follower for f in follows]
+
+    @staticmethod
+    def get_following_users(user_id: int) -> list[User]:
+        follows = FollowService.get_following(user_id)
+        return [f.following for f in follows]
+
+    @staticmethod
+    def get_follower_count(user_id: int) -> int:
+        return FollowService.get_followers(user_id).count()
+
+    @staticmethod
+    def get_following_count(user_id: int) -> int:
+        return FollowService.get_following(user_id).count()
 
 
 class BlockService:
@@ -73,88 +105,128 @@ class BlockService:
             raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
 
     @staticmethod
-    def block_user(user: User, target_user_id: int) -> Block:
-        if target_user_id == user.id:
+    def block_user(user_id: int, target_user_id: int) -> Block:
+        if target_user_id == user_id:
             raise MUError(MUErrorCode.CANNOT_TARGET_SELF)
 
-        target = BlockService._get_user_or_raise(target_user_id)
+        BlockService._get_user_or_raise(target_user_id)
 
-        if Block.objects.filter(blocker=user, blocked=target).exists():
+        if Block.objects.filter(
+            blocker_id=user_id, blocked_id=target_user_id
+        ).exists():
             raise MUError(MUErrorCode.BLOCKED_USER)
 
         # Remove follows in both directions
         Follow.objects.filter(
-            Q(follower=user, following=target)
-            | Q(follower=target, following=user)
+            Q(follower_id=user_id, following_id=target_user_id)
+            | Q(follower_id=target_user_id, following_id=user_id)
         ).delete()
 
-        return Block.objects.create(blocker=user, blocked=target)
+        return Block.objects.create(blocker_id=user_id, blocked_id=target_user_id)
 
     @staticmethod
-    def unblock_user(user: User, target_user_id: int) -> None:
-        target = BlockService._get_user_or_raise(target_user_id)
+    def unblock_user(user_id: int, target_user_id: int) -> None:
+        BlockService._get_user_or_raise(target_user_id)
 
-        deleted, _ = Block.objects.filter(blocker=user, blocked=target).delete()
+        deleted, _ = Block.objects.filter(
+            blocker_id=user_id, blocked_id=target_user_id
+        ).delete()
         if not deleted:
             raise MUError(MUErrorCode.NOT_BLOCKED)
 
     @staticmethod
-    def is_blocked(user: User, other: User) -> bool:
+    def is_blocked(user_id: int, other_id: int) -> bool:
         return Block.objects.filter(
-            Q(blocker=user, blocked=other) | Q(blocker=other, blocked=user)
+            Q(blocker_id=user_id, blocked_id=other_id)
+            | Q(blocker_id=other_id, blocked_id=user_id)
         ).exists()
 
 
 class PostService:
     @staticmethod
-    def create_post(user: User, content: str, event_id: int | None = None) -> Post:
+    def get_post(post_id: int) -> Post:
+        try:
+            return Post.objects.select_related("author").get(pk=post_id)
+        except Post.DoesNotExist:
+            raise MUError(MUErrorCode.POST_DOES_NOT_EXIST)
+
+    @staticmethod
+    def get_like_count(post_id: int) -> int:
+        return PostLike.objects.filter(post_id=post_id).count()
+
+    @staticmethod
+    def is_liked_by(post_id: int, user_id: int) -> bool:
+        return PostLike.objects.filter(post_id=post_id, user_id=user_id).exists()
+
+    @staticmethod
+    def get_user_posts(user_id: int, start: int, end: int) -> QuerySet[Post]:
+        return Post.objects.filter(author_id=user_id).select_related("author").order_by(
+            "-time_posted"
+        )[start:end]
+
+    @staticmethod
+    def create_post(user_id: int, content: str, event_id: int | None = None) -> Post:
         validate_post(content)
 
         if event_id is not None:
             from main.event.services import EventService
 
-            EventService.get_event(event_id, user.id, MemberRole.MODERATOR)
+            EventService.get_event(event_id, user_id, MemberRole.MODERATOR)
 
-        return Post.objects.create(content=content, author=user, event_id=event_id)
+        return Post.objects.create(content=content, author_id=user_id, event_id=event_id)
 
     @staticmethod
-    def like_post(user: User, post_id: int) -> None:
+    def like_post(user_id: int, post_id: int) -> None:
         try:
             post = Post.objects.get(pk=post_id)
         except Post.DoesNotExist:
             raise MUError(MUErrorCode.POST_DOES_NOT_EXIST)
-        post.liked_by.add(user)
+        post.liked_by.add(user_id)
 
     @staticmethod
-    def unlike_post(user: User, post_id: int) -> None:
+    def unlike_post(user_id: int, post_id: int) -> None:
         try:
             post = Post.objects.get(pk=post_id)
         except Post.DoesNotExist:
             raise MUError(MUErrorCode.POST_DOES_NOT_EXIST)
-        post.liked_by.remove(user)
+        post.liked_by.remove(user_id)
 
 
 class CommentService:
     @staticmethod
-    def comment_on_post(user: User, post_id: int, text: str) -> Comment:
+    def has_replies(comment_id: int) -> bool:
+        return Comment.objects.filter(parent_id=comment_id).exists()
+
+    @staticmethod
+    def get_like_count(comment_id: int) -> int:
+        return CommentLike.objects.filter(comment_id=comment_id).count()
+
+    @staticmethod
+    def is_liked_by(comment_id: int, user_id: int) -> bool:
+        return CommentLike.objects.filter(
+            comment_id=comment_id, user_id=user_id
+        ).exists()
+
+    @staticmethod
+    def comment_on_post(user_id: int, post_id: int, text: str) -> Comment:
         validate_comment(text)
         try:
             Post.objects.get(pk=post_id)
         except Post.DoesNotExist:
             raise MUError(MUErrorCode.POST_DOES_NOT_EXIST)
-        return Comment.objects.create(user=user, post_id=post_id, text=text)
+        return Comment.objects.create(user_id=user_id, post_id=post_id, text=text)
 
     @staticmethod
-    def comment_on_event(user: User, event_id: int, text: str) -> Comment:
+    def comment_on_event(user_id: int, event_id: int, text: str) -> Comment:
         validate_comment(text)
         try:
             Event.objects.get(pk=event_id)
         except Event.DoesNotExist:
             raise MUError(MUErrorCode.EVENT_DOES_NOT_EXIST)
-        return Comment.objects.create(user=user, event_id=event_id, text=text)
+        return Comment.objects.create(user_id=user_id, event_id=event_id, text=text)
 
     @staticmethod
-    def reply_to_comment(user: User, comment_id: int, text: str) -> Comment:
+    def reply_to_comment(user_id: int, comment_id: int, text: str) -> Comment:
         validate_comment(text)
         try:
             parent = Comment.objects.get(pk=comment_id)
@@ -165,7 +237,7 @@ class CommentService:
             raise MUError(MUErrorCode.COMMENT_NESTING_TOO_DEEP)
 
         return Comment.objects.create(
-            user=user,
+            user_id=user_id,
             text=text,
             parent=parent,
             post_id=parent.post_id,
@@ -173,36 +245,36 @@ class CommentService:
         )
 
     @staticmethod
-    def like_comment(user: User, comment_id: int) -> None:
+    def like_comment(user_id: int, comment_id: int) -> None:
         try:
             Comment.objects.get(pk=comment_id)
         except Comment.DoesNotExist:
             raise MUError(MUErrorCode.COMMENT_DOES_NOT_EXIST)
         try:
-            CommentLike.objects.create(comment_id=comment_id, user=user)
+            CommentLike.objects.create(comment_id=comment_id, user_id=user_id)
         except IntegrityError:
             pass
 
     @staticmethod
-    def unlike_comment(user: User, comment_id: int) -> None:
+    def unlike_comment(user_id: int, comment_id: int) -> None:
         try:
             Comment.objects.get(pk=comment_id)
         except Comment.DoesNotExist:
             raise MUError(MUErrorCode.COMMENT_DOES_NOT_EXIST)
-        CommentLike.objects.filter(comment_id=comment_id, user=user).delete()
+        CommentLike.objects.filter(comment_id=comment_id, user_id=user_id).delete()
 
     @staticmethod
-    def get_comments_for_post(post: Post, start: int, end: int) -> QuerySet[Comment]:
+    def get_comments_for_post(post_id: int, start: int, end: int) -> QuerySet[Comment]:
         return (
-            Comment.objects.filter(post=post, parent__isnull=True)
+            Comment.objects.filter(post_id=post_id, parent__isnull=True)
             .order_by("-time_posted")[start:end]
         )
 
     @staticmethod
     def get_comments_for_event(
-        event: Event, start: int, end: int
+        event_id: int, start: int, end: int
     ) -> QuerySet[Comment]:
         return (
-            Comment.objects.filter(event=event, parent__isnull=True)
+            Comment.objects.filter(event_id=event_id, parent__isnull=True)
             .order_by("-time_posted")[start:end]
         )

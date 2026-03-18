@@ -7,7 +7,6 @@ from main.event.services import EventService
 from main.user.models import User
 from shared.enums import ActivityKind as Activity
 from shared.enums import CountryCode, EventRating, GenderNoPNTS, MemberRole, SkillLevel
-from shared.errors.mu_error import MUError, MUErrorCode
 from shared.utils.decorators import require_auth
 
 
@@ -134,9 +133,6 @@ class AlterEventMutation(graphene.Mutation):
         user: User = info.context.user
 
         event = EventService.get_event(event_id, user.id, MemberRole.ORGANIZER)
-
-        if max_participants and max_participants < event.participant_count():
-            raise MUError(MUErrorCode.EVENT_MIN_MAX_PARTICIPANTS)
 
         EventService.alter_event(
             event,

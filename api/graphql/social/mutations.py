@@ -19,7 +19,7 @@ class FollowUserMutation(graphene.Mutation):
 
     @require_auth
     def mutate(self, info: graphene.ResolveInfo, user_id: int):
-        follow = FollowService.follow(info.context.user, user_id)
+        follow = FollowService.follow(info.context.user.id, user_id)
         return FollowUserMutation(follow=follow)
 
 
@@ -32,7 +32,7 @@ class UnfollowUserMutation(graphene.Mutation):
 
     @require_auth
     def mutate(self, info: graphene.ResolveInfo, user_id: int):
-        FollowService.unfollow(info.context.user, user_id)
+        FollowService.unfollow(info.context.user.id, user_id)
         return UnfollowUserMutation(success=True)
 
 
@@ -45,7 +45,7 @@ class BlockUserMutation(graphene.Mutation):
 
     @require_auth
     def mutate(self, info: graphene.ResolveInfo, user_id: int):
-        BlockService.block_user(info.context.user, user_id)
+        BlockService.block_user(info.context.user.id, user_id)
         return BlockUserMutation(success=True)
 
 
@@ -58,7 +58,7 @@ class UnblockUserMutation(graphene.Mutation):
 
     @require_auth
     def mutate(self, info: graphene.ResolveInfo, user_id: int):
-        BlockService.unblock_user(info.context.user, user_id)
+        BlockService.unblock_user(info.context.user.id, user_id)
         return UnblockUserMutation(success=True)
 
 
@@ -72,7 +72,7 @@ class CreatePostMutation(graphene.Mutation):
 
     @require_auth
     def mutate(root, info: graphene.ResolveInfo, content: str, event_id: int | None = None):
-        post = PostService.create_post(info.context.user, content, event_id)
+        post = PostService.create_post(info.context.user.id, content, event_id)
         return CreatePostMutation(post=post)
 
 
@@ -85,7 +85,7 @@ class LikePostMutation(graphene.Mutation):
 
     @require_auth
     def mutate(root, info: graphene.ResolveInfo, post_id: int):
-        PostService.like_post(info.context.user, post_id)
+        PostService.like_post(info.context.user.id, post_id)
         return LikePostMutation(success=True)
 
 
@@ -98,7 +98,7 @@ class UnlikePostMutation(graphene.Mutation):
 
     @require_auth
     def mutate(root, info: graphene.ResolveInfo, post_id: int):
-        PostService.unlike_post(info.context.user, post_id)
+        PostService.unlike_post(info.context.user.id, post_id)
         return UnlikePostMutation(success=True)
 
 
@@ -112,7 +112,7 @@ class CommentOnPostMutation(graphene.Mutation):
 
     @require_auth
     def mutate(root, info: graphene.ResolveInfo, post_id: int, text: str):
-        comment = CommentService.comment_on_post(info.context.user, post_id, text)
+        comment = CommentService.comment_on_post(info.context.user.id, post_id, text)
         return CommentOnPostMutation(comment=comment)
 
 
@@ -126,7 +126,7 @@ class CommentOnEventMutation(graphene.Mutation):
 
     @require_auth
     def mutate(root, info: graphene.ResolveInfo, event_id: int, text: str):
-        comment = CommentService.comment_on_event(info.context.user, event_id, text)
+        comment = CommentService.comment_on_event(info.context.user.id, event_id, text)
         return CommentOnEventMutation(comment=comment)
 
 
@@ -141,7 +141,7 @@ class ReplyOnCommentMutation(graphene.Mutation):
     @require_auth
     def mutate(root, info: graphene.ResolveInfo, comment_id: int, text: str):
         comment = CommentService.reply_to_comment(
-            info.context.user, comment_id, text
+            info.context.user.id, comment_id, text
         )
         return ReplyOnCommentMutation(comment=comment)
 
@@ -155,7 +155,7 @@ class LikeCommentMutation(graphene.Mutation):
 
     @require_auth
     def mutate(root, info: graphene.ResolveInfo, comment_id: int):
-        CommentService.like_comment(info.context.user, comment_id)
+        CommentService.like_comment(info.context.user.id, comment_id)
         return LikeCommentMutation(success=True)
 
 
@@ -168,7 +168,7 @@ class UnlikeCommentMutation(graphene.Mutation):
 
     @require_auth
     def mutate(root, info: graphene.ResolveInfo, comment_id: int):
-        CommentService.unlike_comment(info.context.user, comment_id)
+        CommentService.unlike_comment(info.context.user.id, comment_id)
         return UnlikeCommentMutation(success=True)
 
 

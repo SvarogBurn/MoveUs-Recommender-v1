@@ -10,10 +10,51 @@ from shared.errors.mu_error import MUError, MUErrorCode
 
 class UserService:
     @staticmethod
-    def initialize_privacy_settings(user: User) -> None:
+    def get_user(id: int = None, username: str = None) -> User:
+        if not id and not username:
+            raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
+        if id and username:
+            raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
+        try:
+            if id:
+                return User.objects.get(pk=id)
+            else:
+                return User.objects.get(username=username)
+        except User.DoesNotExist:
+            raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
+
+    @staticmethod
+    def check_privacy(user_id: int, viewer_id: int, setting: PrivacySetting) -> bool:
+        if user_id == viewer_id:
+            return True
+        ups = UserPrivacySetting.objects.filter(
+            user_id=user_id, setting=setting
+        ).first()
+        if not ups or ups.scope == PrivacyScope.EVERYONE:
+            return True
+        if ups.scope == PrivacyScope.FOLLOWERS:
+            from main.social.services import FollowService
+
+            return FollowService.are_mutual(user_id, viewer_id)
+        return False
+
+    @staticmethod
+    def get_event_likes_count(user_id: int) -> int:
+        from main.event.models import EventMemberLike
+
+        return EventMemberLike.objects.filter(user_2_id=user_id, like=True).count()
+
+    @staticmethod
+    def get_event_dislikes_count(user_id: int) -> int:
+        from main.event.models import EventMemberLike
+
+        return EventMemberLike.objects.filter(user_2_id=user_id, like=False).count()
+
+    @staticmethod
+    def initialize_privacy_settings(user_id: int) -> None:
         for key in PrivacySetting:
             UserPrivacySetting.objects.create(
-                user=user, setting=key.value, scope=PrivacyScope.EVERYONE
+                user_id=user_id, setting=key.value, scope=PrivacyScope.EVERYONE
             )
 
     @staticmethod

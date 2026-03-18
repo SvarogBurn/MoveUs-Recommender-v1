@@ -1,9 +1,9 @@
 import graphene
-from django.db.models import Avg
 
 from api.graphql.object_type import MUObjectType
 from api.graphql.social.types import CommentType
 from main.event.models import Event, EventMember
+from main.event.services import EventService
 from main.social.services import CommentService
 from shared.enums import MemberRole
 
@@ -49,78 +49,49 @@ class EventTypeMixin(MUObjectType):
         self: Event, info: graphene.ResolveInfo
     ) -> EventMember | None:
         members = getattr(self, "_members", None)
-        if members is not None:
-            result = [m for m in members if m.role == MemberRole.ORGANIZER]
-            return result[0] if result else None
-        return EventMember.objects.filter(event=self, role=MemberRole.ORGANIZER).first()
+        return EventService.get_organizer(self.id, members)
 
     def resolve_participants(
         self: Event, info: graphene.ResolveInfo
     ) -> list[EventMember]:
         members = getattr(self, "_members", None)
-        if members is not None:
-            return [m for m in members if m.role == MemberRole.PARTICIPANT]
-        return EventMember.objects.filter(event=self, role=MemberRole.PARTICIPANT)
+        return EventService.get_members_by_role(self.id, MemberRole.PARTICIPANT, members)
 
     def resolve_moderators(
         self: Event, info: graphene.ResolveInfo
     ) -> list[EventMember]:
         members = getattr(self, "_members", None)
-        if members is not None:
-            return [m for m in members if m.role == MemberRole.MODERATOR]
-        return EventMember.objects.filter(event=self, role=MemberRole.MODERATOR)
+        return EventService.get_members_by_role(self.id, MemberRole.MODERATOR, members)
 
     def resolve_spectators(
         self: Event, info: graphene.ResolveInfo
     ) -> list[EventMember]:
         members = getattr(self, "_members", None)
-        if members is not None:
-            return [m for m in members if m.role == MemberRole.SPECTATOR]
-        return EventMember.objects.filter(event=self, role=MemberRole.SPECTATOR)
+        return EventService.get_members_by_role(self.id, MemberRole.SPECTATOR, members)
 
     def resolve_participant_count(self: Event, info: graphene.ResolveInfo) -> int:
         members = getattr(self, "_members", None)
-        if members is not None:
-            return len(members)
-        return EventMember.objects.filter(event=self).count()
+        return EventService.get_member_count(self.id, members)
 
     def resolve_role(self: Event, info: graphene.ResolveInfo) -> int | None:
-        user_id = info.context.user.id
-        if not user_id:
-            return None
         members = getattr(self, "_members", None)
-        if members is not None:
-            result = [m for m in members if m.user_id == user_id]
-            return result[0].role if result else None
-        try:
-            return EventMember.objects.get(pk=(user_id, self.id)).role
-        except EventMember.DoesNotExist:
-            return None
+        return EventService.get_user_role(self.id, info.context.user.id, members)
 
     def resolve_average_score(self: Event, info: graphene.ResolveInfo) -> float | None:
         members = getattr(self, "_members", None)
-        if members is not None:
-            scores = [m.score for m in members if m.score is not None]
-            return (sum(scores) / len(scores) + 1) if scores else None
-        score = EventMember.objects.filter(event_id=self.id).aggregate(Avg("score"))[
-            "score__avg"
-        ]
-        return score + 1 if score is not None else None
+        return EventService.get_average_score(self.id, members)
 
     def resolve_reviews(
         self: Event, info: graphene.ResolveInfo
     ) -> list[EventReviewType]:
         members = getattr(self, "_members", None)
-        if members is not None:
-            source = [m for m in members if m.comment is not None]
-        else:
-            source = EventMember.objects.filter(event_id=self.id, comment__isnull=False)
+        source = EventService.get_reviews(self.id, members)
         return [EventReviewType(member=m, comment=m.comment) for m in source]
 
     def resolve_comments(
         self: Event, info: graphene.ResolveInfo, start: int, end: int
     ):
-        return CommentService.get_comments_for_event(self, start, end)
+        return CommentService.get_comments_for_event(self.id, start, end)
 
 
 class UnfinishedEventType(EventTypeMixin):
@@ -130,9 +101,7 @@ class UnfinishedEventType(EventTypeMixin):
     unconfirmed_participants = graphene.List(EventMemberType)
 
     def resolve_unconfirmed_participants(self: Event, info: graphene.ResolveInfo):
-        return EventMember.objects.filter(
-            event_id=self.id, participates=True, has_participated__isnull=True
-        )
+        return EventService.get_unconfirmed_participants(self.id)
 
 
 class EventType(EventTypeMixin):

@@ -2,6 +2,7 @@ import graphene
 
 from api.graphql.object_type import MUObjectType
 from main.chat.models import Chat, ChatMember, ChatMessage, DirectChat, GroupChat
+from main.chat.services import ChatMemberService, ChatService
 from shared.enums import ChatKind, ChatNotifications
 from shared.storage import storage_backend
 from shared.utils.decorators import require_auth
@@ -81,9 +82,7 @@ class ChatType(MUObjectType):
         fields = ("id", "time_created", "members", "messages")
 
     def resolve_kind(self: Chat, info: graphene.ResolveInfo) -> int:
-        if DirectChat.objects.filter(chat_id=self.id).exists():
-            return ChatKind.DIRECT
-        return ChatKind.GROUP
+        return ChatService.get_chat_kind(self.id)
 
     def resolve_group_name(self: Chat, info: graphene.ResolveInfo) -> str | None:
         try:
@@ -93,25 +92,16 @@ class ChatType(MUObjectType):
 
     @require_auth
     def resolve_notifications(self: Chat, info: graphene.ResolveInfo) -> int:
-        return ChatMember.objects.get(
-            chat_id=self.id, user_id=info.context.user.id
-        ).notifications
+        return ChatMemberService.get_notifications_setting(
+            self.id, info.context.user.id
+        )
 
     @require_auth
     def resolve_last_message(
         self: Chat, info: graphene.ResolveInfo
     ) -> ChatMessage | None:
-        try:
-            return ChatMessage.objects.filter(chat_id=self.id).latest("time_sent")
-        except ChatMessage.DoesNotExist:
-            return None
+        return ChatService.get_last_message(self.id)
 
     @require_auth
     def resolve_members(self: Chat, info: graphene.ResolveInfo):
-        return (
-            ChatMember.objects.select_related("user")
-            .filter(
-                chat_id=self.id,
-            )
-            .exclude(user_id=info.context.user.id)
-        )
+        return ChatMemberService.get_other_members(self.id, info.context.user.id)

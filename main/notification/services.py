@@ -20,6 +20,47 @@ class NotificationService:
         )
 
     @staticmethod
+    def get_notifications_with_targets(
+        user_id: int, last_fetch: datetime.datetime
+    ) -> list[dict]:
+        from main.event.models import Event
+        from main.user.models import User
+
+        notifications = NotificationService.get_notifications(user_id, last_fetch)
+
+        user_notifs = [
+            n for n in notifications if n.kind in Notification.USER_NOTIFICATION_KINDS
+        ]
+        event_notifs = [
+            n for n in notifications if n.kind in Notification.EVENT_NOTIFICATION_KINDS
+        ]
+
+        users_by_id = {
+            u.id: u
+            for u in User.objects.filter(id__in=[n.target_id for n in user_notifs])
+        }
+        events_by_id = {
+            e.id: e
+            for e in Event.objects.filter(id__in=[n.target_id for n in event_notifs])
+        }
+
+        result = []
+        for n in notifications:
+            entry = {
+                "id": n.id,
+                "time": n.time_added,
+                "notification_type": n.kind,
+            }
+            if n.kind in Notification.USER_NOTIFICATION_KINDS:
+                entry["kind"] = "user"
+                entry["user"] = users_by_id[n.target_id]
+            elif n.kind in Notification.EVENT_NOTIFICATION_KINDS:
+                entry["kind"] = "event"
+                entry["event"] = events_by_id[n.target_id]
+            result.append(entry)
+        return result
+
+    @staticmethod
     def send_event_finished(event_id: int) -> None:
         from main.event.models import EventMember
 

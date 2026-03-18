@@ -57,7 +57,7 @@ class AuthService:
         user.set_password(password)
         user.save()
 
-        UserService.initialize_privacy_settings(user)
+        UserService.initialize_privacy_settings(user.id)
 
         if (
             allauth_settings.EMAIL_VERIFICATION
@@ -95,3 +95,15 @@ class AuthService:
         if form.is_valid():
             form.save(request=None)
         return form
+    
+    @staticmethod
+    def is_username_taken(username: str) -> bool:
+        return User.objects.filter(username=username.lower()).exists()
+
+    @staticmethod
+    def is_email_taken(email: str) -> bool:
+        return User.objects.filter(email=email).exists()
+    
+    @staticmethod
+    def is_logged_in(request: Any) -> bool:
+        return bool(request.user)

@@ -1,14 +1,9 @@
 import graphene
-from django.db.models import Prefetch
 
 from api.graphql.chat.types import ChatType
-from main.chat.models import Chat, ChatMember
+from main.chat.models import Chat
 from main.chat.services import ChatService
-from main.user.models import User
-from shared.errors.mu_error import MUError, MUErrorCode
 from shared.utils.decorators import require_auth
-
-_MEMBERS_PREFETCH = Prefetch("members", to_attr="_members")
 
 
 class ChatQuery(graphene.ObjectType):
@@ -17,24 +12,8 @@ class ChatQuery(graphene.ObjectType):
 
     @require_auth
     def resolve_chat(self, info: graphene.ResolveInfo, chat_id: int) -> Chat:
-        try:
-            return Chat.objects.filter(
-                id=chat_id,
-                id__in=ChatMember.objects.filter(user_id=info.context.user.id).values(
-                    "chat_id"
-                ),
-            ).prefetch_related(_MEMBERS_PREFETCH)[0]
-        except IndexError:
-            raise MUError(MUErrorCode.CHAT_DOES_NOT_EXIST)
+        return ChatService.get_chat_for_member(chat_id, info.context.user.id)
 
     @require_auth
     def resolve_user_chat(self, info: graphene.ResolveInfo, user_id: int):
-        if user_id == info.context.user.id:
-            raise MUError(MUErrorCode.CANNOT_MESSAGE_YOURSELF)
-
-        try:
-            target_user = User.objects.get(pk=user_id)
-        except User.DoesNotExist:
-            raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
-
-        return ChatService.get_or_create_direct_chat(info.context.user, target_user)
+        return ChatService.get_or_create_direct_chat(info.context.user.id, user_id)

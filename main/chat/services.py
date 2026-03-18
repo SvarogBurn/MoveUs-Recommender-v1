@@ -7,7 +7,9 @@ from channels.layers import get_channel_layer
 from django.db.models.functions import Now
 
 from main.chat.models import Chat, ChatMember, ChatMessage, DirectChat, GroupChat
+from main.chat.validators import validate_message, validate_nickname
 from main.user.models import User
+from shared.enums import ChatNotifications
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.storage import storage_backend
 
@@ -109,9 +111,12 @@ def _serialize_chat(chat: Chat, exclude_user_id: int | None = None) -> dict[str,
 
 class ChatMemberService:
     @staticmethod
-    def create_member(user: User, chat: Chat) -> ChatMember:
+    def create_member(user_id: int, chat_id: int) -> ChatMember:
+        display_name = User.objects.values_list(
+            "display_name", flat=True
+        ).get(pk=user_id)
         return ChatMember.objects.create(
-            user=user, chat=chat, nickname=user.display_name
+            user_id=user_id, chat_id=chat_id, nickname=display_name
         )
 
     @staticmethod
@@ -127,25 +132,62 @@ class ChatMemberService:
         return ChatMemberService.get_chat_member(chat_id, user_id)
 
     @staticmethod
-    def add_chat_member(chat: Chat, user: User) -> ChatMember:
-        if DirectChat.objects.filter(chat_id=chat.id).exists():
+    def add_chat_member(chat_id: int, user_id: int) -> ChatMember:
+        if DirectChat.objects.filter(chat_id=chat_id).exists():
             raise MUError(MUErrorCode.CANNOT_ADD_TO_DIRECT_CHAT)
+        user = User.objects.get(pk=user_id)
+        chat = Chat.objects.get(pk=chat_id)
         member, created = ChatMember.objects.get_or_create(
-            user=user,
-            chat=chat,
+            user_id=user_id,
+            chat_id=chat_id,
             defaults={"nickname": user.display_name},
         )
         if created:
             chat_data = _serialize_chat(chat)
             _notify_single_user_my_chats(
-                user.id, chat.id, "chat_added", {"chat": chat_data}
+                user_id, chat_id, "chat_added", {"chat": chat_data}
             )
             notify_my_chats_update(
-                chat.id,
+                chat_id,
                 "member_added",
-                {"member": {"userId": user.id, "nickname": user.display_name}},
+                {"member": {"userId": user_id, "nickname": user.display_name}},
             )
         return member
+
+    @staticmethod
+    def add_member_to_chat(
+        chat_id: int, adder_user_id: int, user_id_to_add: int
+    ) -> Chat:
+        try:
+            chat = Chat.objects.get(pk=chat_id)
+        except Chat.DoesNotExist:
+            raise MUError(MUErrorCode.CHAT_DOES_NOT_EXIST)
+
+        ChatMemberService.get_chat_member(chat_id, adder_user_id)
+
+        try:
+            User.objects.get(pk=user_id_to_add)
+        except User.DoesNotExist:
+            raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
+
+        ChatMemberService.add_chat_member(chat_id, user_id_to_add)
+        return chat
+
+    @staticmethod
+    def get_notifications_setting(
+        chat_id: int, user_id: int
+    ) -> int:
+        return ChatMember.objects.get(
+            chat_id=chat_id, user_id=user_id
+        ).notifications
+
+    @staticmethod
+    def get_other_members(chat_id: int, user_id: int):
+        return (
+            ChatMember.objects.select_related("user")
+            .filter(chat_id=chat_id)
+            .exclude(user_id=user_id)
+        )
 
     @staticmethod
     def remove_chat_member(chat_id: int, user_id: int) -> None:
@@ -169,29 +211,80 @@ class ChatMemberService:
             {"member": {"userId": chat_member.user_id, "lastOpen": str(chat_member.last_open)}},
         )
         return chat_member.last_open
+    
+    @staticmethod
+    def set_notifications(chat_member: ChatMember, notifications: ChatNotifications) -> None:
+        chat_member.notifications = notifications
+        chat_member.save()
+
+    @staticmethod
+    def set_nickname(chat_member: ChatMember, nickname: str) -> None:
+        validate_nickname(nickname)
+        chat_member.nickname = nickname
+        chat_member.save()
 
 
 class ChatService:
     @staticmethod
-    def get_or_create_direct_chat(user: User, other_user: User) -> Chat:
-        u1, u2 = (user, other_user) if user.id < other_user.id else (other_user, user)
+    def get_chat_for_member(chat_id: int, user_id: int) -> Chat:
+        from django.db.models import Prefetch
+
+        _members_prefetch = Prefetch("members", to_attr="_members")
+        try:
+            return Chat.objects.filter(
+                id=chat_id,
+                id__in=ChatMember.objects.filter(user_id=user_id).values("chat_id"),
+            ).prefetch_related(_members_prefetch)[0]
+        except IndexError:
+            raise MUError(MUErrorCode.CHAT_DOES_NOT_EXIST)
+
+    @staticmethod
+    def get_or_create_direct_chat(user_id: int, other_user_id: int) -> Chat:
+        if user_id == other_user_id:
+            raise MUError(MUErrorCode.CANNOT_MESSAGE_YOURSELF)
+
+        try:
+            User.objects.get(pk=other_user_id)
+        except User.DoesNotExist:
+            raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
+
+        u1_id, u2_id = (
+            (user_id, other_user_id)
+            if user_id < other_user_id
+            else (other_user_id, user_id)
+        )
         try:
             return DirectChat.objects.select_related("chat").get(
-                user_1=u1, user_2=u2
+                user_1_id=u1_id, user_2_id=u2_id
             ).chat
         except DirectChat.DoesNotExist:
             chat = Chat.objects.create()
-            DirectChat.objects.create(user_1=u1, user_2=u2, chat=chat)
-            ChatMemberService.create_member(u1, chat)
-            ChatMemberService.create_member(u2, chat)
+            DirectChat.objects.create(user_1_id=u1_id, user_2_id=u2_id, chat=chat)
+            ChatMemberService.create_member(u1_id, chat.id)
+            ChatMemberService.create_member(u2_id, chat.id)
             chat_data = _serialize_chat(chat)
             _notify_single_user_my_chats(
-                u1.id, chat.id, "chat_added", {"chat": chat_data}
+                u1_id, chat.id, "chat_added", {"chat": chat_data}
             )
             _notify_single_user_my_chats(
-                u2.id, chat.id, "chat_added", {"chat": chat_data}
+                u2_id, chat.id, "chat_added", {"chat": chat_data}
             )
             return chat
+
+    @staticmethod
+    def get_chat_kind(chat_id: int) -> int:
+        from shared.enums import ChatKind
+
+        if DirectChat.objects.filter(chat_id=chat_id).exists():
+            return ChatKind.DIRECT
+        return ChatKind.GROUP
+
+    @staticmethod
+    def get_last_message(chat_id: int) -> ChatMessage | None:
+        try:
+            return ChatMessage.objects.filter(chat_id=chat_id).latest("time_sent")
+        except ChatMessage.DoesNotExist:
+            return None
 
     @staticmethod
     def create_group_chat(
@@ -205,10 +298,10 @@ class ChatService:
 
         chat = Chat.objects.create()
         GroupChat.objects.create(chat=chat, name=name)
-        ChatMemberService.create_member(creator, chat)
+        ChatMemberService.create_member(creator.id, chat.id)
         for u in users:
             if u.id != creator.id:
-                ChatMemberService.create_member(u, chat)
+                ChatMemberService.create_member(u.id, chat.id)
 
         chat_data = _serialize_chat(chat)
         all_member_ids = [creator.id] + [u.id for u in users if u.id != creator.id]
@@ -225,6 +318,11 @@ class ChatService:
         text_content: str,
         attachment: str | None = None,
     ) -> ChatMessage:
+        validate_message(text_content, attachment)
+
+        if attachment:
+            storage_backend.validate_attachment(attachment, user_id)
+            
         msg = ChatMessage.objects.create(
             chat_id=chat_id,
             user_id=user_id,

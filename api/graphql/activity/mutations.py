@@ -1,8 +1,6 @@
 import graphene
 
-from api.graphql.activity.types import PreferredActivityType
 from main.activity.services import ActivityService
-from main.user.models import User
 from shared.enums import ActivityKind as Activity
 from shared.enums import SkillLevel
 from shared.utils.decorators import require_auth
@@ -20,9 +18,7 @@ class SetPreferredActivity(graphene.Mutation):
     def mutate(
         cls, root, info: graphene.ResolveInfo, activity: Activity, skill_level: SkillLevel
     ):
-
-        user: User = info.context.user
-        ActivityService.set_preferred_activity(user, activity, skill_level)
+        ActivityService.set_preferred_activity(info.context.user.id, activity, skill_level)
         return SetPreferredActivity(success=True)
 
 
@@ -35,9 +31,7 @@ class RemovePreferredActivity(graphene.Mutation):
 
     @require_auth
     def mutate(cls, root, info: graphene.ResolveInfo, activity: Activity):
-
-        user: User = info.context.user
-        ActivityService.remove_preferred_activity(user, activity)
+        ActivityService.remove_preferred_activity(info.context.user.id, activity)
         return RemovePreferredActivity(success=True)
 
 

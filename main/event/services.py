@@ -239,6 +239,10 @@ class EventService:
             fields.get("end_time"),
             fields.get("max_participants"),
         )
+        max_participants = fields.get("max_participants")
+        if max_participants and max_participants < event.participant_count():
+            raise MUError(MUErrorCode.EVENT_MIN_MAX_PARTICIPANTS)
+
         for field, value in fields.items():
             if value is not None:
                 setattr(event, field, value)
@@ -435,6 +439,94 @@ class EventService:
             pass
 
         raise MUError(MUErrorCode.CANNOT_LIKE_NOT_PARTICIPANT)
+
+    @staticmethod
+    def get_organizer(
+        event_id: int, _members: list | None = None
+    ) -> EventMember | None:
+        if _members is not None:
+            result = [m for m in _members if m.role == MemberRole.ORGANIZER]
+            return result[0] if result else None
+        return EventMember.objects.filter(
+            event_id=event_id, role=MemberRole.ORGANIZER
+        ).first()
+
+    @staticmethod
+    def get_members_by_role(
+        event_id: int, role: MemberRole, _members: list | None = None
+    ):
+        if _members is not None:
+            return [m for m in _members if m.role == role]
+        return EventMember.objects.filter(event_id=event_id, role=role)
+
+    @staticmethod
+    def get_member_count(event_id: int, _members: list | None = None) -> int:
+        if _members is not None:
+            return len(_members)
+        return EventMember.objects.filter(event_id=event_id).count()
+
+    @staticmethod
+    def get_user_role(
+        event_id: int, user_id: int, _members: list | None = None
+    ) -> int | None:
+        if not user_id:
+            return None
+        if _members is not None:
+            result = [m for m in _members if m.user_id == user_id]
+            return result[0].role if result else None
+        try:
+            return EventMember.objects.get(pk=(user_id, event_id)).role
+        except EventMember.DoesNotExist:
+            return None
+
+    @staticmethod
+    def get_average_score(
+        event_id: int, _members: list | None = None
+    ) -> float | None:
+        if _members is not None:
+            scores = [m.score for m in _members if m.score is not None]
+            return (sum(scores) / len(scores) + 1) if scores else None
+        from django.db.models import Avg
+
+        score = EventMember.objects.filter(event_id=event_id).aggregate(
+            Avg("score")
+        )["score__avg"]
+        return score + 1 if score is not None else None
+
+    @staticmethod
+    def get_reviews(event_id: int, _members: list | None = None) -> list:
+        if _members is not None:
+            return [m for m in _members if m.comment is not None]
+        return list(
+            EventMember.objects.filter(event_id=event_id, comment__isnull=False)
+        )
+
+    @staticmethod
+    def get_unconfirmed_participants(event_id: int):
+        return EventMember.objects.filter(
+            event_id=event_id, participates=True, has_participated__isnull=True
+        )
+
+    @staticmethod
+    def get_organizing_events(user_id: int) -> QuerySet[Event]:
+        return Event.objects.filter(
+            id__in=EventMember.objects.filter(
+                user_id=user_id, role=MemberRole.ORGANIZER
+            ).values("event_id")
+        )
+
+    @staticmethod
+    def get_attending_events(user_id: int) -> QuerySet[Event]:
+        return Event.objects.filter(
+            id__in=EventMember.objects.filter(
+                user_id=user_id,
+                role__in=[
+                    MemberRole.PARTICIPANT,
+                    MemberRole.MODERATOR,
+                    MemberRole.SPECTATOR,
+                ],
+            ).values("event_id")
+        )
 
     @staticmethod
     def report_event(

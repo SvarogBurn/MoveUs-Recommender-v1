@@ -1,12 +1,10 @@
-import json
-
 import graphene
-from django.db.models import Q
 
 from api.graphql.event.types import EventType
-from main.event.models import Event, EventMember, EventMemberLike
-from main.social.services import FollowService
+from main.event.services import EventService
+from main.social.services import FollowService, PostService
 from main.user.models import User, UserPrivacySetting
+from main.user.services import UserService
 from shared.enums import (
     FormedRelationshipsKind,
     FrequencyOfPhycicalActivity,
@@ -14,11 +12,9 @@ from shared.enums import (
     GenderNoPNTS,
     MainInterest,
     MatchedParticipationLikelihood,
-    MemberRole,
     PhysicalActivitySatisfaction,
     PreferredPartnerCharacteristics,
     PreferredPartySize,
-    PrivacyScope,
     PrivacySetting,
     SocialInteractionImportance,
     TimeOfTheDay,
@@ -26,18 +22,6 @@ from shared.enums import (
 
 from ..location.types import LocationType
 from ..object_type import MUObjectType
-
-
-def _check_privacy(user: User, viewer: User, setting: PrivacySetting) -> bool:
-    """Return True if the viewer is allowed to see this field."""
-    if user.id == viewer.id:
-        return True
-    ups = UserPrivacySetting.objects.filter(user=user, setting=setting).first()
-    if not ups or ups.scope == PrivacyScope.EVERYONE:
-        return True
-    if ups.scope == PrivacyScope.FOLLOWERS:
-        return FollowService.are_mutual(user, viewer)
-    return False
 
 
 class UserTypeMixin:
@@ -56,56 +40,47 @@ class UserTypeMixin:
     )
 
     def resolve_likes(self: User, info: graphene.ResolveInfo) -> int:
-        return EventMemberLike.objects.filter(user_2=self, like=True).count()
+        return UserService.get_event_likes_count(self.id)
 
     def resolve_dislikes(self: User, info: graphene.ResolveInfo) -> int:
-        return EventMemberLike.objects.filter(user_2=self, like=False).count()
+        return UserService.get_event_dislikes_count(self.id)
 
     def resolve_followers(self, info: graphene.ResolveInfo) -> list[User] | None:
-        if not _check_privacy(self, info.context.user, PrivacySetting.FOLLOWERS):
+        if not UserService.check_privacy(
+            self.id, info.context.user.id, PrivacySetting.FOLLOWERS
+        ):
             return None
-        follows = FollowService.get_followers(self)
-        return [f.follower for f in follows]
+        return FollowService.get_follower_users(self.id)
 
     def resolve_follower_count(self: User, info: graphene.ResolveInfo) -> int | None:
-        if not _check_privacy(self, info.context.user, PrivacySetting.FOLLOWERS):
+        if not UserService.check_privacy(
+            self.id, info.context.user.id, PrivacySetting.FOLLOWERS
+        ):
             return None
-        return FollowService.get_followers(self).count()
+        return FollowService.get_follower_count(self.id)
 
     def resolve_following(self, info: graphene.ResolveInfo) -> list[User] | None:
-        if not _check_privacy(self, info.context.user, PrivacySetting.FOLLOWERS):
+        if not UserService.check_privacy(
+            self.id, info.context.user.id, PrivacySetting.FOLLOWERS
+        ):
             return None
-        follows = FollowService.get_following(self)
-        return [f.following for f in follows]
+        return FollowService.get_following_users(self.id)
 
     def resolve_following_count(self: User, info: graphene.ResolveInfo) -> int | None:
-        if not _check_privacy(self, info.context.user, PrivacySetting.FOLLOWERS):
+        if not UserService.check_privacy(
+            self.id, info.context.user.id, PrivacySetting.FOLLOWERS
+        ):
             return None
-        return FollowService.get_following(self).count()
+        return FollowService.get_following_count(self.id)
 
     def resolve_organizing_events(self: User, info: graphene.ResolveInfo):
-        return Event.objects.filter(
-            id__in=EventMember.objects.filter(
-                user=self, role=MemberRole.ORGANIZER
-            ).values("event_id")
-        )
+        return EventService.get_organizing_events(self.id)
 
     def resolve_attending_events(self: User, info: graphene.ResolveInfo):
-        return Event.objects.filter(
-            id__in=EventMember.objects.filter(
-                user=self,
-                role__in=[
-                    MemberRole.PARTICIPANT,
-                    MemberRole.MODERATOR,
-                    MemberRole.SPECTATOR,
-                ],
-            ).values("event_id")
-        )
+        return EventService.get_attending_events(self.id)
 
     def resolve_posts(self: User, info: graphene.ResolveInfo, start: int, end: int):
-        return self.authored_posts.select_related("author").order_by("-time_posted")[
-            start:end
-        ]
+        return PostService.get_user_posts(self.id, start, end)
 
 
 class ProfileType(MUObjectType, UserTypeMixin):
@@ -244,36 +219,32 @@ class UserType(MUObjectType, UserTypeMixin):
         )
 
     def resolve_location(self: User, info: graphene.ResolveInfo):
-        if _check_privacy(self, info.context.user, PrivacySetting.LOCATION):
+        if UserService.check_privacy(self.id, info.context.user.id, PrivacySetting.LOCATION):
             return self.location
 
     def resolve_email(self: User, info: graphene.ResolveInfo) -> str | None:
-        if _check_privacy(self, info.context.user, PrivacySetting.EMAIL):
+        if UserService.check_privacy(self.id, info.context.user.id, PrivacySetting.EMAIL):
             return self.email
 
     def resolve_date_of_birth(self: User, info: graphene.ResolveInfo):
-        if _check_privacy(self, info.context.user, PrivacySetting.AGE):
+        if UserService.check_privacy(self.id, info.context.user.id, PrivacySetting.AGE):
             return self.date_of_birth
 
     def resolve_gender(self: User, info: graphene.ResolveInfo) -> int | None:
-        if _check_privacy(self, info.context.user, PrivacySetting.GENDER):
+        if UserService.check_privacy(self.id, info.context.user.id, PrivacySetting.GENDER):
             return self.gender
 
     def resolve_is_following(self: User, info: graphene.ResolveInfo) -> bool | None:
         viewer = info.context.user
         if not viewer or viewer.is_anonymous:
             return None
-        from main.social.models import Follow
-
-        return Follow.objects.filter(follower=viewer, following=self).exists()
+        return FollowService.is_following(viewer.id, self.id)
 
     def resolve_is_followed_by(self: User, info: graphene.ResolveInfo) -> bool | None:
         viewer = info.context.user
         if not viewer or viewer.is_anonymous:
             return None
-        from main.social.models import Follow
-
-        return Follow.objects.filter(follower=self, following=viewer).exists()
+        return FollowService.is_following(self.id, viewer.id)
 
 
 class PrivacySettingType(MUObjectType):
