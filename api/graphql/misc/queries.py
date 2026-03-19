@@ -6,7 +6,7 @@ from api.graphql.social.types import PostType
 from api.graphql.user.types import UserType
 from main.event.services import EventService
 from main.search.services import SearchService
-from shared.enums import MemberRole, SearchCategory
+from shared.enums import SearchCategory
 from shared.storage import storage_backend
 from shared.utils.decorators import require_auth
 
@@ -28,8 +28,7 @@ class SignedURLQuery(graphene.ObjectType):
         root, info: graphene.ResolveInfo, event_id: int
     ) -> str:
         user_id = info.context.user.id
-        EventService.get_event(event_id, user_id, MemberRole.ORGANIZER)
-        return storage_backend.generate_event_picture_url(event_id)
+        return EventService.get_event_picture_url(event_id, user_id)
 
     @require_auth
     def resolve_new_attachment(

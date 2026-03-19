@@ -11,6 +11,7 @@ from main.location.validators import validate_location
 from main.user.models import User
 from shared.enums import MemberRole, SkillLevel
 from shared.errors.mu_error import MUError, MUErrorCode
+from shared.storage import storage_backend
 
 
 def _get_event_error_code(role: MemberRole) -> MUErrorCode:
@@ -367,8 +368,20 @@ class EventService:
 
     @staticmethod
     def confirm_participation(
-        target_user_id: int, event_id: int, participated: bool
+        target_user_id: int,
+        event_id: int,
+        participated: bool,
+        requesting_user_id: int,
     ) -> None:
+        try:
+            requesting_member = EventMember.objects.get(
+                pk=(requesting_user_id, event_id)
+            )
+            if requesting_member.role < MemberRole.MODERATOR:
+                raise MUError(MUErrorCode.NOT_MODERATOR)
+        except EventMember.DoesNotExist:
+            raise MUError(MUErrorCode.NOT_MODERATOR)
+
         try:
             member = EventMember.objects.get(pk=(target_user_id, event_id))
             if member.role == MemberRole.PARTICIPANT:
@@ -543,3 +556,8 @@ class EventService:
         EventReport.objects.create(
             reporter_id=reporter_id, reported_id=event_id, comment=comment
         )
+
+    @staticmethod
+    def get_event_picture_url(event_id: int, user_id: int) -> str:
+        EventService.get_event(event_id, user_id, MemberRole.ORGANIZER)
+        return storage_backend.generate_event_picture_url(event_id)

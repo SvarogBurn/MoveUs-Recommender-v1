@@ -191,6 +191,10 @@ class ChatMemberService:
 
     @staticmethod
     def remove_chat_member(chat_id: int, user_id: int) -> None:
+        if not ChatMember.objects.filter(
+            user_id=user_id, chat_id=chat_id
+        ).exists():
+            raise MUError(MUErrorCode.NOT_IN_CHAT)
         if DirectChat.objects.filter(chat_id=chat_id).exists():
             raise MUError(MUErrorCode.CANNOT_LEAVE_DIRECT_CHAT)
         ChatMember.objects.filter(user_id=user_id, chat_id=chat_id).delete()

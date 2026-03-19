@@ -104,7 +104,6 @@ class LeaveChat(graphene.Mutation):
 
     @require_auth
     def mutate(self, info: graphene.ResolveInfo, chat_id: int):
-        ChatMemberService.get_chat_member(chat_id, info.context.user.id)
         ChatMemberService.remove_chat_member(chat_id, info.context.user.id)
         return LeaveChat(success=True)
 

@@ -263,8 +263,9 @@ class ConfirmMemberParticipationMutation(graphene.Mutation):
     ):
         user: User = info.context.user
 
-        EventService.get_event(event_id, user.id, MemberRole.MODERATOR)
-        EventService.confirm_participation(user_id, event_id, participated)
+        EventService.confirm_participation(
+            user_id, event_id, participated, user.id
+        )
 
         return ConfirmMemberParticipationMutation(success=True)
 
