@@ -5,7 +5,18 @@ from django.db.models import Prefetch, QuerySet
 from django.utils.timezone import now
 
 from main.event.models import Event, EventMember, EventMemberLike, EventReport
-from main.event.validators import validate_event, validate_location_requirements
+from main.event.validators import (
+    validate_event,
+    validate_event_not_ended,
+    validate_event_not_started,
+    validate_finish_eligibility,
+    validate_join_eligibility,
+    validate_kick_eligibility,
+    validate_like_eligibility,
+    validate_location_requirements,
+    validate_rate_eligibility,
+)
+from main.social.validators import validate_comment_length
 from main.location.models import Location
 from main.location.validators import validate_location
 from main.user.models import User
@@ -252,26 +263,7 @@ class EventService:
 
     @staticmethod
     def join_event(event: Event, user: User) -> EventMember:
-        if event.start_time <= now():
-            raise MUError(MUErrorCode.EVENT_ALREADY_STARTED)
-
-        if (
-            event.max_participants is not None
-            and event.participant_count() >= event.max_participants
-        ):
-            raise MUError(MUErrorCode.EVENT_FULL)
-
-        if (
-            event.accepted_genders is not None
-            and user.gender not in event.accepted_genders
-        ):
-            raise MUError(MUErrorCode.GENDER_NOT_ALLOWED)
-
-        if event.min_age and (not user.date_of_birth or user.age < event.min_age):
-            raise MUError(MUErrorCode.AGE_RANGE_INVALID)
-
-        if event.max_age and (not user.date_of_birth or user.age > event.max_age):
-            raise MUError(MUErrorCode.AGE_RANGE_INVALID)
+        validate_join_eligibility(event, user)
 
         try:
             member = EventMember.objects.get(pk=(user.id, event.id))
@@ -290,8 +282,7 @@ class EventService:
     def finish_event(event_id: int, user_id: int) -> Event:
         event = EventService.get_event(event_id, user_id, MemberRole.ORGANIZER)
 
-        if now() < event.end_time:
-            raise MUError(MUErrorCode.CANNOT_FINISH_BEFORE_END)
+        validate_finish_eligibility(event)
 
         if (
             EventMember.objects.filter(
@@ -319,8 +310,7 @@ class EventService:
 
     @staticmethod
     def spectate_event(event: Event, user: User) -> EventMember:
-        if event.start_time <= now():
-            raise MUError(MUErrorCode.EVENT_ALREADY_STARTED)
+        validate_event_not_started(event)
 
         try:
             member = EventMember.objects.get(pk=(user.id, event.id))
@@ -337,8 +327,7 @@ class EventService:
 
     @staticmethod
     def leave_event(event: Event, user: User) -> None:
-        if event.end_time <= now():
-            raise MUError(MUErrorCode.EVENT_ALREADY_ENDED)
+        validate_event_not_ended(event)
 
         try:
             member = EventMember.objects.get(pk=(user.id, event.id))
@@ -352,11 +341,7 @@ class EventService:
     def kick_member(
         event: Event, requesting_user_id: int, target_user_id: int
     ) -> None:
-        if requesting_user_id == target_user_id:
-            raise MUError(MUErrorCode.CANNOT_KICK_YOURSELF)
-
-        if event.end_time <= now():
-            raise MUError(MUErrorCode.EVENT_ALREADY_ENDED)
+        validate_kick_eligibility(requesting_user_id, target_user_id, event)
 
         try:
             member = EventMember.objects.get(pk=(target_user_id, event.id))
@@ -397,17 +382,8 @@ class EventService:
     def rate_event(
         event: Event, member: EventMember, score, comment: str = None
     ) -> None:
-        if comment and len(comment) > 512:
-            raise MUError(MUErrorCode.RATE_COMMENT_MAX_LENGTH)
-
-        if not event.finished:
-            raise MUError(MUErrorCode.CANNOT_RATE_UNFINISHED_EVENT)
-
-        if member.role == MemberRole.ORGANIZER:
-            raise MUError(MUErrorCode.CANNOT_RATE_OWN_EVENT)
-
-        if not member.has_participated:
-            raise MUError(MUErrorCode.CANNOT_RATE_NO_PARTICIPATION)
+        validate_comment_length(comment, MUErrorCode.RATE_COMMENT_MAX_LENGTH)
+        validate_rate_eligibility(event, member)
 
         member.score = score
         if comment:
@@ -422,14 +398,7 @@ class EventService:
         target_user_id: int,
         like: bool,
     ) -> None:
-        if user_id == target_user_id:
-            raise MUError(MUErrorCode.CANNOT_LIKE_YOURSELF)
-
-        if not event.finished:
-            raise MUError(MUErrorCode.CANNOT_LIKE_BEFORE_FINISH)
-
-        if not member.has_participated:
-            raise MUError(MUErrorCode.CANNOT_LIKE_DIDNT_PARTICIPATE)
+        validate_like_eligibility(event, member, user_id, target_user_id)
 
         try:
             other = EventMember.objects.get(pk=(target_user_id, event.id))
@@ -545,8 +514,7 @@ class EventService:
     def report_event(
         reporter_id: int, event_id: int, comment: str = None
     ) -> None:
-        if comment and len(comment) > 512:
-            raise MUError(MUErrorCode.REPORT_COMMENT_MAX_LENGTH)
+        validate_comment_length(comment, MUErrorCode.REPORT_COMMENT_MAX_LENGTH)
 
         try:
             Event.objects.get(pk=event_id)

@@ -1,4 +1,5 @@
 from main.user.models import User, UserPrivacySetting, UserReport
+from main.social.validators import validate_comment_length
 from main.user.validators import (
     validate_max_travel_distance,
     validate_preferred_event_duration,
@@ -92,8 +93,7 @@ class UserService:
     def report_user(
         reporter_id: int, reported_id: int, comment: str = None
     ) -> None:
-        if comment and len(comment) > 512:
-            raise MUError(MUErrorCode.REPORT_COMMENT_MAX_LENGTH)
+        validate_comment_length(comment, MUErrorCode.REPORT_COMMENT_MAX_LENGTH)
 
         if reporter_id == reported_id:
             raise MUError(MUErrorCode.CANNOT_TARGET_SELF)

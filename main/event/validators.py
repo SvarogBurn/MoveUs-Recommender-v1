@@ -2,8 +2,65 @@ from datetime import datetime
 
 from django.utils.timezone import now as tz_now
 
-from shared.enums import Gender
+from shared.enums import Gender, MemberRole
 from shared.errors.mu_error import MUError, MUErrorCode
+
+
+def validate_event_not_started(event):
+    if event.start_time <= tz_now():
+        raise MUError(MUErrorCode.EVENT_ALREADY_STARTED)
+
+
+def validate_event_not_ended(event):
+    if event.end_time <= tz_now():
+        raise MUError(MUErrorCode.EVENT_ALREADY_ENDED)
+
+
+def validate_join_eligibility(event, user):
+    validate_event_not_started(event)
+    if (
+        event.max_participants is not None
+        and event.participant_count() >= event.max_participants
+    ):
+        raise MUError(MUErrorCode.EVENT_FULL)
+    if (
+        event.accepted_genders is not None
+        and user.gender not in event.accepted_genders
+    ):
+        raise MUError(MUErrorCode.GENDER_NOT_ALLOWED)
+    if event.min_age and (not user.date_of_birth or user.age < event.min_age):
+        raise MUError(MUErrorCode.AGE_RANGE_INVALID)
+    if event.max_age and (not user.date_of_birth or user.age > event.max_age):
+        raise MUError(MUErrorCode.AGE_RANGE_INVALID)
+
+
+def validate_finish_eligibility(event):
+    if tz_now() < event.end_time:
+        raise MUError(MUErrorCode.CANNOT_FINISH_BEFORE_END)
+
+
+def validate_kick_eligibility(requesting_user_id, target_user_id, event):
+    if requesting_user_id == target_user_id:
+        raise MUError(MUErrorCode.CANNOT_KICK_YOURSELF)
+    validate_event_not_ended(event)
+
+
+def validate_rate_eligibility(event, member):
+    if not event.finished:
+        raise MUError(MUErrorCode.CANNOT_RATE_UNFINISHED_EVENT)
+    if member.role == MemberRole.ORGANIZER:
+        raise MUError(MUErrorCode.CANNOT_RATE_OWN_EVENT)
+    if not member.has_participated:
+        raise MUError(MUErrorCode.CANNOT_RATE_NO_PARTICIPATION)
+
+
+def validate_like_eligibility(event, member, user_id, target_user_id):
+    if user_id == target_user_id:
+        raise MUError(MUErrorCode.CANNOT_LIKE_YOURSELF)
+    if not event.finished:
+        raise MUError(MUErrorCode.CANNOT_LIKE_BEFORE_FINISH)
+    if not member.has_participated:
+        raise MUError(MUErrorCode.CANNOT_LIKE_DIDNT_PARTICIPATE)
 
 
 def validate_location_requirements(
