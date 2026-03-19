@@ -1,5 +1,5 @@
+from main.social.validators import validate_comment_length, validate_not_self
 from main.user.models import User, UserPrivacySetting, UserReport
-from main.social.validators import validate_comment_length
 from main.user.validators import (
     validate_max_travel_distance,
     validate_preferred_event_duration,
@@ -95,8 +95,7 @@ class UserService:
     ) -> None:
         validate_comment_length(comment, MUErrorCode.REPORT_COMMENT_MAX_LENGTH)
 
-        if reporter_id == reported_id:
-            raise MUError(MUErrorCode.CANNOT_TARGET_SELF)
+        validate_not_self(reporter_id, reported_id)
 
         try:
             User.objects.get(pk=reported_id)

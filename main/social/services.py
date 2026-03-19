@@ -4,7 +4,12 @@ from django.db.models import Q, QuerySet
 from main.event.models import Event
 from main.notification.services import NotificationService
 from main.social.models import Block, Comment, CommentLike, Follow, Post, PostLike
-from main.social.validators import validate_comment, validate_post
+from main.social.validators import (
+    validate_comment_length,
+    validate_comment_nesting,
+    validate_not_self,
+    validate_post,
+)
 from main.user.models import User
 from shared.enums import MemberRole, NotificationKind
 from shared.errors.mu_error import MUError, MUErrorCode
@@ -20,8 +25,7 @@ class FollowService:
 
     @staticmethod
     def follow(user_id: int, target_user_id: int) -> Follow:
-        if target_user_id == user_id:
-            raise MUError(MUErrorCode.CANNOT_TARGET_SELF)
+        validate_not_self(user_id, target_user_id)
 
         FollowService._get_user_or_raise(target_user_id)
 
@@ -106,8 +110,7 @@ class BlockService:
 
     @staticmethod
     def block_user(user_id: int, target_user_id: int) -> Block:
-        if target_user_id == user_id:
-            raise MUError(MUErrorCode.CANNOT_TARGET_SELF)
+        validate_not_self(user_id, target_user_id)
 
         BlockService._get_user_or_raise(target_user_id)
 
@@ -209,7 +212,7 @@ class CommentService:
 
     @staticmethod
     def comment_on_post(user_id: int, post_id: int, text: str) -> Comment:
-        validate_comment(text)
+        validate_comment_length(text, MUErrorCode.COMMENT_MAX_LENGTH)
         try:
             Post.objects.get(pk=post_id)
         except Post.DoesNotExist:
@@ -218,7 +221,7 @@ class CommentService:
 
     @staticmethod
     def comment_on_event(user_id: int, event_id: int, text: str) -> Comment:
-        validate_comment(text)
+        validate_comment_length(text, MUErrorCode.COMMENT_MAX_LENGTH)
         try:
             Event.objects.get(pk=event_id)
         except Event.DoesNotExist:
@@ -227,14 +230,13 @@ class CommentService:
 
     @staticmethod
     def reply_to_comment(user_id: int, comment_id: int, text: str) -> Comment:
-        validate_comment(text)
+        validate_comment_length(text, MUErrorCode.COMMENT_MAX_LENGTH)
         try:
             parent = Comment.objects.get(pk=comment_id)
         except Comment.DoesNotExist:
             raise MUError(MUErrorCode.COMMENT_DOES_NOT_EXIST)
 
-        if parent.parent is not None:
-            raise MUError(MUErrorCode.COMMENT_NESTING_TOO_DEEP)
+        validate_comment_nesting(parent)
 
         return Comment.objects.create(
             user_id=user_id,

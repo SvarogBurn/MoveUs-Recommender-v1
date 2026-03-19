@@ -11,6 +11,15 @@ def validate_post(content: str):
         raise MUError(MUErrorCode.POST_CONTENT_MAX_LENGTH)
 
 
-def validate_comment(text: str):
-    if len(text) > 512:
-        raise MUError(MUErrorCode.COMMENT_MAX_LENGTH)
+def validate_not_self(
+    user_id: int,
+    target_user_id: int,
+    error_code: MUErrorCode = MUErrorCode.CANNOT_TARGET_SELF,
+):
+    if target_user_id == user_id:
+        raise MUError(error_code)
+
+
+def validate_comment_nesting(parent_comment):
+    if parent_comment.parent is not None:
+        raise MUError(MUErrorCode.COMMENT_NESTING_TOO_DEEP)

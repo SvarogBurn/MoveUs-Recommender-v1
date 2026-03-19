@@ -6,19 +6,22 @@ from django.utils.timezone import now
 
 from main.event.models import Event, EventMember, EventMemberLike, EventReport
 from main.event.validators import (
+    validate_alter_max_participants,
+    validate_confirm_participation,
     validate_event,
     validate_event_not_ended,
     validate_event_not_started,
     validate_finish_eligibility,
     validate_join_eligibility,
     validate_kick_eligibility,
+    validate_leave_eligibility,
     validate_like_eligibility,
     validate_location_requirements,
     validate_rate_eligibility,
+    validate_spectate_eligibility,
 )
-from main.social.validators import validate_comment_length
-from main.location.models import Location
 from main.location.validators import validate_location
+from main.social.validators import validate_comment_length
 from main.user.models import User
 from shared.enums import MemberRole, SkillLevel
 from shared.errors.mu_error import MUError, MUErrorCode
@@ -251,9 +254,9 @@ class EventService:
             fields.get("end_time"),
             fields.get("max_participants"),
         )
-        max_participants = fields.get("max_participants")
-        if max_participants and max_participants < event.participant_count():
-            raise MUError(MUErrorCode.EVENT_MIN_MAX_PARTICIPANTS)
+        validate_alter_max_participants(
+            fields.get("max_participants"), event.participant_count()
+        )
 
         for field, value in fields.items():
             if value is not None:
@@ -314,8 +317,7 @@ class EventService:
 
         try:
             member = EventMember.objects.get(pk=(user.id, event.id))
-            if member.role != MemberRole.PARTICIPANT:
-                raise MUError(MUErrorCode.CANNOT_DEMOTE_YOURSELF)
+            validate_spectate_eligibility(member)
             member.role = MemberRole.SPECTATOR
             member.save()
         except EventMember.DoesNotExist:
@@ -331,8 +333,7 @@ class EventService:
 
         try:
             member = EventMember.objects.get(pk=(user.id, event.id))
-            if member.role == MemberRole.ORGANIZER:
-                raise MUError(MUErrorCode.CANNOT_LEAVE_AS_ORGANIZATOR)
+            validate_leave_eligibility(member)
             member.delete()
         except EventMember.DoesNotExist:
             raise MUError(MUErrorCode.NOT_MEMBER)
@@ -341,15 +342,15 @@ class EventService:
     def kick_member(
         event: Event, requesting_user_id: int, target_user_id: int
     ) -> None:
-        validate_kick_eligibility(requesting_user_id, target_user_id, event)
-
         try:
             member = EventMember.objects.get(pk=(target_user_id, event.id))
-            if member.role == MemberRole.ORGANIZER:
-                raise MUError(MUErrorCode.CANNOT_KICK_ORGANIZER)
-            member.delete()
         except EventMember.DoesNotExist:
             raise MUError(MUErrorCode.EVENT_MEMBER_DOES_NOT_EXIST)
+
+        validate_kick_eligibility(
+            requesting_user_id, target_user_id, event, target_member=member
+        )
+        member.delete()
 
     @staticmethod
     def confirm_participation(
@@ -362,21 +363,17 @@ class EventService:
             requesting_member = EventMember.objects.get(
                 pk=(requesting_user_id, event_id)
             )
-            if requesting_member.role < MemberRole.MODERATOR:
-                raise MUError(MUErrorCode.NOT_MODERATOR)
         except EventMember.DoesNotExist:
             raise MUError(MUErrorCode.NOT_MODERATOR)
 
         try:
             member = EventMember.objects.get(pk=(target_user_id, event_id))
-            if member.role == MemberRole.PARTICIPANT:
-                member.has_participated = participated
-                member.save()
-                return
         except EventMember.DoesNotExist:
-            pass
+            raise MUError(MUErrorCode.CANNOT_CONFIRM_NON_PARTICIPATING_MEMBER)
 
-        raise MUError(MUErrorCode.CANNOT_CONFIRM_NON_PARTICIPATING_MEMBER)
+        validate_confirm_participation(requesting_member, member)
+        member.has_participated = participated
+        member.save()
 
     @staticmethod
     def rate_event(
@@ -519,7 +516,7 @@ class EventService:
         try:
             Event.objects.get(pk=event_id)
         except Event.DoesNotExist:
-            raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
+            raise MUError(MUErrorCode.EVENT_DOES_NOT_EXIST)
 
         EventReport.objects.create(
             reporter_id=reporter_id, reported_id=event_id, comment=comment

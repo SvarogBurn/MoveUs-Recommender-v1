@@ -2,21 +2,23 @@ from datetime import datetime
 
 from django.utils.timezone import now as tz_now
 
+from main.event.models import Event, EventMember
+from main.user.models import User
 from shared.enums import Gender, MemberRole
 from shared.errors.mu_error import MUError, MUErrorCode
 
 
-def validate_event_not_started(event):
+def validate_event_not_started(event: Event):
     if event.start_time <= tz_now():
         raise MUError(MUErrorCode.EVENT_ALREADY_STARTED)
 
 
-def validate_event_not_ended(event):
+def validate_event_not_ended(event: Event):
     if event.end_time <= tz_now():
         raise MUError(MUErrorCode.EVENT_ALREADY_ENDED)
 
 
-def validate_join_eligibility(event, user):
+def validate_join_eligibility(event: Event, user: User):
     validate_event_not_started(event)
     if (
         event.max_participants is not None
@@ -34,18 +36,47 @@ def validate_join_eligibility(event, user):
         raise MUError(MUErrorCode.AGE_RANGE_INVALID)
 
 
-def validate_finish_eligibility(event):
+def validate_finish_eligibility(event: Event):
     if tz_now() < event.end_time:
         raise MUError(MUErrorCode.CANNOT_FINISH_BEFORE_END)
 
 
-def validate_kick_eligibility(requesting_user_id, target_user_id, event):
+def validate_alter_max_participants(max_participants: int, current_count: int):
+    if max_participants and max_participants < current_count:
+        raise MUError(MUErrorCode.EVENT_MIN_MAX_PARTICIPANTS)
+
+
+def validate_spectate_eligibility(member: EventMember):
+    if member.role != MemberRole.PARTICIPANT:
+        raise MUError(MUErrorCode.CANNOT_DEMOTE_YOURSELF)
+
+
+def validate_leave_eligibility(member: EventMember):
+    if member.role == MemberRole.ORGANIZER:
+        raise MUError(MUErrorCode.CANNOT_LEAVE_AS_ORGANIZATOR)
+
+
+def validate_kick_eligibility(
+    requesting_user_id: int,
+    target_user_id: int,
+    event: Event,
+    target_member: EventMember = None
+):
     if requesting_user_id == target_user_id:
         raise MUError(MUErrorCode.CANNOT_KICK_YOURSELF)
     validate_event_not_ended(event)
+    if target_member is not None and target_member.role == MemberRole.ORGANIZER:
+        raise MUError(MUErrorCode.CANNOT_KICK_ORGANIZER)
 
 
-def validate_rate_eligibility(event, member):
+def validate_confirm_participation(requesting_member: EventMember, target_member: EventMember):
+    if requesting_member.role < MemberRole.MODERATOR:
+        raise MUError(MUErrorCode.NOT_MODERATOR)
+    if target_member.role != MemberRole.PARTICIPANT:
+        raise MUError(MUErrorCode.CANNOT_CONFIRM_NON_PARTICIPATING_MEMBER)
+
+
+def validate_rate_eligibility(event: Event, member: EventMember):
     if not event.finished:
         raise MUError(MUErrorCode.CANNOT_RATE_UNFINISHED_EVENT)
     if member.role == MemberRole.ORGANIZER:
@@ -54,7 +85,12 @@ def validate_rate_eligibility(event, member):
         raise MUError(MUErrorCode.CANNOT_RATE_NO_PARTICIPATION)
 
 
-def validate_like_eligibility(event, member, user_id, target_user_id):
+def validate_like_eligibility(
+    event: Event,
+    member: EventMember,
+    user_id: int,
+    target_user_id: int
+):
     if user_id == target_user_id:
         raise MUError(MUErrorCode.CANNOT_LIKE_YOURSELF)
     if not event.finished:

@@ -8,6 +8,7 @@ from django.db.models.functions import Now
 
 from main.chat.models import Chat, ChatMember, ChatMessage, DirectChat, GroupChat
 from main.chat.validators import validate_message, validate_nickname
+from main.social.validators import validate_not_self
 from main.user.models import User
 from shared.enums import ChatNotifications
 from shared.errors.mu_error import MUError, MUErrorCode
@@ -244,8 +245,7 @@ class ChatService:
 
     @staticmethod
     def get_or_create_direct_chat(user_id: int, other_user_id: int) -> Chat:
-        if user_id == other_user_id:
-            raise MUError(MUErrorCode.CANNOT_MESSAGE_YOURSELF)
+        validate_not_self(user_id, other_user_id, MUErrorCode.CANNOT_MESSAGE_YOURSELF)
 
         try:
             User.objects.get(pk=other_user_id)
