@@ -124,44 +124,31 @@ class ProfileType(MUObjectType, UserTypeMixin):
     ) -> list[str]:
         if self.formed_relationship_kinds is None:
             return []
-        frt_formatted = [
-            next(n for n, v in vars(FormedRelationshipsKind).items() if v == x)
-            for x in self.formed_relationship_kinds
-        ]
-        return frt_formatted
+        return [FormedRelationshipsKind(x).name for x in self.formed_relationship_kinds]
 
     def resolve_preferred_partner_characteristics(
         self: User, info: graphene.ResolveInfo
     ) -> list[str]:
         if self.preferred_partner_characteristics is None:
             return []
-        ppc_formatted = [
-            next(n for n, v in vars(PreferredPartnerCharacteristics).items() if v == x)
+        return [
+            PreferredPartnerCharacteristics(x).name
             for x in self.preferred_partner_characteristics
         ]
-        return ppc_formatted
 
     def resolve_preferred_time_of_the_day(
         self: User, info: graphene.ResolveInfo
     ) -> list[str]:
         if self.preferred_time_of_the_day is None:
             return []
-        ptd_formatted = [
-            next(n for n, v in vars(TimeOfTheDay).items() if v == x)
-            for x in self.preferred_time_of_the_day
-        ]
-        return ptd_formatted
+        return [TimeOfTheDay(x).name for x in self.preferred_time_of_the_day]
 
     def resolve_gender_preference(
         self: User, info: graphene.ResolveInfo
     ) -> list[str]:
         if self.gender_preference is None:
             return []
-        gpf_formatted = [
-            next(n for n, v in vars(GenderNoPNTS).items() if v == x)
-            for x in self.gender_preference
-        ]
-        return gpf_formatted
+        return [GenderNoPNTS(x).name for x in self.gender_preference]
 
     def resolve_frequency_of_physical_activity(
         self: User, info: graphene.ResolveInfo

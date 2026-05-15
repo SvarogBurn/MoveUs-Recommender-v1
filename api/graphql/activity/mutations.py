@@ -16,7 +16,7 @@ class SetPreferredActivity(graphene.Mutation):
 
     @require_auth
     def mutate(
-        cls, root, info: graphene.ResolveInfo, activity: Activity, skill_level: SkillLevel
+        root, info: graphene.ResolveInfo, activity: Activity, skill_level: SkillLevel
     ):
         ActivityService.set_preferred_activity(info.context.user.id, activity, skill_level)
         return SetPreferredActivity(success=True)
@@ -30,7 +30,7 @@ class RemovePreferredActivity(graphene.Mutation):
     success = graphene.Boolean()
 
     @require_auth
-    def mutate(cls, root, info: graphene.ResolveInfo, activity: Activity):
+    def mutate(root, info: graphene.ResolveInfo, activity: Activity):
         ActivityService.remove_preferred_activity(info.context.user.id, activity)
         return RemovePreferredActivity(success=True)
 
