@@ -209,6 +209,9 @@ SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
 ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
 ACCOUNT_LOGIN_METHODS = ["username", "email"]
 ACCOUNT_CONFIRM_EMAIL_ON_GET = True
+# None = honor the per-login `remember` flag (see AuthService).
+ACCOUNT_SESSION_REMEMBER = None
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 90  # 90 days
 SESSION_SAVE_EVERY_REQUEST = False
 
 # Logging

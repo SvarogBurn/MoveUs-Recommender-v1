@@ -9,6 +9,7 @@ from allauth.account.utils import (
     perform_login,
     send_email_confirmation,
 )
+from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth import logout as django_logout
 from django.contrib.auth.models import AbstractUser
@@ -18,8 +19,14 @@ from main.user.models import User
 from main.user.services import UserService
 from shared.errors.mu_error import MUError, MUErrorCode
 
-SESSION_LIFETIME_SHORT = 60 * 60 * 24          # 1 day
-SESSION_LIFETIME_LONG = 60 * 60 * 24 * 90      # 90 days
+
+def _apply_session_remember(request: Any, remember: bool) -> None:
+    if allauth_settings.SESSION_REMEMBER is not None:
+        remember = allauth_settings.SESSION_REMEMBER
+    if remember:
+        request.session.set_expiry(settings.SESSION_COOKIE_AGE)
+    else:
+        request.session.set_expiry(0)
 
 
 class AuthService:
@@ -42,10 +49,8 @@ class AuthService:
         if profile is None:
             raise MUError(MUErrorCode.INVALID_LOGIN)
 
-        perform_login(request, profile)
-        request.session.set_expiry(
-            SESSION_LIFETIME_LONG if remember_me else SESSION_LIFETIME_SHORT
-        )
+        perform_login(request, profile, allauth_settings.EMAIL_VERIFICATION)
+        _apply_session_remember(request, remember_me)
 
         return profile
 
@@ -85,9 +90,7 @@ class AuthService:
 
         complete_signup(request, user, allauth_settings.EMAIL_VERIFICATION, None)
         perform_login(request, user, allauth_settings.EMAIL_VERIFICATION)
-        request.session.set_expiry(
-            SESSION_LIFETIME_LONG if remember_me else SESSION_LIFETIME_SHORT
-        )
+        _apply_session_remember(request, remember_me)
 
         return user
 
