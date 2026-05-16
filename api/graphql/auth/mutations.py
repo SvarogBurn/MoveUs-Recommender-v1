@@ -10,6 +10,7 @@ class LoginMutation(graphene.Mutation):
     class Arguments:
         user = graphene.String()
         password = graphene.String()
+        remember_me = graphene.Boolean(default_value=False)
 
     my_profile = graphene.Field(ProfileType)
 
@@ -18,8 +19,11 @@ class LoginMutation(graphene.Mutation):
         info: graphene.ResolveInfo,
         user: str = None,
         password: str = None,
+        remember_me: bool = False,
     ):
-        profile = AuthService.login(info.context, user, password)
+        profile = AuthService.login(
+            info.context, user, password, remember_me=remember_me
+        )
         return LoginMutation(my_profile=profile)
 
 
@@ -29,6 +33,7 @@ class SignUpMutation(graphene.Mutation):
         username = graphene.String(required=True)
         email = graphene.String(required=True)
         password = graphene.String(required=True)
+        remember_me = graphene.Boolean(default_value=False)
 
     my_profile = graphene.Field(ProfileType)
 
@@ -37,9 +42,12 @@ class SignUpMutation(graphene.Mutation):
         info: graphene.ResolveInfo,
         username: str,
         email: str,
-        password: str
+        password: str,
+        remember_me: bool = False,
     ):
-        profile = AuthService.sign_up(info.context, email, username, password)
+        profile = AuthService.sign_up(
+            info.context, email, username, password, remember_me=remember_me
+        )
         return SignUpMutation(my_profile=profile)
 
 

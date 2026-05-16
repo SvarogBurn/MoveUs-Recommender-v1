@@ -18,11 +18,19 @@ from main.user.models import User
 from main.user.services import UserService
 from shared.errors.mu_error import MUError, MUErrorCode
 
+SESSION_LIFETIME_SHORT = 60 * 60 * 24          # 1 day
+SESSION_LIFETIME_LONG = 60 * 60 * 24 * 90      # 90 days
+
 
 class AuthService:
-    
+
     @staticmethod
-    def login(request: Any, user: str, password: str) -> AbstractUser:
+    def login(
+        request: Any,
+        user: str,
+        password: str,
+        remember_me: bool = False,
+    ) -> AbstractUser:
         is_email = "@" in user
 
         profile = None
@@ -35,19 +43,23 @@ class AuthService:
             raise MUError(MUErrorCode.INVALID_LOGIN)
 
         perform_login(request, profile)
+        request.session.set_expiry(
+            SESSION_LIFETIME_LONG if remember_me else SESSION_LIFETIME_SHORT
+        )
 
         return profile
-    
+
     @staticmethod
     def logout(request: Any) -> None:
         django_logout(request)
-    
+
     @staticmethod
     def sign_up(
         request: Any,
         email: str,
         username: str,
-        password: str
+        password: str,
+        remember_me: bool = False,
     ) -> AbstractUser:
         validate_sign_up(username, email, password)
 
@@ -73,6 +85,9 @@ class AuthService:
 
         complete_signup(request, user, allauth_settings.EMAIL_VERIFICATION, None)
         perform_login(request, user, allauth_settings.EMAIL_VERIFICATION)
+        request.session.set_expiry(
+            SESSION_LIFETIME_LONG if remember_me else SESSION_LIFETIME_SHORT
+        )
 
         return user
 
@@ -95,7 +110,7 @@ class AuthService:
         if form.is_valid():
             form.save(request=None)
         return form
-    
+
     @staticmethod
     def is_username_taken(username: str) -> bool:
         return User.objects.filter(username=username.lower()).exists()
@@ -103,7 +118,7 @@ class AuthService:
     @staticmethod
     def is_email_taken(email: str) -> bool:
         return User.objects.filter(email=email).exists()
-    
+
     @staticmethod
     def is_logged_in(request: Any) -> bool:
         return bool(request.user)
