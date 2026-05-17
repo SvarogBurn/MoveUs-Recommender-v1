@@ -308,8 +308,9 @@ class EventService:
     def delete_event(event: Event) -> None:
         from main.location.services import LocationService
 
-        LocationService.release(event.location)
+        location = event.location
         event.delete()
+        LocationService.release(location)
 
     @staticmethod
     def spectate_event(event: Event, user: User) -> EventMember:
