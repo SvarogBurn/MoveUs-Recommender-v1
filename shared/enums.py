@@ -196,6 +196,15 @@ class ActivityKind(BaseIntEnum):
 class NotificationKind(BaseIntEnum):
     NEW_FOLLOWER = 0
     EVENT_FINISHED = 2
+    EVENT_STARTED = 3
+    EVENT_CANCELLED = 4
+
+
+class EventPhase(BaseIntEnum):
+    SCHEDULED = 0
+    IN_PROGRESS = 1
+    FINISHED = 2
+    CANCELLED = 3
 
 
 class CountryCode(BaseStringEnum):

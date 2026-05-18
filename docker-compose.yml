@@ -1,0 +1,44 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build: .
+    image: moveus:latest
+    restart: unless-stopped
+    command: daphne -b 0.0.0.0 -p 8000 core.asgi:application
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  worker:
+    image: moveus:latest
+    restart: unless-stopped
+    command: celery -A core worker -l info
+    env_file: .env
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    depends_on:
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_started
+
+volumes:
+  redis-data:

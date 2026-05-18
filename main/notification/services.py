@@ -62,6 +62,24 @@ class NotificationService:
 
     @staticmethod
     def send_event_finished(event_id: int) -> None:
+        NotificationService._broadcast_to_event_members(
+            event_id, NotificationKind.EVENT_FINISHED
+        )
+
+    @staticmethod
+    def send_event_started(event_id: int) -> None:
+        NotificationService._broadcast_to_event_members(
+            event_id, NotificationKind.EVENT_STARTED
+        )
+
+    @staticmethod
+    def send_event_cancelled(event_id: int) -> None:
+        NotificationService._broadcast_to_event_members(
+            event_id, NotificationKind.EVENT_CANCELLED
+        )
+
+    @staticmethod
+    def _broadcast_to_event_members(event_id: int, kind: NotificationKind) -> None:
         from main.event.models import EventMember
 
         member_ids = [
@@ -71,6 +89,4 @@ class NotificationService:
             .values("user_id")
         ]
         for member_id in member_ids:
-            NotificationService.send(
-                member_id, event_id, NotificationKind.EVENT_FINISHED
-            )
+            NotificationService.send(member_id, event_id, kind)

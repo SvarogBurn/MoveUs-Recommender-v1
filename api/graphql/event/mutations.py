@@ -286,6 +286,22 @@ class FinishEventMutation(graphene.Mutation):
         return FinishEventMutation(success=True)
 
 
+class CancelEventMutation(graphene.Mutation):
+
+    class Arguments:
+        event_id = graphene.Int(required=True)
+
+    event = graphene.Field(EventType)
+
+    @require_auth
+    def mutate(
+        self, info: graphene.ResolveInfo, event_id: int
+    ) -> "CancelEventMutation":
+        user: User = info.context.user
+        event = EventService.cancel_event(event_id, user.id)
+        return CancelEventMutation(event=event)
+
+
 class RateEventMutation(graphene.Mutation):
 
     class Arguments:
@@ -348,5 +364,6 @@ class Mutation(graphene.ObjectType):
     kick_event_member = KickEventMemberMutation.Field()
     confirm_member_participation = ConfirmMemberParticipationMutation.Field()
     finish_event = FinishEventMutation.Field()
+    cancel_event = CancelEventMutation.Field()
     rate_event = RateEventMutation.Field()
     like_event_member = LikeEventMemberMutation.Field()

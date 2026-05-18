@@ -13,7 +13,11 @@ class Notification(models.Model):
     kind = models.SmallIntegerField(choices=NotificationKind.choices())
 
     USER_NOTIFICATION_KINDS = (NotificationKind.NEW_FOLLOWER,)
-    EVENT_NOTIFICATION_KINDS = (NotificationKind.EVENT_FINISHED,)
+    EVENT_NOTIFICATION_KINDS = (
+        NotificationKind.EVENT_FINISHED,
+        NotificationKind.EVENT_STARTED,
+        NotificationKind.EVENT_CANCELLED,
+    )
 
     class Meta:
         db_table = "main_app_notification"

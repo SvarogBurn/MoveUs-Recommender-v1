@@ -4,7 +4,7 @@ from django.db.models.fields.composite import CompositePrimaryKey
 from main.activity.models import Activity
 from main.location.models import Location
 from main.user.models import User
-from shared.enums import EventRating, MemberRole, SkillLevel
+from shared.enums import EventPhase, EventRating, MemberRole, SkillLevel
 
 
 class Event(models.Model):
@@ -21,7 +21,13 @@ class Event(models.Model):
     min_age = models.SmallIntegerField(null=True)
     max_age = models.SmallIntegerField(null=True)
     accepted_genders = models.JSONField(null=True)
-    finished = models.BooleanField(default=False, db_index=True)
+    phase = models.SmallIntegerField(
+        choices=EventPhase.choices(),
+        default=EventPhase.SCHEDULED,
+        db_index=True,
+    )
+    start_task_id = models.CharField(max_length=64, null=True, blank=True)
+    end_task_id = models.CharField(max_length=64, null=True, blank=True)
 
     class Meta:
         db_table = "main_app_event"

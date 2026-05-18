@@ -4,7 +4,7 @@ from django.utils.timezone import now as tz_now
 
 from main.event.models import Event, EventMember
 from main.user.models import User
-from shared.enums import Gender, MemberRole
+from shared.enums import EventPhase, Gender, MemberRole
 from shared.errors.mu_error import MUError, MUErrorCode
 
 
@@ -77,7 +77,7 @@ def validate_confirm_participation(requesting_member: EventMember, target_member
 
 
 def validate_rate_eligibility(event: Event, member: EventMember):
-    if not event.finished:
+    if event.phase != EventPhase.FINISHED:
         raise MUError(MUErrorCode.CANNOT_RATE_UNFINISHED_EVENT)
     if member.role == MemberRole.ORGANIZER:
         raise MUError(MUErrorCode.CANNOT_RATE_OWN_EVENT)
@@ -93,7 +93,7 @@ def validate_like_eligibility(
 ):
     if user_id == target_user_id:
         raise MUError(MUErrorCode.CANNOT_LIKE_YOURSELF)
-    if not event.finished:
+    if event.phase != EventPhase.FINISHED:
         raise MUError(MUErrorCode.CANNOT_LIKE_BEFORE_FINISH)
     if not member.has_participated:
         raise MUError(MUErrorCode.CANNOT_LIKE_DIDNT_PARTICIPATE)

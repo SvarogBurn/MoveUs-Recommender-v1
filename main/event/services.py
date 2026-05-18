@@ -23,9 +23,39 @@ from main.event.validators import (
 from main.location.validators import validate_location
 from main.social.validators import validate_comment_length
 from main.user.models import User
-from shared.enums import MemberRole, SkillLevel
+from shared.enums import EventPhase, MemberRole, SkillLevel
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.storage import storage_backend
+
+
+def _schedule_event_tasks(event: Event) -> None:
+    from main.event.tasks import (
+        transition_event_to_finished,
+        transition_event_to_in_progress,
+    )
+
+    start_result = transition_event_to_in_progress.apply_async(
+        args=[event.id], eta=event.start_time
+    )
+    event.start_task_id = start_result.id
+    if event.end_time:
+        end_result = transition_event_to_finished.apply_async(
+            args=[event.id], eta=event.end_time
+        )
+        event.end_task_id = end_result.id
+    else:
+        event.end_task_id = None
+    event.save(update_fields=["start_task_id", "end_task_id"])
+
+
+def _revoke_event_tasks(event: Event) -> None:
+    from core.celery import app as celery_app
+
+    for task_id in (event.start_task_id, event.end_task_id):
+        if task_id:
+            celery_app.control.revoke(task_id)
+    event.start_task_id = None
+    event.end_task_id = None
 
 
 def _get_event_error_code(role: MemberRole) -> MUErrorCode:
@@ -113,7 +143,7 @@ class EventService:
     @staticmethod
     def get_unrated_events(user_id: int) -> QuerySet[Event]:
         return EventService._queryset().filter(
-            finished=True,
+            phase=EventPhase.FINISHED,
             id__in=EventMember.objects.filter(
                 user_id=user_id, score__isnull=True, has_participated=True
             )
@@ -124,7 +154,7 @@ class EventService:
     @staticmethod
     def get_unfinished_events(user_id: int) -> QuerySet[Event]:
         return EventService._queryset().filter(
-            finished=False,
+            phase__in=(EventPhase.SCHEDULED, EventPhase.IN_PROGRESS),
             id__in=EventMember.objects.filter(
                 user_id=user_id, role__in=(MemberRole.ORGANIZER, MemberRole.MODERATOR)
             ).values("event_id"),
@@ -197,6 +227,8 @@ class EventService:
             event=event, user=user, role=MemberRole.ORGANIZER, has_participated=True
         )
 
+        _schedule_event_tasks(event)
+
         return event
 
     @staticmethod
@@ -258,10 +290,39 @@ class EventService:
             fields.get("max_participants"), event.participant_count()
         )
 
+        old_start_time = event.start_time
+        old_end_time = event.end_time
+
         for field, value in fields.items():
             if value is not None:
                 setattr(event, field, value)
         event.save()
+
+        start_changed = (
+            fields.get("start_time") is not None
+            and fields["start_time"] != old_start_time
+        )
+        end_changed = "end_time" in fields and fields["end_time"] != old_end_time
+
+        if start_changed or end_changed:
+            if event.phase == EventPhase.SCHEDULED:
+                _revoke_event_tasks(event)
+                _schedule_event_tasks(event)
+            elif event.phase == EventPhase.IN_PROGRESS and end_changed:
+                from main.event.tasks import transition_event_to_finished
+
+                if event.end_task_id:
+                    from core.celery import app as celery_app
+
+                    celery_app.control.revoke(event.end_task_id)
+                    event.end_task_id = None
+                if event.end_time:
+                    end_result = transition_event_to_finished.apply_async(
+                        args=[event.id], eta=event.end_time
+                    )
+                    event.end_task_id = end_result.id
+                event.save(update_fields=["end_task_id"])
+
         return event
 
     @staticmethod
@@ -295,8 +356,9 @@ class EventService:
         ):
             raise MUError(MUErrorCode.CANNOT_FINISH_WITH_UNCONFIRMED)
 
-        event.finished = True
-        event.save()
+        _revoke_event_tasks(event)
+        event.phase = EventPhase.FINISHED
+        event.save(update_fields=["phase", "start_task_id", "end_task_id"])
 
         from main.notification.services import NotificationService
 
@@ -305,8 +367,27 @@ class EventService:
         return event
 
     @staticmethod
+    def cancel_event(event_id: int, user_id: int) -> Event:
+        event = EventService.get_event(event_id, user_id, MemberRole.ORGANIZER)
+
+        if event.phase in (EventPhase.FINISHED, EventPhase.CANCELLED):
+            raise MUError(MUErrorCode.EVENT_ALREADY_ENDED)
+
+        _revoke_event_tasks(event)
+        event.phase = EventPhase.CANCELLED
+        event.save(update_fields=["phase", "start_task_id", "end_task_id"])
+
+        from main.notification.services import NotificationService
+
+        NotificationService.send_event_cancelled(event_id)
+
+        return event
+
+    @staticmethod
     def delete_event(event: Event) -> None:
         from main.location.services import LocationService
+
+        _revoke_event_tasks(event)
 
         location = event.location
         event.delete()
