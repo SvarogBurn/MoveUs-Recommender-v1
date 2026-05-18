@@ -89,11 +89,11 @@ class EventService:
 
     @staticmethod
     def get_anonymous_events() -> QuerySet[Event]:
-        return EventService._queryset().all()[:6]
+        return EventService._queryset().filter(phase=EventPhase.SCHEDULED)[:6]
 
     @staticmethod
     def get_recommended_events() -> QuerySet[Event]:
-        return EventService._queryset().all()
+        return EventService._queryset().filter(phase=EventPhase.SCHEDULED)
 
     @staticmethod
     def get_joined_events(user_id: int) -> QuerySet[Event]:
