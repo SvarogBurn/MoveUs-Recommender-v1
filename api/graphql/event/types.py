@@ -5,7 +5,7 @@ from api.graphql.social.types import CommentType
 from main.event.models import Event, EventMember
 from main.event.services import EventService
 from main.social.services import CommentService
-from shared.enums import MemberRole
+from shared.enums import EventPhase, MemberRole
 
 
 class EventMemberType(MUObjectType):
@@ -34,6 +34,7 @@ class EventTypeMixin(MUObjectType):
     spectators = graphene.List(EventMemberType)
     participant_count = graphene.Int()
     role = graphene.Field(MemberRole.as_graphene_enum())
+    phase = graphene.Field(EventPhase.as_graphene_enum(), required=True)
     average_score = graphene.Float()
     reviews = graphene.List(EventReviewType)
     comments = graphene.List(
@@ -76,6 +77,9 @@ class EventTypeMixin(MUObjectType):
     def resolve_role(self: Event, info: graphene.ResolveInfo) -> int | None:
         members = getattr(self, "_members", None)
         return EventService.get_user_role(self.id, info.context.user.id, members)
+
+    def resolve_phase(self: Event, info: graphene.ResolveInfo) -> int:
+        return self.phase
 
     def resolve_average_score(self: Event, info: graphene.ResolveInfo) -> float | None:
         members = getattr(self, "_members", None)
