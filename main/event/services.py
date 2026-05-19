@@ -101,7 +101,7 @@ class EventService:
             id__in=EventMember.objects.filter(user_id=user_id)
             .exclude(role=MemberRole.ORGANIZER)
             .values("event_id")
-        )
+        ).order_by("start_time")
 
     @staticmethod
     def get_owned_events(user_id: int) -> QuerySet[Event]:
@@ -109,7 +109,7 @@ class EventService:
             id__in=EventMember.objects.filter(
                 user_id=user_id, role=MemberRole.ORGANIZER
             ).values("event_id")
-        )
+        ).order_by("start_time")
 
     @staticmethod
     def get_past_joined_events(user_id: int) -> QuerySet[Event]:

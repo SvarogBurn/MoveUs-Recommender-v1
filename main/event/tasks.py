@@ -17,6 +17,9 @@ def transition_event_to_in_progress(event_id: int) -> None:
 
 @shared_task
 def transition_event_to_finished(event_id: int) -> None:
-    Event.objects.filter(
+    updated = Event.objects.filter(
         id=event_id, phase=EventPhase.IN_PROGRESS
     ).update(phase=EventPhase.FINISHED)
+    if not updated:
+        return
+    NotificationService.send_event_finished(event_id)
