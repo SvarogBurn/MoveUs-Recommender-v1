@@ -358,7 +358,10 @@ class EventService:
 
         _revoke_event_tasks(event)
         event.phase = EventPhase.FINISHED
-        event.save(update_fields=["phase", "start_task_id", "end_task_id"])
+        event.end_time = now()
+        event.save(
+            update_fields=["phase", "end_time", "start_task_id", "end_task_id"]
+        )
 
         from main.notification.services import NotificationService
 
