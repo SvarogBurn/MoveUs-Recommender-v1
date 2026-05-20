@@ -8,7 +8,29 @@ from main.social.services import CommentService
 from shared.enums import EventPhase, MemberRole
 
 
+def _can_view_member_rating(
+    member: EventMember, info: graphene.ResolveInfo
+) -> bool:
+    """A member's score/comment is visible only to the member themselves and
+    to organizers of the event. The organizer check is memoized per request to
+    avoid an N+1 query across member lists."""
+    requester_id = info.context.user.id
+    if not requester_id:
+        return False
+    if requester_id == member.user_id:
+        return True
+    cache = getattr(info.context, "_event_organizer_cache", None)
+    if cache is None:
+        cache = {}
+        info.context._event_organizer_cache = cache
+    key = (member.event_id, requester_id)
+    if key not in cache:
+        cache[key] = EventService.is_organizer(member.event_id, requester_id)
+    return cache[key]
+
+
 class EventMemberType(MUObjectType):
+    score = graphene.String()
 
     class Meta:
         model = EventMember
@@ -21,10 +43,15 @@ class EventMemberType(MUObjectType):
             "comment",
         )
 
+    def resolve_score(self: EventMember, info: graphene.ResolveInfo) -> str | None:
+        if _can_view_member_rating(self, info):
+            return self.get_score_display()
 
-class EventReviewType(graphene.ObjectType):
-    member = graphene.Field(EventMemberType)
-    comment = graphene.String()
+    def resolve_comment(
+        self: EventMember, info: graphene.ResolveInfo
+    ) -> str | None:
+        if _can_view_member_rating(self, info):
+            return self.comment
 
 
 class EventTypeMixin(MUObjectType):
@@ -35,8 +62,7 @@ class EventTypeMixin(MUObjectType):
     participant_count = graphene.Int()
     role = graphene.Field(MemberRole.as_graphene_enum())
     phase = graphene.Field(EventPhase.as_graphene_enum(), required=True)
-    average_score = graphene.Float()
-    reviews = graphene.List(EventReviewType)
+    score = graphene.Float()
     comments = graphene.List(
         CommentType,
         start=graphene.Int(default_value=0),
@@ -81,16 +107,9 @@ class EventTypeMixin(MUObjectType):
     def resolve_phase(self: Event, info: graphene.ResolveInfo) -> int:
         return self.phase
 
-    def resolve_average_score(self: Event, info: graphene.ResolveInfo) -> float | None:
+    def resolve_score(self: Event, info: graphene.ResolveInfo) -> float | None:
         members = getattr(self, "_members", None)
-        return EventService.get_average_score(self.id, members)
-
-    def resolve_reviews(
-        self: Event, info: graphene.ResolveInfo
-    ) -> list[EventReviewType]:
-        members = getattr(self, "_members", None)
-        source = EventService.get_reviews(self.id, members)
-        return [EventReviewType(member=m, comment=m.comment) for m in source]
+        return EventService.get_score(self.id, members)
 
     def resolve_comments(
         self: Event, info: graphene.ResolveInfo, start: int, end: int

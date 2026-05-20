@@ -544,9 +544,7 @@ class EventService:
             return None
 
     @staticmethod
-    def get_average_score(
-        event_id: int, _members: list | None = None
-    ) -> float | None:
+    def get_score(event_id: int, _members: list | None = None) -> float | None:
         if _members is not None:
             scores = [m.score for m in _members if m.score is not None]
             return (sum(scores) / len(scores) + 1) if scores else None
@@ -558,12 +556,12 @@ class EventService:
         return score + 1 if score is not None else None
 
     @staticmethod
-    def get_reviews(event_id: int, _members: list | None = None) -> list:
-        if _members is not None:
-            return [m for m in _members if m.comment is not None]
-        return list(
-            EventMember.objects.filter(event_id=event_id, comment__isnull=False)
-        )
+    def is_organizer(event_id: int, user_id: int) -> bool:
+        if not user_id:
+            return False
+        return EventMember.objects.filter(
+            event_id=event_id, user_id=user_id, role=MemberRole.ORGANIZER
+        ).exists()
 
     @staticmethod
     def get_unconfirmed_participants(event_id: int):
