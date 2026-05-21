@@ -2,7 +2,9 @@ import graphene
 
 from api.graphql.event.types import EventType
 from main.event.services import EventService
+from main.location.models import Location
 from main.social.services import FollowService, PostService
+from main.user.decorators import privacy_gated
 from main.user.models import User, UserPrivacySetting
 from main.user.services import UserService
 from shared.enums import (
@@ -15,6 +17,7 @@ from shared.enums import (
     PhysicalActivitySatisfaction,
     PreferredPartnerCharacteristics,
     PreferredPartySize,
+    PrivacyScope,
     PrivacySetting,
     SocialInteractionImportance,
     TimeOfTheDay,
@@ -45,32 +48,20 @@ class UserTypeMixin:
     def resolve_dislikes(self: User, info: graphene.ResolveInfo) -> int:
         return UserService.get_event_dislikes_count(self.id)
 
+    @privacy_gated(PrivacySetting.FOLLOWERS)
     def resolve_followers(self, info: graphene.ResolveInfo) -> list[User] | None:
-        if not UserService.check_privacy(
-            self.id, info.context.user.id, PrivacySetting.FOLLOWERS
-        ):
-            return None
         return FollowService.get_follower_users(self.id)
 
+    @privacy_gated(PrivacySetting.FOLLOWERS)
     def resolve_follower_count(self: User, info: graphene.ResolveInfo) -> int | None:
-        if not UserService.check_privacy(
-            self.id, info.context.user.id, PrivacySetting.FOLLOWERS
-        ):
-            return None
         return FollowService.get_follower_count(self.id)
 
+    @privacy_gated(PrivacySetting.FOLLOWERS)
     def resolve_following(self, info: graphene.ResolveInfo) -> list[User] | None:
-        if not UserService.check_privacy(
-            self.id, info.context.user.id, PrivacySetting.FOLLOWERS
-        ):
-            return None
         return FollowService.get_following_users(self.id)
 
+    @privacy_gated(PrivacySetting.FOLLOWERS)
     def resolve_following_count(self: User, info: graphene.ResolveInfo) -> int | None:
-        if not UserService.check_privacy(
-            self.id, info.context.user.id, PrivacySetting.FOLLOWERS
-        ):
-            return None
         return FollowService.get_following_count(self.id)
 
     def resolve_organizing_events(self: User, info: graphene.ResolveInfo):
@@ -79,6 +70,7 @@ class UserTypeMixin:
     def resolve_attending_events(self: User, info: graphene.ResolveInfo):
         return EventService.get_attending_events(self.id)
 
+    @privacy_gated(PrivacySetting.POSTS)
     def resolve_posts(self: User, info: graphene.ResolveInfo, start: int, end: int):
         return PostService.get_user_posts(self.id, start, end)
 
@@ -205,21 +197,23 @@ class UserType(MUObjectType, UserTypeMixin):
             "preferred_activities",
         )
 
+    @privacy_gated(PrivacySetting.LOCATION)
     def resolve_location(self: User, info: graphene.ResolveInfo):
-        if UserService.check_privacy(self.id, info.context.user.id, PrivacySetting.LOCATION):
-            return self.location
+        if self.longitude is None or self.latitude is None:
+            return None
+        return Location(longitude=self.longitude, latitude=self.latitude)
 
+    @privacy_gated(PrivacySetting.EMAIL)
     def resolve_email(self: User, info: graphene.ResolveInfo) -> str | None:
-        if UserService.check_privacy(self.id, info.context.user.id, PrivacySetting.EMAIL):
-            return self.email
+        return self.email
 
+    @privacy_gated(PrivacySetting.AGE)
     def resolve_date_of_birth(self: User, info: graphene.ResolveInfo):
-        if UserService.check_privacy(self.id, info.context.user.id, PrivacySetting.AGE):
-            return self.date_of_birth
+        return self.date_of_birth
 
+    @privacy_gated(PrivacySetting.GENDER)
     def resolve_gender(self: User, info: graphene.ResolveInfo) -> int | None:
-        if UserService.check_privacy(self.id, info.context.user.id, PrivacySetting.GENDER):
-            return self.gender
+        return self.gender
 
     def resolve_is_following(self: User, info: graphene.ResolveInfo) -> bool | None:
         viewer = info.context.user
@@ -235,8 +229,16 @@ class UserType(MUObjectType, UserTypeMixin):
 
 
 class PrivacySettingType(MUObjectType):
+    setting = PrivacySetting.as_graphene_enum()()
+    scope = PrivacyScope.as_graphene_enum()()
 
     class Meta:
         model = UserPrivacySetting
         fields = ("setting", "scope")
         convert_choices_to_enum = False
+
+    def resolve_setting(self: UserPrivacySetting, info: graphene.ResolveInfo) -> int:
+        return self.setting
+
+    def resolve_scope(self: UserPrivacySetting, info: graphene.ResolveInfo) -> int:
+        return self.scope

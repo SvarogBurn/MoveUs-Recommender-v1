@@ -1,6 +1,6 @@
 import graphene
 
-from api.graphql.user.types import ProfileType
+from api.graphql.user.types import PrivacySettingType, ProfileType
 from main.user.models import User
 from main.user.services import UserService
 from shared.enums import (
@@ -14,6 +14,7 @@ from shared.enums import (
     PreferredPartnerCharacteristics,
     PreferredPartySize,
     PrivacyScope,
+    PrivacySetting,
     SocialInteractionImportance,
     TimeOfTheDay,
 )
@@ -171,8 +172,30 @@ class AlterAllPrivacySettingsMutation(graphene.Mutation):
         return AlterAllPrivacySettingsMutation(success=True)
 
 
+class AlterPrivacySettingMutation(graphene.Mutation):
+
+    class Arguments:
+        setting = PrivacySetting.as_graphene_enum()(required=True)
+        scope = PrivacyScope.as_graphene_enum()(required=True)
+
+    privacy_setting = graphene.Field(PrivacySettingType)
+
+    @require_auth
+    def mutate(
+        self,
+        info: graphene.ResolveInfo,
+        setting: PrivacySetting,
+        scope: PrivacyScope,
+    ):
+        ups = UserService.alter_privacy_setting(
+            info.context.user.id, setting, scope
+        )
+        return AlterPrivacySettingMutation(privacy_setting=ups)
+
+
 class Mutation(graphene.ObjectType):
     alter_survey_info = AlterSurveyInfoMutation.Field()
     alter_basic_info = AlterBasicInfoMutation.Field()
     alter_max_travel_distance = AlterMaxTravelDistanceMutation.Field()
     alter_all_privacy_settings = AlterAllPrivacySettingsMutation.Field()
+    alter_privacy_setting = AlterPrivacySettingMutation.Field()

@@ -111,7 +111,7 @@ class UserPrivacySetting(models.Model):
     )
     setting = models.SmallIntegerField(choices=PrivacySetting.choices())
     scope = models.SmallIntegerField(
-        choices=PrivacyScope.choices(), default=PrivacyScope.EVERYONE
+        choices=PrivacyScope.choices(), default=PrivacyScope.NOONE
     )
 
     class Meta:

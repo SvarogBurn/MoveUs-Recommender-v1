@@ -24,8 +24,9 @@ class BaseStringEnum(BaseEnum, Enum):
 
 class PrivacyScope(BaseIntEnum):
     NOONE = 0
-    FOLLOWERS = 1
+    FOLLOWERS = 1  # one-way followers
     EVERYONE = 2
+    MUTUALS = 3  # mutual follows only
 
 
 class FrequencyOfPhycicalActivity(BaseIntEnum):
@@ -125,6 +126,7 @@ class PrivacySetting(BaseIntEnum):
     FOLLOWERS = 2
     EMAIL = 3
     GENDER = 4
+    POSTS = 5
 
 
 class OtherOption(BaseIntEnum):

@@ -8,6 +8,15 @@ from main.user.validators import (
 from shared.enums import PrivacyScope, PrivacySetting
 from shared.errors.mu_error import MUError, MUErrorCode
 
+DEFAULT_PRIVACY_SCOPES = {
+    PrivacySetting.LOCATION: PrivacyScope.FOLLOWERS,
+    PrivacySetting.AGE: PrivacyScope.FOLLOWERS,
+    PrivacySetting.GENDER: PrivacyScope.FOLLOWERS,
+    PrivacySetting.EMAIL: PrivacyScope.NOONE,
+    PrivacySetting.FOLLOWERS: PrivacyScope.EVERYONE,
+    PrivacySetting.POSTS: PrivacyScope.EVERYONE,
+}
+
 
 class UserService:
     @staticmethod
@@ -25,17 +34,50 @@ class UserService:
             raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
 
     @staticmethod
-    def check_privacy(user_id: int, viewer_id: int, setting: PrivacySetting) -> bool:
+    def get_privacy_map(user_id: int) -> dict[int, int]:
+        return {
+            ups.setting: ups.scope
+            for ups in UserPrivacySetting.objects.filter(user_id=user_id)
+        }
+
+    @staticmethod
+    def check_privacy(
+        user_id: int,
+        viewer_id: int | None,
+        setting: PrivacySetting,
+        scope_map: dict[int, int] | None = None,
+    ) -> bool:
         if user_id == viewer_id:
             return True
-        ups = UserPrivacySetting.objects.filter(
-            user_id=user_id, setting=setting
-        ).first()
-        if not ups or ups.scope == PrivacyScope.EVERYONE:
-            return True
-        if ups.scope == PrivacyScope.FOLLOWERS:
-            from main.social.services import FollowService
 
+        from main.social.services import BlockService, FollowService
+
+        if viewer_id and BlockService.is_blocked(user_id, viewer_id):
+            return False
+
+        if scope_map is None:
+            ups = UserPrivacySetting.objects.filter(
+                user_id=user_id, setting=setting
+            ).first()
+            scope = (
+                ups.scope
+                if ups
+                else DEFAULT_PRIVACY_SCOPES.get(setting, PrivacyScope.NOONE)
+            )
+        else:
+            scope = scope_map.get(
+                setting, DEFAULT_PRIVACY_SCOPES.get(setting, PrivacyScope.NOONE)
+            )
+
+        if scope == PrivacyScope.EVERYONE:
+            return True
+        if scope == PrivacyScope.NOONE:
+            return False
+        if not viewer_id:  # anonymous viewer cannot be a follower or mutual
+            return False
+        if scope == PrivacyScope.FOLLOWERS:
+            return FollowService.is_following(viewer_id, user_id)
+        if scope == PrivacyScope.MUTUALS:
             return FollowService.are_mutual(user_id, viewer_id)
         return False
 
@@ -53,10 +95,17 @@ class UserService:
 
     @staticmethod
     def initialize_privacy_settings(user_id: int) -> None:
-        for key in PrivacySetting:
-            UserPrivacySetting.objects.create(
-                user_id=user_id, setting=key.value, scope=PrivacyScope.EVERYONE
-            )
+        UserPrivacySetting.objects.bulk_create(
+            [
+                UserPrivacySetting(
+                    user_id=user_id,
+                    setting=setting.value,
+                    scope=DEFAULT_PRIVACY_SCOPES.get(setting, PrivacyScope.NOONE),
+                )
+                for setting in PrivacySetting
+            ],
+            ignore_conflicts=True,
+        )
 
     @staticmethod
     def alter_basic_info(user: User, **fields) -> None:
@@ -88,6 +137,19 @@ class UserService:
     @staticmethod
     def alter_all_privacy_settings(user_id: int, scope: PrivacyScope) -> None:
         UserPrivacySetting.objects.filter(user_id=user_id).update(scope=scope)
+
+    @staticmethod
+    def alter_privacy_setting(
+        user_id: int, setting: PrivacySetting, scope: PrivacyScope
+    ) -> UserPrivacySetting:
+        ups, _ = UserPrivacySetting.objects.update_or_create(
+            user_id=user_id, setting=setting, defaults={"scope": scope}
+        )
+        return ups
+
+    @staticmethod
+    def get_privacy_settings(user_id: int):
+        return UserPrivacySetting.objects.filter(user_id=user_id)
 
     @staticmethod
     def report_user(
