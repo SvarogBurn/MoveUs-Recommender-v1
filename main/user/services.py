@@ -148,10 +148,6 @@ class UserService:
         return ups
 
     @staticmethod
-    def get_privacy_settings(user_id: int):
-        return UserPrivacySetting.objects.filter(user_id=user_id)
-
-    @staticmethod
     def report_user(
         reporter_id: int, reported_id: int, comment: str = None
     ) -> None:
