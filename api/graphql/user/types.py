@@ -4,7 +4,7 @@ from api.graphql.event.types import EventType
 from main.event.services import EventService
 from main.location.models import Location
 from main.social.services import FollowService, PostService
-from main.user.decorators import privacy_gated
+from main.user.decorators import owner_only, privacy_gated
 from main.user.models import User, UserPrivacySetting
 from main.user.services import UserService
 from shared.enums import (
@@ -203,7 +203,7 @@ class UserType(MUObjectType, UserTypeMixin):
             return None
         return Location(longitude=self.longitude, latitude=self.latitude)
 
-    @privacy_gated(PrivacySetting.EMAIL)
+    @owner_only
     def resolve_email(self: User, info: graphene.ResolveInfo) -> str | None:
         return self.email
 

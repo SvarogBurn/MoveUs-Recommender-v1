@@ -12,7 +12,6 @@ DEFAULT_PRIVACY_SCOPES = {
     PrivacySetting.LOCATION: PrivacyScope.FOLLOWERS,
     PrivacySetting.AGE: PrivacyScope.FOLLOWERS,
     PrivacySetting.GENDER: PrivacyScope.FOLLOWERS,
-    PrivacySetting.EMAIL: PrivacyScope.NOONE,
     PrivacySetting.FOLLOWERS: PrivacyScope.EVERYONE,
     PrivacySetting.POSTS: PrivacyScope.EVERYONE,
 }

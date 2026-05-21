@@ -11,6 +11,18 @@ def _viewer_id(info) -> int | None:
     return viewer.id
 
 
+def owner_only(func):
+    """Resolve to None unless the viewer is the object's owner."""
+
+    @wraps(func)
+    def wrapper(self, info, *args, **kwargs):
+        if self.id != _viewer_id(info):
+            return None
+        return func(self, info, *args, **kwargs)
+
+    return wrapper
+
+
 def privacy_gated(setting: PrivacySetting):
     def decorator(func):
         @wraps(func)

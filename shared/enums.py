@@ -124,7 +124,6 @@ class PrivacySetting(BaseIntEnum):
     LOCATION = 0
     AGE = 1
     FOLLOWERS = 2
-    EMAIL = 3
     GENDER = 4
     POSTS = 5
 
