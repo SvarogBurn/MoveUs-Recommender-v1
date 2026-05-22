@@ -43,7 +43,7 @@ class EventMember(models.Model):
         Event, on_delete=models.CASCADE, related_name="members"
     )
     role = models.SmallIntegerField(choices=MemberRole.choices(), db_index=True)
-    has_participated = models.BooleanField(null=True)
+    has_participated = models.BooleanField(default=True)
     score = models.SmallIntegerField(choices=EventRating.choices(), null=True)
     comment = models.CharField(max_length=512, null=True)
     participates = models.BooleanField(default=role == MemberRole.PARTICIPANT)
