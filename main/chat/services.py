@@ -4,6 +4,7 @@ from typing import Any
 from asgiref.sync import async_to_sync
 from channels.db import database_sync_to_async
 from channels.layers import get_channel_layer
+from django.db import transaction
 from django.db.models.functions import Now
 
 from main.chat.models import Chat, ChatMember, ChatMessage, DirectChat, GroupChat
@@ -113,11 +114,9 @@ def _serialize_chat(chat: Chat, exclude_user_id: int | None = None) -> dict[str,
 class ChatMemberService:
     @staticmethod
     def create_member(user_id: int, chat_id: int) -> ChatMember:
-        display_name = User.objects.values_list(
-            "display_name", flat=True
-        ).get(pk=user_id)
+        user = User.objects.only("first_name", "last_name", "username").get(pk=user_id)
         return ChatMember.objects.create(
-            user_id=user_id, chat_id=chat_id, nickname=display_name
+            user_id=user_id, chat_id=chat_id, nickname=user.display_name
         )
 
     @staticmethod
@@ -262,10 +261,11 @@ class ChatService:
                 user_1_id=u1_id, user_2_id=u2_id
             ).chat
         except DirectChat.DoesNotExist:
-            chat = Chat.objects.create()
-            DirectChat.objects.create(user_1_id=u1_id, user_2_id=u2_id, chat=chat)
-            ChatMemberService.create_member(u1_id, chat.id)
-            ChatMemberService.create_member(u2_id, chat.id)
+            with transaction.atomic():
+                chat = Chat.objects.create()
+                DirectChat.objects.create(user_1_id=u1_id, user_2_id=u2_id, chat=chat)
+                ChatMemberService.create_member(u1_id, chat.id)
+                ChatMemberService.create_member(u2_id, chat.id)
             chat_data = _serialize_chat(chat)
             _notify_single_user_my_chats(
                 u1_id, chat.id, "chat_added", {"chat": chat_data}
@@ -300,12 +300,13 @@ class ChatService:
             if uid not in found_ids:
                 raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
 
-        chat = Chat.objects.create()
-        GroupChat.objects.create(chat=chat, name=name)
-        ChatMemberService.create_member(creator.id, chat.id)
-        for u in users:
-            if u.id != creator.id:
-                ChatMemberService.create_member(u.id, chat.id)
+        with transaction.atomic():
+            chat = Chat.objects.create()
+            GroupChat.objects.create(chat=chat, name=name)
+            ChatMemberService.create_member(creator.id, chat.id)
+            for u in users:
+                if u.id != creator.id:
+                    ChatMemberService.create_member(u.id, chat.id)
 
         chat_data = _serialize_chat(chat)
         all_member_ids = [creator.id] + [u.id for u in users if u.id != creator.id]
