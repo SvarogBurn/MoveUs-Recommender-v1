@@ -2,7 +2,6 @@ import graphene
 
 from main.event.models import Event
 from main.event.services import EventService
-from shared.errors.mu_error import MUError, MUErrorCode
 from shared.utils.decorators import require_auth
 
 from .types import EventType, UnfinishedEventType
@@ -18,18 +17,12 @@ class EventQuery(graphene.ObjectType):
     future_joined_events = graphene.List(EventType)
     unfinished_events = graphene.List(UnfinishedEventType)
     unrated_events = graphene.List(EventType)
-    my_recommended_events = graphene.List(EventType)
 
     def resolve_event(root, info: graphene.ResolveInfo, id: int, **kwargs) -> Event:
         return EventService.get_event_by_id(id)
 
     def resolve_anonymous_user_events(root, info: graphene.ResolveInfo, **kwargs):
         return EventService.get_anonymous_events()
-
-    def resolve_my_recommended_events(root, info: graphene.ResolveInfo, **kwargs):
-        if not info.context.user.id:
-            raise MUError(MUErrorCode.AUTHENTICATION_ERROR)
-        return EventService.get_recommended_events()
 
     @require_auth
     def resolve_joined_events(root, info: graphene.ResolveInfo, **kwargs):

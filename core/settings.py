@@ -201,6 +201,8 @@ GRAPHENE = {
     "SCHEMA": "api.schema.schema",
 }
 
+FEED_RECOMMENDER = "main.feed.recommender.ChronologicalFeedRecommender"
+
 STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "gcs")
 
 # Email Config
