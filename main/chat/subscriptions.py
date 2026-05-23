@@ -170,10 +170,9 @@ class ChatSubscriptionHandler:
             {"eventType": "chat_added", "chatId": c["id"], "chat": c}
             for c in chats
         ]
-        if initial_payload:
-            await self.consumer.send_message(
-                "next", sub_id, {"data": {"myChats": initial_payload}}
-            )
+        await self.consumer.send_message(
+            "next", sub_id, {"data": {"myChats": initial_payload}}
+        )
 
     async def handle_my_chats_update(self, event: dict[str, Any]) -> None:
         logger.debug("Received my_chats.update event: %s", event)
