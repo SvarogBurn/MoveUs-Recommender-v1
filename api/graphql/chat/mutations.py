@@ -65,6 +65,19 @@ class SendChatMessage(graphene.Mutation):
         return SendChatMessage(chat_message=msg)
 
 
+class CreateDirectChat(graphene.Mutation):
+
+    class Arguments:
+        user_id = graphene.Int(required=True)
+
+    chat = graphene.Field(ChatType)
+
+    @require_auth
+    def mutate(self, info: graphene.ResolveInfo, user_id: int):
+        chat = ChatService.get_or_create_direct_chat(info.context.user.id, user_id)
+        return CreateDirectChat(chat=chat)
+
+
 class CreateGroupChat(graphene.Mutation):
 
     class Arguments:
@@ -112,6 +125,7 @@ class Mutation(graphene.ObjectType):
     set_chat_notifications = SetChatNotifications.Field()
     set_chat_nickname = SetChatNickname.Field()
     send_chat_message = SendChatMessage.Field()
+    create_direct_chat = CreateDirectChat.Field()
     create_group_chat = CreateGroupChat.Field()
     add_chat_member = AddChatMember.Field()
     leave_chat = LeaveChat.Field()
