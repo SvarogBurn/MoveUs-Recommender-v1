@@ -227,6 +227,13 @@ RATE_LIMIT_SEND_CHAT_MESSAGE = (30, 60)
 RATE_LIMIT_CREATE_DIRECT_CHAT = (20, 3600)
 RATE_LIMIT_CREATE_GROUP_CHAT = (10, 3600)
 RATE_LIMIT_ADD_CHAT_MEMBER = (30, 3600)
+# Social throttles are per-user. RATE_LIMIT_COMMENT covers comment-on-post,
+# comment-on-event, and reply-on-comment as a shared bucket. RATE_LIMIT_REPORT
+# covers both report-user and report-event.
+RATE_LIMIT_CREATE_POST = (10, 3600)
+RATE_LIMIT_COMMENT = (30, 3600)
+RATE_LIMIT_FOLLOW = (60, 3600)
+RATE_LIMIT_REPORT = (20, 3600)
 
 # Email Config
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

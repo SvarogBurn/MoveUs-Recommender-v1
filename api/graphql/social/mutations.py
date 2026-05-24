@@ -1,4 +1,5 @@
 import graphene
+from django.conf import settings
 
 from api.graphql.social.types import CommentType, CreatePostType, FollowType
 from main.social.services import (
@@ -7,7 +8,7 @@ from main.social.services import (
     FollowService,
     PostService,
 )
-from shared.utils.decorators import require_auth
+from shared.utils.decorators import rate_limit, require_auth
 
 
 class FollowUserMutation(graphene.Mutation):
@@ -18,6 +19,7 @@ class FollowUserMutation(graphene.Mutation):
     follow = graphene.Field(FollowType)
 
     @require_auth
+    @rate_limit("follow", *settings.RATE_LIMIT_FOLLOW, by="user")
     def mutate(self, info: graphene.ResolveInfo, user_id: int):
         follow = FollowService.follow(info.context.user.id, user_id)
         return FollowUserMutation(follow=follow)
@@ -71,6 +73,7 @@ class CreatePostMutation(graphene.Mutation):
     post = graphene.Field(CreatePostType)
 
     @require_auth
+    @rate_limit("create_post", *settings.RATE_LIMIT_CREATE_POST, by="user")
     def mutate(root, info: graphene.ResolveInfo, content: str, event_id: int | None = None):
         post = PostService.create_post(info.context.user.id, content, event_id)
         return CreatePostMutation(post=post)
@@ -111,6 +114,7 @@ class CommentOnPostMutation(graphene.Mutation):
     comment = graphene.Field(CommentType)
 
     @require_auth
+    @rate_limit("comment", *settings.RATE_LIMIT_COMMENT, by="user")
     def mutate(root, info: graphene.ResolveInfo, post_id: int, text: str):
         comment = CommentService.comment_on_post(info.context.user.id, post_id, text)
         return CommentOnPostMutation(comment=comment)
@@ -125,6 +129,7 @@ class CommentOnEventMutation(graphene.Mutation):
     comment = graphene.Field(CommentType)
 
     @require_auth
+    @rate_limit("comment", *settings.RATE_LIMIT_COMMENT, by="user")
     def mutate(root, info: graphene.ResolveInfo, event_id: int, text: str):
         comment = CommentService.comment_on_event(info.context.user.id, event_id, text)
         return CommentOnEventMutation(comment=comment)
@@ -139,6 +144,7 @@ class ReplyOnCommentMutation(graphene.Mutation):
     comment = graphene.Field(CommentType)
 
     @require_auth
+    @rate_limit("comment", *settings.RATE_LIMIT_COMMENT, by="user")
     def mutate(root, info: graphene.ResolveInfo, comment_id: int, text: str):
         comment = CommentService.reply_to_comment(
             info.context.user.id, comment_id, text
