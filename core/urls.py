@@ -28,8 +28,6 @@ from graphene_django.views import GraphQLView
 
 from .settings import DEBUG
 
-MAX_QUERY_DEPTH = 10
-
 
 class CustomGraphQLView(GraphQLView):
     def dispatch(self, request: HttpRequest, *args, **kwargs):
@@ -102,7 +100,9 @@ urlpatterns = [
         csrf_exempt(
             CustomGraphQLView.as_view(
                 graphiql=DEBUG,
-                validation_rules=[depth_limit_validator(max_depth=MAX_QUERY_DEPTH)],
+                validation_rules=[
+                    depth_limit_validator(max_depth=settings.GRAPHQL_MAX_QUERY_DEPTH)
+                ],
             )
         ),
     ),

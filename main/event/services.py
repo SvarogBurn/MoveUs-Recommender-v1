@@ -605,6 +605,8 @@ class EventService:
         )
 
     @staticmethod
-    def generate_event_picture_url(event_id: int, user_id: int) -> str:
+    def generate_event_picture_url(
+        event_id: int, user_id: int, content_type: str
+    ) -> str:
         EventService.get_event(event_id, user_id, MemberRole.ORGANIZER)
-        return storage_backend.generate_event_picture_url(event_id)
+        return storage_backend.generate_event_picture_url(event_id, content_type)

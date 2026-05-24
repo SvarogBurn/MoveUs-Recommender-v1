@@ -86,3 +86,10 @@ class GCSStorageBackend(StorageBackend):
         bucket = self._get_bucket()
         blob = bucket.blob(blob_name)
         return blob.exists()
+
+    def blob_size(self, blob_name: str) -> int | None:
+        bucket = self._get_bucket()
+        blob = bucket.get_blob(blob_name)
+        if blob is None:
+            return None
+        return blob.size

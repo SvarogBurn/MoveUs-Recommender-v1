@@ -29,7 +29,7 @@ class User(AbstractUser):
         max_length=32, validators=[username_validator], unique=True
     )
     email = models.EmailField(max_length=64, unique=True)
-    bio = models.CharField(max_length=255)
+    bio = models.CharField(max_length=512)
     gender = models.SmallIntegerField(choices=Gender.choices(), null=True)
     date_of_birth = models.DateField(null=True)
     longitude = models.FloatField(null=True)

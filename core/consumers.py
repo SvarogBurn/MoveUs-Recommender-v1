@@ -5,6 +5,7 @@ from typing import Any
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.conf import settings
 from django.contrib.sessions.models import Session
 from django.utils import timezone
 from graphql import DocumentNode, parse, validate
@@ -14,8 +15,6 @@ from graphene.validation import depth_limit_validator
 from api.schema import schema as graphql_schema
 from main.chat.subscriptions import ChatSubscriptionHandler
 from shared.errors.mu_error import MUError
-
-MAX_QUERY_DEPTH = 10
 
 
 def _safe_error_payload(exc: Exception) -> dict[str, Any]:
@@ -30,8 +29,6 @@ def _safe_error_payload(exc: Exception) -> dict[str, Any]:
     return {"message": "Internal error"}
 
 logger = logging.getLogger(__name__)
-
-CONNECTION_INIT_TIMEOUT_SECONDS = 10
 
 
 @database_sync_to_async
@@ -53,7 +50,7 @@ class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
 
     async def _enforce_init_timeout(self) -> None:
         try:
-            await asyncio.sleep(CONNECTION_INIT_TIMEOUT_SECONDS)
+            await asyncio.sleep(settings.WS_CONNECTION_INIT_TIMEOUT_SECONDS)
         except asyncio.CancelledError:
             return
         if self.scope.get("user_id") is None:
@@ -142,7 +139,7 @@ class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
 
     async def send_keep_alive(self) -> None:
         while True:
-            await asyncio.sleep(15)
+            await asyncio.sleep(settings.WS_KEEPALIVE_INTERVAL_SECONDS)
             try:
                 await self.send_message("ping")
             except Exception:
@@ -173,7 +170,7 @@ class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
             validation_errors = validate(
                 graphql_schema.graphql_schema,
                 document,
-                rules=[depth_limit_validator(max_depth=MAX_QUERY_DEPTH)],
+                rules=[depth_limit_validator(max_depth=settings.GRAPHQL_MAX_QUERY_DEPTH)],
             )
 
             if validation_errors:

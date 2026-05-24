@@ -75,15 +75,15 @@ class PostTypeMixin(MUObjectType):
 
 
 class CreatePostType(PostTypeMixin):
-    post_picture_url = graphene.String()
+    post_picture_url = graphene.String(content_type=graphene.String(required=True))
 
     class Meta:
         model = Post
 
     def resolve_post_picture_url(
-        self: Post, info: graphene.ResolveInfo
+        self: Post, info: graphene.ResolveInfo, content_type: str
     ) -> str:
-        return storage_backend.generate_post_picture_url(self.id)
+        return storage_backend.generate_post_picture_url(self.id, content_type)
 
 
 class PostType(PostTypeMixin):

@@ -90,6 +90,8 @@ class MUErrorCode(IntEnum):
     # 6xx – Attachment Errors
     ATTACHMENT_NOT_OWNED = 600
     ATTACHMENT_NOT_UPLOADED = 601
+    ATTACHMENT_TOO_LARGE = 602
+    UNSUPPORTED_CONTENT_TYPE = 603
 
     # 7xx – User Registration & Validation Errors
     USERNAME_ALREADY_TAKEN = 700
@@ -200,6 +202,8 @@ mu_error_code_messages = {
     EC.COMMENT_NESTING_TOO_DEEP: "Replies can only be one level deep.",
     EC.ATTACHMENT_NOT_OWNED: "You can only send messages with attachments you have created.",
     EC.ATTACHMENT_NOT_UPLOADED: "You need to upload a file to the attachment link before you can use it.",
+    EC.ATTACHMENT_TOO_LARGE: "Attachment exceeds the maximum allowed size.",
+    EC.UNSUPPORTED_CONTENT_TYPE: "That file type is not allowed.",
     EC.USERNAME_ALREADY_TAKEN: "Username already taken.",
     EC.USERNAME_MIN_LENGTH: "Username must be at least 3 characters long.",
     EC.USERNAME_MAX_LENGTH: "Username cannot be longer than 24 characters.",

@@ -1,4 +1,5 @@
 import graphene
+from django.conf import settings
 
 from api.graphql.user.types import ProfileType
 from main.auth.services import AuthService
@@ -14,7 +15,7 @@ class LoginMutation(graphene.Mutation):
 
     my_profile = graphene.Field(ProfileType)
 
-    @rate_limit("login", limit=10, period_seconds=60)
+    @rate_limit("login", *settings.RATE_LIMIT_LOGIN)
     def mutate(
         self,
         info: graphene.ResolveInfo,
@@ -38,7 +39,7 @@ class SignUpMutation(graphene.Mutation):
 
     my_profile = graphene.Field(ProfileType)
 
-    @rate_limit("sign_up", limit=5, period_seconds=3600)
+    @rate_limit("sign_up", *settings.RATE_LIMIT_SIGN_UP)
     def mutate(
         self,
         info: graphene.ResolveInfo,
@@ -73,7 +74,7 @@ class SendConfirmationEmailMutation(graphene.Mutation):
     success = graphene.Boolean()
 
     @require_auth
-    @rate_limit("send_confirmation_email", limit=3, period_seconds=3600)
+    @rate_limit("send_confirmation_email", *settings.RATE_LIMIT_SEND_CONFIRMATION_EMAIL)
     def mutate(self, info: graphene.ResolveInfo) -> "SendConfirmationEmailMutation":
         AuthService.send_confirmation_email(info.context)
         return SendConfirmationEmailMutation(success=True)
@@ -86,7 +87,7 @@ class SendPasswordResetEmailMutation(graphene.Mutation):
 
     success = graphene.Boolean()
 
-    @rate_limit("send_password_reset", limit=5, period_seconds=3600)
+    @rate_limit("send_password_reset", *settings.RATE_LIMIT_SEND_PASSWORD_RESET)
     def mutate(self, info: graphene.ResolveInfo, email: str):
         form = AuthService.send_password_reset_email(email)
         # Always report success to avoid leaking which emails are registered.
