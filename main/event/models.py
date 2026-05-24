@@ -12,7 +12,9 @@ class Event(models.Model):
     description = models.CharField(max_length=131072, null=True)
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
-    location = models.ForeignKey(Location, on_delete=models.DO_NOTHING)
+    location = models.OneToOneField(
+        Location, on_delete=models.CASCADE, related_name="event"
+    )
     requirements = models.JSONField(null=True)
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE)
     skill_level = models.SmallIntegerField(choices=SkillLevel.choices())
@@ -46,7 +48,7 @@ class EventMember(models.Model):
     has_participated = models.BooleanField(default=True)
     score = models.SmallIntegerField(choices=EventRating.choices(), null=True)
     comment = models.CharField(max_length=512, null=True)
-    participates = models.BooleanField(default=role == MemberRole.PARTICIPANT)
+    participates = models.BooleanField(default=False)
 
     class Meta:
         db_table = "main_app_eventmember"

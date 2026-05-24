@@ -1,5 +1,4 @@
 import graphene
-from graphene_django import DjangoObjectType
 
 from api.graphql.object_type import MUObjectType
 from main.activity.models import Activity
@@ -7,7 +6,7 @@ from main.user.models import PreferredActivity
 from shared.enums import ActivityKind
 
 
-class ActivityModelType(DjangoObjectType):
+class ActivityModelType(MUObjectType):
 
     class Meta:
         model = Activity

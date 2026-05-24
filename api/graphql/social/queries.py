@@ -33,4 +33,5 @@ class PostQuery(graphene.ObjectType):
     post = graphene.Field(PostType, id=graphene.Int())
 
     def resolve_post(root, info: graphene.ResolveInfo, id: int) -> Post:
-        return PostService.get_post(id)
+        viewer_id = info.context.user.id or None
+        return PostService.get_post(id, viewer_id=viewer_id)

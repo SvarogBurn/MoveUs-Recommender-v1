@@ -80,31 +80,6 @@ class AlterEventLocation(graphene.Mutation):
         return AlterEventLocation(success=True)
 
 
-class SetEventLocation(graphene.Mutation):
-
-    class Arguments:
-        event_id = graphene.Int()
-        location_id = graphene.Float(required=False)
-
-    success = graphene.Boolean()
-
-    @require_auth
-    def mutate(
-        self,
-        info: graphene.ResolveInfo,
-        event_id: int = None,
-        location_id: int = None,
-    ):
-
-        user: User = info.context.user
-
-        event = EventService.get_event(event_id, user.id, MemberRole.ORGANIZER)
-        LocationService.set_event_location(event, location_id)
-
-        return SetEventLocation(success=True)
-
-
 class Mutation(graphene.ObjectType):
     alter_profile_location = AlterProfileLocation.Field()
     alter_event_location = AlterEventLocation.Field()
-    set_event_location = SetEventLocation.Field()

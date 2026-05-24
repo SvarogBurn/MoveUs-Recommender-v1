@@ -162,7 +162,6 @@ class EventService:
         title: str,
         start_time: datetime.datetime,
         end_time: datetime.datetime,
-        location_id: int | None,
         location_longitude: float | None,
         location_latitude: float | None,
         location_address_line1: str | None,
@@ -175,7 +174,7 @@ class EventService:
         skill_level: SkillLevel = None,
         **kwargs: Any,
     ) -> Event:
-        validate_location_requirements(location_id, location_longitude, location_latitude)
+        validate_location_requirements(location_longitude, location_latitude)
         validate_location(
             location_longitude,
             location_latitude,
@@ -198,8 +197,7 @@ class EventService:
 
         from main.location.services import LocationService
 
-        location = LocationService.get_or_create(
-            location_id=location_id,
+        location = LocationService.create(
             longitude=location_longitude,
             latitude=location_latitude,
             address_line_1=location_address_line1,
@@ -330,10 +328,14 @@ class EventService:
             if member.role != MemberRole.SPECTATOR:
                 raise MUError(MUErrorCode.ALREADY_IN_EVENT)
             member.role = MemberRole.PARTICIPANT
-            member.save()
+            member.participates = True
+            member.save(update_fields=["role", "participates"])
         except EventMember.DoesNotExist:
             member = EventMember.objects.create(
-                user_id=user.id, event_id=event.id, role=MemberRole.PARTICIPANT
+                user_id=user.id,
+                event_id=event.id,
+                role=MemberRole.PARTICIPANT,
+                participates=True,
             )
 
         return member
@@ -384,13 +386,10 @@ class EventService:
 
     @staticmethod
     def delete_event(event: Event) -> None:
-        from main.location.services import LocationService
-
         _revoke_event_tasks(event)
-
         location = event.location
         event.delete()
-        LocationService.release(location)
+        location.delete()
 
     @staticmethod
     def spectate_event(event: Event, user: User) -> EventMember:
@@ -400,10 +399,14 @@ class EventService:
             member = EventMember.objects.get(pk=(user.id, event.id))
             validate_spectate_eligibility(member)
             member.role = MemberRole.SPECTATOR
-            member.save()
+            member.participates = False
+            member.save(update_fields=["role", "participates"])
         except EventMember.DoesNotExist:
             member = EventMember.objects.create(
-                user_id=user.id, event_id=event.id, role=MemberRole.SPECTATOR
+                user_id=user.id,
+                event_id=event.id,
+                role=MemberRole.SPECTATOR,
+                participates=False,
             )
 
         return member
@@ -602,6 +605,6 @@ class EventService:
         )
 
     @staticmethod
-    def get_event_picture_url(event_id: int, user_id: int) -> str:
+    def generate_event_picture_url(event_id: int, user_id: int) -> str:
         EventService.get_event(event_id, user_id, MemberRole.ORGANIZER)
         return storage_backend.generate_event_picture_url(event_id)

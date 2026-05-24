@@ -77,12 +77,16 @@ class SendConfirmationEmailMutation(graphene.Mutation):
 
 
 class SendPasswordResetEmailMutation(graphene.Mutation):
+
+    class Arguments:
+        email = graphene.String(required=True)
+
     success = graphene.Boolean()
 
-    @require_auth
-    def mutate(self, info: graphene.ResolveInfo):
-        form = AuthService.send_password_reset_email(info.context)
-        return SendPasswordResetEmailMutation(success=form.is_valid())
+    def mutate(self, info: graphene.ResolveInfo, email: str):
+        form = AuthService.send_password_reset_email(email)
+        # Always report success to avoid leaking which emails are registered.
+        return SendPasswordResetEmailMutation(success=True)
 
 
 class Mutation(graphene.ObjectType):

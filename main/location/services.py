@@ -2,38 +2,18 @@ from typing import Any
 
 from main.location.models import Location
 from main.location.validators import validate_location
-from shared.errors.mu_error import MUError, MUErrorCode
 
 
 class LocationService:
     @staticmethod
-    def get_or_create(
-        location_id: int | None = None,
-        longitude: float | None = None,
-        latitude: float | None = None,
+    def create(
+        longitude: float,
+        latitude: float,
         **kwargs: Any,
     ) -> Location:
-        if location_id:
-            try:
-                return Location.objects.get(pk=location_id)
-            except Location.DoesNotExist:
-                raise MUError(MUErrorCode.LOCATION_DOES_NOT_EXIST)
-        return Location.objects.create(longitude=longitude, latitude=latitude, **kwargs)
-
-    @staticmethod
-    def reference_count(location: Location) -> int:
-        from main.event.models import Event
-
-        return Event.objects.filter(location=location).count()
-
-    @staticmethod
-    def consider_dying(location: Location) -> None:
-        if LocationService.reference_count(location) <= 1:
-            location.delete()
-
-    @staticmethod
-    def release(location: Location) -> None:
-        LocationService.consider_dying(location)
+        return Location.objects.create(
+            longitude=longitude, latitude=latitude, **kwargs
+        )
 
     @staticmethod
     def alter_event_location(
@@ -58,9 +38,6 @@ class LocationService:
         )
         location: Location = event.location
 
-        if LocationService.reference_count(location) > 1:
-            location.pk = None
-
         if location_longitude:
             location.longitude = location_longitude
         if location_latitude:
@@ -74,21 +51,10 @@ class LocationService:
         if location_country_code:
             location.country_code = location_country_code
         if location_region:
-            location.region = (location_region,)
+            location.region = location_region
         if location_name:
             location.name = location_name
         location.save()
-
-    @staticmethod
-    def set_event_location(event, location_id: int) -> None:
-        try:
-            new_location = Location.objects.get(pk=location_id)
-            old_location = event.location
-            event.location = new_location
-            event.save()
-            LocationService.consider_dying(old_location)
-        except Location.DoesNotExist:
-            raise MUError(MUErrorCode.LOCATION_DOES_NOT_EXIST)
 
     @staticmethod
     def alter_profile_location(

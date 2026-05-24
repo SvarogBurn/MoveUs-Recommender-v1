@@ -114,7 +114,10 @@ class EventTypeMixin(MUObjectType):
     def resolve_comments(
         self: Event, info: graphene.ResolveInfo, start: int, end: int
     ):
-        return CommentService.get_comments_for_event(self.id, start, end)
+        viewer_id = info.context.user.id or None
+        return CommentService.get_comments_for_event(
+            self.id, start, end, viewer_id=viewer_id
+        )
 
 
 class UnfinishedEventType(EventTypeMixin):

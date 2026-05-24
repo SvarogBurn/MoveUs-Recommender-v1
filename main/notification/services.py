@@ -54,12 +54,12 @@ class NotificationService:
             if n.kind in Notification.USER_NOTIFICATION_KINDS:
                 if n.target_id not in users_by_id:
                     continue
-                entry["kind"] = "user"
+                entry["target_kind"] = "user"
                 entry["user"] = users_by_id[n.target_id]
             elif n.kind in Notification.EVENT_NOTIFICATION_KINDS:
                 if n.target_id not in events_by_id:
                     continue
-                entry["kind"] = "event"
+                entry["target_kind"] = "event"
                 entry["event"] = events_by_id[n.target_id]
             else:
                 continue
@@ -88,9 +88,12 @@ class NotificationService:
     def _broadcast_to_event_members(event_id: int, kind: NotificationKind) -> None:
         from main.event.models import EventMember
 
-        member_ids = [
-            x["user_id"]
-            for x in EventMember.objects.filter(event_id=event_id).values("user_id")
-        ]
-        for member_id in member_ids:
-            NotificationService.send(member_id, event_id, kind)
+        member_ids = EventMember.objects.filter(event_id=event_id).values_list(
+            "user_id", flat=True
+        )
+        Notification.objects.bulk_create(
+            [
+                Notification(user_id=uid, kind=kind, target_id=event_id)
+                for uid in member_ids
+            ]
+        )

@@ -16,13 +16,3 @@ class Location(models.Model):
 
     class Meta:
         db_table = "main_app_location"
-
-    def reference_count(self) -> int:
-        from main.location.services import LocationService
-
-        return LocationService.reference_count(self)
-
-    def consider_dying(self) -> None:
-        from main.location.services import LocationService
-
-        LocationService.consider_dying(self)

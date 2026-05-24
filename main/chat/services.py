@@ -1,10 +1,12 @@
 import datetime
+from collections import defaultdict
 from typing import Any
 
 from asgiref.sync import async_to_sync
 from channels.db import database_sync_to_async
 from channels.layers import get_channel_layer
 from django.db import transaction
+from django.db.models import Max
 from django.db.models.functions import Now
 
 from main.chat.models import Chat, ChatMember, ChatMessage, DirectChat, GroupChat
@@ -44,53 +46,75 @@ def serialize_message(
     }
 
 
-def notify_my_chats_update(
-    chat_id: int, event_type: str, extra_data: dict[str, Any] | None = None
-) -> None:
-    channel_layer = get_channel_layer()
-    member_user_ids = ChatMember.objects.filter(chat_id=chat_id).values_list(
-        "user_id", flat=True
-    )
-    payload = {
+def _build_my_chats_payload(
+    chat_id: int, event_type: str, extra_data: dict[str, Any] | None
+) -> dict[str, Any]:
+    return {
         "type": "my_chats.update",
         "event_type": event_type,
         "chat_id": chat_id,
         **(extra_data or {}),
     }
+
+
+def notify_my_chats_update(
+    chat_id: int, event_type: str, extra_data: dict[str, Any] | None = None
+) -> None:
+    channel_layer = get_channel_layer()
+    payload = _build_my_chats_payload(chat_id, event_type, extra_data)
+    member_user_ids = ChatMember.objects.filter(chat_id=chat_id).values_list(
+        "user_id", flat=True
+    )
     for uid in member_user_ids:
         async_to_sync(channel_layer.group_send)(my_chats_group(uid), payload)
 
 
 def _notify_single_user_my_chats(
-    user_id: int, chat_id: int, event_type: str, extra_data: dict[str, Any] | None = None
+    user_id: int,
+    chat_id: int,
+    event_type: str,
+    extra_data: dict[str, Any] | None = None,
 ) -> None:
     channel_layer = get_channel_layer()
-    payload = {
-        "type": "my_chats.update",
-        "event_type": event_type,
-        "chat_id": chat_id,
-        **(extra_data or {}),
-    }
+    payload = _build_my_chats_payload(chat_id, event_type, extra_data)
     async_to_sync(channel_layer.group_send)(my_chats_group(user_id), payload)
 
 
-def _serialize_chat(chat: Chat, exclude_user_id: int | None = None) -> dict[str, Any]:
-    members = ChatMember.objects.select_related("user").filter(chat_id=chat.id)
+def _serialize_chat(
+    chat: Chat,
+    exclude_user_id: int | None = None,
+    *,
+    members: list[ChatMember] | None = None,
+    last_msg: ChatMessage | None = None,
+    is_direct: bool | None = None,
+    group_name: str | None = None,
+) -> dict[str, Any]:
+    if members is None:
+        members_qs = ChatMember.objects.select_related("user").filter(
+            chat_id=chat.id
+        )
+        members = list(members_qs)
     if exclude_user_id is not None:
-        members = members.exclude(user_id=exclude_user_id)
-    last_msg = (
-        ChatMessage.objects.filter(chat_id=chat.id)
-        .order_by("-time_sent")
-        .first()
-    )
-    is_direct = DirectChat.objects.filter(chat_id=chat.id).exists()
-    group_chat = None if is_direct else GroupChat.objects.filter(chat_id=chat.id).first()
+        members = [m for m in members if m.user_id != exclude_user_id]
+
+    if last_msg is None:
+        last_msg = (
+            ChatMessage.objects.filter(chat_id=chat.id)
+            .order_by("-time_sent")
+            .first()
+        )
+
+    if is_direct is None:
+        is_direct = DirectChat.objects.filter(chat_id=chat.id).exists()
+    if not is_direct and group_name is None:
+        gc = GroupChat.objects.filter(chat_id=chat.id).first()
+        group_name = gc.name if gc else None
 
     return {
         "id": chat.id,
         "timeCreated": str(chat.time_created),
         "kind": "DIRECT" if is_direct else "GROUP",
-        "groupName": group_chat.name if group_chat else None,
+        "groupName": group_name,
         "members": [
             {
                 "userId": m.user_id,
@@ -234,13 +258,17 @@ class ChatService:
         from django.db.models import Prefetch
 
         _members_prefetch = Prefetch("members", to_attr="_members")
-        try:
-            return Chat.objects.filter(
+        chat = (
+            Chat.objects.filter(
                 id=chat_id,
                 id__in=ChatMember.objects.filter(user_id=user_id).values("chat_id"),
-            ).prefetch_related(_members_prefetch)[0]
-        except IndexError:
+            )
+            .prefetch_related(_members_prefetch)
+            .first()
+        )
+        if chat is None:
             raise MUError(MUErrorCode.CHAT_DOES_NOT_EXIST)
+        return chat
 
     @staticmethod
     def get_or_create_direct_chat(user_id: int, other_user_id: int) -> Chat:
@@ -408,8 +436,48 @@ class ChatService:
     @staticmethod
     @database_sync_to_async
     def get_user_chats(user_id: int) -> list[dict[str, Any]]:
-        chat_ids = ChatMember.objects.filter(user_id=user_id).values_list(
-            "chat_id", flat=True
+        chat_ids = list(
+            ChatMember.objects.filter(user_id=user_id).values_list(
+                "chat_id", flat=True
+            )
         )
-        chats = Chat.objects.filter(id__in=chat_ids)
-        return [_serialize_chat(chat, exclude_user_id=user_id) for chat in chats]
+        chats = list(Chat.objects.filter(id__in=chat_ids))
+
+        members_by_chat: dict[int, list[ChatMember]] = defaultdict(list)
+        for m in ChatMember.objects.select_related("user").filter(
+            chat_id__in=chat_ids
+        ):
+            members_by_chat[m.chat_id].append(m)
+
+        latest_ids = [
+            row["latest_id"]
+            for row in ChatMessage.objects.filter(chat_id__in=chat_ids)
+            .values("chat_id")
+            .annotate(latest_id=Max("id"))
+        ]
+        last_msg_by_chat = {
+            msg.chat_id: msg
+            for msg in ChatMessage.objects.filter(id__in=latest_ids)
+        }
+
+        direct_chat_ids = set(
+            DirectChat.objects.filter(chat_id__in=chat_ids).values_list(
+                "chat_id", flat=True
+            )
+        )
+        group_names_by_chat = {
+            g.chat_id: g.name
+            for g in GroupChat.objects.filter(chat_id__in=chat_ids)
+        }
+
+        return [
+            _serialize_chat(
+                chat,
+                exclude_user_id=user_id,
+                members=members_by_chat.get(chat.id, []),
+                last_msg=last_msg_by_chat.get(chat.id),
+                is_direct=chat.id in direct_chat_ids,
+                group_name=group_names_by_chat.get(chat.id),
+            )
+            for chat in chats
+        ]

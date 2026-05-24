@@ -18,7 +18,6 @@ class CreateEventMutation(graphene.Mutation):
         start_time = graphene.DateTime(required=True)
         end_time = graphene.DateTime(required=True)
         requirements = graphene.String(required=False)
-        location_id = graphene.Int(required=False)
         location_longitude = graphene.Float(required=False)
         location_latitude = graphene.Float(required=False)
         location_address_line1 = graphene.String(required=False)
@@ -48,7 +47,6 @@ class CreateEventMutation(graphene.Mutation):
         start_time: datetime = None,
         end_time: datetime = None,
         requirements: object = None,
-        location_id: int = None,
         location_longitude: float = None,
         location_latitude: float = None,
         location_address_line1: str = None,
@@ -87,7 +85,6 @@ class CreateEventMutation(graphene.Mutation):
             title=title,
             start_time=start_time,
             end_time=end_time,
-            location_id=location_id,
             location_longitude=location_longitude,
             location_latitude=location_latitude,
             location_address_line1=location_address_line1,

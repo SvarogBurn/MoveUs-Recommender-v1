@@ -84,7 +84,6 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 MIDDLEWARE = [
-    "core.middleware.SessionCookieMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -160,7 +159,10 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "UserAttributeSimilarityValidator"
+        ),
     },
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
@@ -211,8 +213,8 @@ EMAIL_HOST = "smtp-relay.brevo.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = "MoveUs <noreply@moveusapp.com>"
-EMAIL_HOST_USER = "8aa818001@smtp-brevo.com"
-EMAIL_HOST_PASSWORD = "FBHjMWSfabnyC17P"
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 ACCOUNT_EMAIL_SUBJECT_PREFIX = "🦆 MoveUs | "
 
 # Allauth Config

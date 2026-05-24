@@ -25,7 +25,7 @@ class NotificationQuery(graphene.ObjectType):
 
         result = []
         for entry in entries:
-            if entry["kind"] == "user":
+            if entry["target_kind"] == "user":
                 result.append(
                     UserNotificationType(
                         id=entry["id"],
@@ -34,7 +34,7 @@ class NotificationQuery(graphene.ObjectType):
                         user=entry["user"],
                     )
                 )
-            elif entry["kind"] == "event":
+            elif entry["target_kind"] == "event":
                 result.append(
                     EventNotificationType(
                         id=entry["id"],

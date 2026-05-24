@@ -5,4 +5,4 @@ from main.location.models import Location
 class LocationType(MUObjectType):
     class Meta:
         model = Location
-        exclude = ("event_set",)
+        exclude = ("event",)

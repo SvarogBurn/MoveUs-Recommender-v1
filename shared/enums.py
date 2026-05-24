@@ -29,7 +29,7 @@ class PrivacyScope(BaseIntEnum):
     MUTUALS = 3  # mutual follows only
 
 
-class FrequencyOfPhycicalActivity(BaseIntEnum):
+class FrequencyOfPhysicalActivity(BaseIntEnum):
     DAILY = 0
     FEW_TIMES_A_WEEK = 1
     ONCE_A_WEEK = 2

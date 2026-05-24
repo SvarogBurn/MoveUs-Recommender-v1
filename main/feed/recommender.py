@@ -21,13 +21,17 @@ class FeedRecommender(ABC):
 
 class ChronologicalFeedRecommender(FeedRecommender):
     def recommend(self, user_id: int, start: int, end: int) -> list[FeedItem]:
+        # Over-fetch from each source so the merged window of [start:end]
+        # is not biased toward whichever source dominates the head.
+        limit = end
         posts = (
-            Post.objects.select_related("author").order_by("-time_posted")[:end]
+            Post.objects.select_related("author")
+            .order_by("-time_posted")[:limit]
         )
         events = (
             EventService._queryset()
             .filter(phase=EventPhase.SCHEDULED)
-            .order_by("start_time")[:end]
+            .order_by("start_time")[:limit]
         )
 
         items = [FeedItem(obj=p, rank_key=p.time_posted) for p in posts]

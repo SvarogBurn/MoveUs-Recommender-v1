@@ -7,7 +7,7 @@ from django.db.models.fields.composite import CompositePrimaryKey
 
 from main.activity.models import Activity
 from shared.enums import (
-    FrequencyOfPhycicalActivity,
+    FrequencyOfPhysicalActivity,
     Gender,
     MainInterest,
     MatchedParticipationLikelihood,
@@ -35,7 +35,7 @@ class User(AbstractUser):
     longitude = models.FloatField(null=True)
     latitude = models.FloatField(null=True)
     frequency_of_physical_activity = models.SmallIntegerField(
-        choices=FrequencyOfPhycicalActivity.choices(), null=True
+        choices=FrequencyOfPhysicalActivity.choices(), null=True
     )
     social_interaction_importance = models.SmallIntegerField(
         choices=SocialInteractionImportance.choices(), null=True

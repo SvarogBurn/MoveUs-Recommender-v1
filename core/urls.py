@@ -43,7 +43,7 @@ class CustomGraphQLView(GraphQLView):
                     if user_id:
                         request.user = get_user_model().objects.get(pk=user_id)
                 except Session.DoesNotExist:
-                    pass  # Or handle invalid token appropriately.
+                    pass
 
         return super().get_context(request, *args, **kwargs)
 

@@ -107,8 +107,7 @@ class AuthService:
         send_email_confirmation(request, request.user)
 
     @staticmethod
-    def send_password_reset_email(request: Any) -> ResetPasswordForm:
-        email = request.user.email
+    def send_password_reset_email(email: str) -> ResetPasswordForm:
         form = ResetPasswordForm(data={"email": email})
         if form.is_valid():
             form.save(request=None)

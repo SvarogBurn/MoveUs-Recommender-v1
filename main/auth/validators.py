@@ -2,6 +2,7 @@ import re
 
 from allauth.utils import valid_email_or_none
 
+from main.user.models import User
 from shared.errors.mu_error import MUError, MUErrorCode
 
 
@@ -27,15 +28,11 @@ def validate_sign_up(username: str, email: str, password: str):
     if not re.match(r"^[0-9A-Za-z_]*$", username):
         raise MUError(MUErrorCode.USERNAME_ALLOWED_CHARACTERS)
 
-    from main.user.models import User
-
-    if User.objects.filter(username=username).count():
+    if User.objects.filter(username=username).exists():
         raise MUError(MUErrorCode.USERNAME_ALREADY_TAKEN)
 
     if not valid_email_or_none(email):
         raise MUError(MUErrorCode.EMAIL_INVALID)
 
-    from main.user.models import User
-
-    if User.objects.filter(email=email).count():
+    if User.objects.filter(email=email).exists():
         raise MUError(MUErrorCode.EMAIL_ALREADY_TAKEN)

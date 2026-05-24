@@ -28,7 +28,7 @@ class SignedURLQuery(graphene.ObjectType):
         root, info: graphene.ResolveInfo, event_id: int
     ) -> str:
         user_id = info.context.user.id
-        return EventService.get_event_picture_url(event_id, user_id)
+        return EventService.generate_event_picture_url(event_id, user_id)
 
     @require_auth
     def resolve_new_attachment(

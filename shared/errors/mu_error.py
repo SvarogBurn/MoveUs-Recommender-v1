@@ -134,6 +134,7 @@ class MUErrorCode(IntEnum):
 
     # 10xx – Miscellaneous
     REPORT_COMMENT_MAX_LENGTH = 1000
+    INVALID_PAGINATION = 1001
 
 
 EC = MUErrorCode
@@ -153,7 +154,7 @@ mu_error_code_messages = {
     EC.EVENT_MEMBER_DOES_NOT_EXIST: "Event member does not exist.",
     EC.POST_DOES_NOT_EXIST: "Post does not exist.",
     EC.COMMENT_DOES_NOT_EXIST: "Comment does not exist.",
-    EC.MINIMAL_LOCATION_REQUIREMENTS_MISSING: "You either need to provide a location id or longitude and latitude.",
+    EC.MINIMAL_LOCATION_REQUIREMENTS_MISSING: "You need to provide a longitude and latitude.",
     EC.EVENT_START_TIME_INVALID: "Event has to start in the future.",
     EC.EVENT_END_TIME_INVALID: "Event has to end in the future.",
     EC.EVENT_TIMES_RELATION_INVALID: "Event start time has to be before event end time.",
@@ -229,6 +230,7 @@ mu_error_code_messages = {
     EC.EVENT_DESCRIPTION_MAX_LENGTH: "Event description cannot be longer than 131072 characters.",
     EC.EVENT_MIN_MAX_PARTICIPANTS: "Max participant count cannot be smaller than one or smaller than the number of currently joined participants.",
     EC.REPORT_COMMENT_MAX_LENGTH: "Report comment cannot be longer than 512 characters.",
+    EC.INVALID_PAGINATION: "Invalid pagination range.",
     EC.CANNOT_TARGET_SELF: "Cannot run this query on yourself.",
     EC.ALREADY_FOLLOWING: "You are already following this user.",
     EC.NOT_BLOCKED: "You have not blocked this user.",

@@ -1,5 +1,4 @@
-from django.db import IntegrityError
-from django.db.models import Q, QuerySet
+from django.db.models import Count, Exists, OuterRef, Q, QuerySet
 
 from main.event.models import Event
 from main.notification.services import NotificationService
@@ -13,6 +12,32 @@ from main.social.validators import (
 from main.user.models import User
 from shared.enums import MemberRole, NotificationKind
 from shared.errors.mu_error import MUError, MUErrorCode
+
+
+def _annotate_posts(qs: QuerySet[Post], user_id: int | None) -> QuerySet[Post]:
+    qs = qs.annotate(_like_count=Count("postlike", distinct=True))
+    if user_id:
+        qs = qs.annotate(
+            _is_liked=Exists(
+                PostLike.objects.filter(post_id=OuterRef("pk"), user_id=user_id)
+            )
+        )
+    return qs
+
+
+def _annotate_comments(
+    qs: QuerySet[Comment], user_id: int | None
+) -> QuerySet[Comment]:
+    qs = qs.annotate(_like_count=Count("commentlike", distinct=True))
+    if user_id:
+        qs = qs.annotate(
+            _is_liked=Exists(
+                CommentLike.objects.filter(
+                    comment_id=OuterRef("pk"), user_id=user_id
+                )
+            )
+        )
+    return qs
 
 
 class FollowService:
@@ -147,9 +172,11 @@ class BlockService:
 
 class PostService:
     @staticmethod
-    def get_post(post_id: int) -> Post:
+    def get_post(post_id: int, viewer_id: int | None = None) -> Post:
         try:
-            return Post.objects.select_related("author").get(pk=post_id)
+            return _annotate_posts(
+                Post.objects.select_related("author"), viewer_id
+            ).get(pk=post_id)
         except Post.DoesNotExist:
             raise MUError(MUErrorCode.POST_DOES_NOT_EXIST)
 
@@ -162,9 +189,14 @@ class PostService:
         return PostLike.objects.filter(post_id=post_id, user_id=user_id).exists()
 
     @staticmethod
-    def get_user_posts(user_id: int, start: int, end: int) -> QuerySet[Post]:
-        return Post.objects.filter(author_id=user_id).select_related("author").order_by(
-            "-time_posted"
+    def get_user_posts(
+        user_id: int, start: int, end: int, viewer_id: int | None = None
+    ) -> QuerySet[Post]:
+        return _annotate_posts(
+            Post.objects.filter(author_id=user_id)
+            .select_related("author")
+            .order_by("-time_posted"),
+            viewer_id,
         )[start:end]
 
     @staticmethod
@@ -248,14 +280,9 @@ class CommentService:
 
     @staticmethod
     def like_comment(user_id: int, comment_id: int) -> None:
-        try:
-            Comment.objects.get(pk=comment_id)
-        except Comment.DoesNotExist:
+        if not Comment.objects.filter(pk=comment_id).exists():
             raise MUError(MUErrorCode.COMMENT_DOES_NOT_EXIST)
-        try:
-            CommentLike.objects.create(comment_id=comment_id, user_id=user_id)
-        except IntegrityError:
-            pass
+        CommentLike.objects.get_or_create(comment_id=comment_id, user_id=user_id)
 
     @staticmethod
     def unlike_comment(user_id: int, comment_id: int) -> None:
@@ -266,17 +293,23 @@ class CommentService:
         CommentLike.objects.filter(comment_id=comment_id, user_id=user_id).delete()
 
     @staticmethod
-    def get_comments_for_post(post_id: int, start: int, end: int) -> QuerySet[Comment]:
-        return (
-            Comment.objects.filter(post_id=post_id, parent__isnull=True)
-            .order_by("-time_posted")[start:end]
-        )
+    def get_comments_for_post(
+        post_id: int, start: int, end: int, viewer_id: int | None = None
+    ) -> QuerySet[Comment]:
+        return _annotate_comments(
+            Comment.objects.filter(post_id=post_id, parent__isnull=True).order_by(
+                "-time_posted"
+            ),
+            viewer_id,
+        )[start:end]
 
     @staticmethod
     def get_comments_for_event(
-        event_id: int, start: int, end: int
+        event_id: int, start: int, end: int, viewer_id: int | None = None
     ) -> QuerySet[Comment]:
-        return (
-            Comment.objects.filter(event_id=event_id, parent__isnull=True)
-            .order_by("-time_posted")[start:end]
-        )
+        return _annotate_comments(
+            Comment.objects.filter(event_id=event_id, parent__isnull=True).order_by(
+                "-time_posted"
+            ),
+            viewer_id,
+        )[start:end]

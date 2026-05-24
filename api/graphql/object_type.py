@@ -27,6 +27,9 @@ class MUObjectType(DjangoObjectType):
     ) -> None:
         super().__init_subclass_with_meta__(model=model, **options)
 
+        if model is None:
+            return
+
         for field in model._meta.fields:
             if field.choices:
                 if hasattr(cls, f"resolve_{field.name}"):

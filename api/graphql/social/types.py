@@ -20,10 +20,19 @@ class CommentType(MUObjectType):
         return CommentService.has_replies(self.id)
 
     def resolve_likes(self: Comment, info: graphene.ResolveInfo) -> int:
+        cached = getattr(self, "_like_count", None)
+        if cached is not None:
+            return cached
         return CommentService.get_like_count(self.id)
 
     def resolve_is_liked(self: Comment, info: graphene.ResolveInfo) -> bool:
-        return CommentService.is_liked_by(self.id, info.context.user.id)
+        user = info.context.user
+        if not user.id:
+            return False
+        cached = getattr(self, "_is_liked", None)
+        if cached is not None:
+            return cached
+        return CommentService.is_liked_by(self.id, user.id)
 
 
 class PostTypeMixin(MUObjectType):
@@ -42,24 +51,38 @@ class PostTypeMixin(MUObjectType):
         model = Post
 
     def resolve_likes(self: Post, info: graphene.ResolveInfo, **kwargs) -> int:
+        cached = getattr(self, "_like_count", None)
+        if cached is not None:
+            return cached
         return PostService.get_like_count(self.id)
 
     def resolve_is_liked(self: Post, info: graphene.ResolveInfo, **kwargs) -> bool:
-        return PostService.is_liked_by(self.id, info.context.user.id)
+        user = info.context.user
+        if not user.id:
+            return False
+        cached = getattr(self, "_is_liked", None)
+        if cached is not None:
+            return cached
+        return PostService.is_liked_by(self.id, user.id)
 
     def resolve_comments(
         self: Post, info: graphene.ResolveInfo, start: int, end: int, **kwargs
     ):
-        return CommentService.get_comments_for_post(self.id, start, end)
+        viewer_id = info.context.user.id or None
+        return CommentService.get_comments_for_post(
+            self.id, start, end, viewer_id=viewer_id
+        )
 
 
 class CreatePostType(PostTypeMixin):
-    image_upload_URL = graphene.String()
+    post_picture_url = graphene.String()
 
     class Meta:
         model = Post
 
-    def resolve_image_upload_URL(self: Post, info: graphene.ResolveInfo) -> str:
+    def resolve_post_picture_url(
+        self: Post, info: graphene.ResolveInfo
+    ) -> str:
         return storage_backend.generate_post_picture_url(self.id)
 
 

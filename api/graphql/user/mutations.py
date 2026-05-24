@@ -5,7 +5,7 @@ from main.user.models import User
 from main.user.services import UserService
 from shared.enums import (
     FormedRelationshipsKind,
-    FrequencyOfPhycicalActivity,
+    FrequencyOfPhysicalActivity,
     Gender,
     GenderNoPNTS,
     MainInterest,
@@ -65,7 +65,7 @@ class AlterBasicInfoMutation(graphene.Mutation):
 class AlterSurveyInfoMutation(graphene.Mutation):
 
     class Arguments:
-        frequency_of_physical_activity = FrequencyOfPhycicalActivity.as_graphene_enum()(
+        frequency_of_physical_activity = FrequencyOfPhysicalActivity.as_graphene_enum()(
             required=False
         )
         social_interaction_importance = SocialInteractionImportance.as_graphene_enum()(
@@ -99,7 +99,7 @@ class AlterSurveyInfoMutation(graphene.Mutation):
     def mutate(
         self,
         info: graphene.ResolveInfo,
-        frequency_of_physical_activity: FrequencyOfPhycicalActivity = None,
+        frequency_of_physical_activity: FrequencyOfPhysicalActivity = None,
         social_interaction_importance: SocialInteractionImportance = None,
         preferred_party_size: PreferredPartySize = None,
         physical_activity_satisfaction: PhysicalActivitySatisfaction = None,

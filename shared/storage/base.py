@@ -1,6 +1,7 @@
 import enum
 import uuid
 from abc import ABC, abstractmethod
+from types import MappingProxyType
 
 from core.redis_client import get_sync, set_sync
 from shared.errors.mu_error import MUError, MUErrorCode
@@ -13,7 +14,7 @@ POST_PICTURES_PATH = "post-pictures"
 
 # Redis and cache configuration
 REDIS_KEY_FORMAT = "attachment:{id}:creator"
-MUST_REVALIDATE_HEADERS = {"cache-control": "must-revalidate"}
+MUST_REVALIDATE_HEADERS = MappingProxyType({"cache-control": "must-revalidate"})
 ATTACHMENT_EXPIRATION_MINUTES = 3
 ATTACHMENT_URL_EXPIRATION_DAYS = 7
 
@@ -61,7 +62,7 @@ class StorageBackend(ABC):
     def validate_attachment(self, attachment_id: str, user_id: int) -> None:
         key = format_key(attachment_id)
         owner = get_sync(key)
-        if owner.decode() != str(user_id):
+        if owner is None or owner.decode() != str(user_id):
             raise MUError(MUErrorCode.ATTACHMENT_NOT_OWNED)
 
         if not self.blob_exists(f"{ATTACHMENT_PATH}/{attachment_id}"):
@@ -74,9 +75,9 @@ class StorageBackend(ABC):
             headers=MUST_REVALIDATE_HEADERS,
         )
 
-    def generate_event_picture_url(self, user_id: int) -> str:
+    def generate_event_picture_url(self, event_id: int) -> str:
         return self.generate_signed_url(
-            f"{EVENT_PICTURES_PATH}/{user_id}",
+            f"{EVENT_PICTURES_PATH}/{event_id}",
             Method.PUT,
             headers=MUST_REVALIDATE_HEADERS,
         )

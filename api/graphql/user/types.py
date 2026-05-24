@@ -9,7 +9,7 @@ from main.user.models import User, UserPrivacySetting
 from main.user.services import UserService
 from shared.enums import (
     FormedRelationshipsKind,
-    FrequencyOfPhycicalActivity,
+    FrequencyOfPhysicalActivity,
     Gender,
     GenderNoPNTS,
     MainInterest,
@@ -72,7 +72,8 @@ class UserTypeMixin:
 
     @privacy_gated(PrivacySetting.POSTS)
     def resolve_posts(self: User, info: graphene.ResolveInfo, start: int, end: int):
-        return PostService.get_user_posts(self.id, start, end)
+        viewer_id = info.context.user.id or None
+        return PostService.get_user_posts(self.id, start, end, viewer_id=viewer_id)
 
 
 class ProfileType(MUObjectType, UserTypeMixin):
@@ -86,7 +87,7 @@ class ProfileType(MUObjectType, UserTypeMixin):
     preferred_time_of_the_day = graphene.List(TimeOfTheDay.as_graphene_enum())
     gender_preference = graphene.List(GenderNoPNTS.as_graphene_enum())
 
-    frequency_of_physical_activity = FrequencyOfPhycicalActivity.as_graphene_enum()()
+    frequency_of_physical_activity = FrequencyOfPhysicalActivity.as_graphene_enum()()
     social_interaction_importance = SocialInteractionImportance.as_graphene_enum()()
     preferred_party_size = PreferredPartySize.as_graphene_enum()()
     physical_activity_satisfaction = PhysicalActivitySatisfaction.as_graphene_enum()()
