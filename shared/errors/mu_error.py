@@ -135,6 +135,7 @@ class MUErrorCode(IntEnum):
     # 10xx – Miscellaneous
     REPORT_COMMENT_MAX_LENGTH = 1000
     INVALID_PAGINATION = 1001
+    RATE_LIMITED = 1002
 
 
 EC = MUErrorCode
@@ -231,6 +232,7 @@ mu_error_code_messages = {
     EC.EVENT_MIN_MAX_PARTICIPANTS: "Max participant count cannot be smaller than one or smaller than the number of currently joined participants.",
     EC.REPORT_COMMENT_MAX_LENGTH: "Report comment cannot be longer than 512 characters.",
     EC.INVALID_PAGINATION: "Invalid pagination range.",
+    EC.RATE_LIMITED: "Too many requests. Please try again later.",
     EC.CANNOT_TARGET_SELF: "Cannot run this query on yourself.",
     EC.ALREADY_FOLLOWING: "You are already following this user.",
     EC.NOT_BLOCKED: "You have not blocked this user.",

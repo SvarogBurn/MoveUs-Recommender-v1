@@ -6,17 +6,26 @@ from typing import Any
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.contrib.sessions.models import Session
+from django.utils import timezone
 from graphql import DocumentNode, parse, validate
+
+from graphene.validation import depth_limit_validator
 
 from api.schema import schema as graphql_schema
 from main.chat.subscriptions import ChatSubscriptionHandler
 
+MAX_QUERY_DEPTH = 10
+
 logger = logging.getLogger(__name__)
+
+CONNECTION_INIT_TIMEOUT_SECONDS = 10
 
 
 @database_sync_to_async
 def get_session(token: str) -> Session:
-    return Session.objects.get(session_key=token)
+    return Session.objects.get(
+        session_key=token, expire_date__gt=timezone.now()
+    )
 
 
 class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
@@ -27,10 +36,22 @@ class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
         self.keep_alive_task: asyncio.Task | None = None
         self._chat_handler = ChatSubscriptionHandler(self)
         self.scope["user_id"] = None
+        self._init_timeout_task = asyncio.create_task(self._enforce_init_timeout())
+
+    async def _enforce_init_timeout(self) -> None:
+        try:
+            await asyncio.sleep(CONNECTION_INIT_TIMEOUT_SECONDS)
+        except asyncio.CancelledError:
+            return
+        if self.scope.get("user_id") is None:
+            logger.debug("WebSocket connection_init timed out")
+            await self.close(code=4408)
 
     async def disconnect(self, close_code: int) -> None:
         if self.keep_alive_task:
             self.keep_alive_task.cancel()
+        if getattr(self, "_init_timeout_task", None):
+            self._init_timeout_task.cancel()
         for sub_id in list(self.subscriptions.keys()):
             await self.cleanup_subscription(sub_id)
         await self._chat_handler.disconnect()
@@ -100,6 +121,9 @@ class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
                 await self.close()
                 return
 
+        if getattr(self, "_init_timeout_task", None):
+            self._init_timeout_task.cancel()
+            self._init_timeout_task = None
         await self.send_message("connection_ack")
         self.keep_alive_task = asyncio.create_task(self.send_keep_alive())
 
@@ -112,11 +136,16 @@ class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
                 break
 
     async def handle_start(self, data: dict[str, Any]) -> None:
+        subscription_id = data.get("id")
+
+        if self.scope.get("user_id") is None:
+            await self.close(code=4401)
+            return
+
         payload = data.get("payload")
         query = payload.get("query")
         variables = payload.get("variables", {})
         operation_name = payload.get("operationName")
-        subscription_id = data.get("id")
 
         if not query or not subscription_id:
             await self.send_message(
@@ -128,7 +157,11 @@ class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
 
         try:
             document = parse(query)
-            validation_errors = validate(graphql_schema.graphql_schema, document)
+            validation_errors = validate(
+                graphql_schema.graphql_schema,
+                document,
+                rules=[depth_limit_validator(max_depth=MAX_QUERY_DEPTH)],
+            )
 
             if validation_errors:
                 await self.send_message(

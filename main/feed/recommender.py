@@ -6,6 +6,7 @@ from main.event.models import Event
 from main.event.services import EventService
 from main.social.models import Post
 from shared.enums import EventPhase
+from shared.utils.pagination import validate_pagination
 
 
 class FeedItem(NamedTuple):
@@ -21,6 +22,7 @@ class FeedRecommender(ABC):
 
 class ChronologicalFeedRecommender(FeedRecommender):
     def recommend(self, user_id: int, start: int, end: int) -> list[FeedItem]:
+        validate_pagination(start, end)
         # Over-fetch from each source so the merged window of [start:end]
         # is not biased toward whichever source dominates the head.
         limit = end

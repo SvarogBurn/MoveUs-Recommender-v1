@@ -62,7 +62,7 @@ class StorageBackend(ABC):
     def validate_attachment(self, attachment_id: str, user_id: int) -> None:
         key = format_key(attachment_id)
         owner = get_sync(key)
-        if owner is None or owner.decode() != str(user_id):
+        if owner is None or owner != str(user_id):
             raise MUError(MUErrorCode.ATTACHMENT_NOT_OWNED)
 
         if not self.blob_exists(f"{ATTACHMENT_PATH}/{attachment_id}"):

@@ -351,6 +351,8 @@ class ChatService:
         text_content: str,
         attachment: str | None = None,
     ) -> ChatMessage:
+        ChatMemberService.get_chat_member(chat_id, user_id)
+
         validate_message(text_content, attachment)
 
         if attachment:

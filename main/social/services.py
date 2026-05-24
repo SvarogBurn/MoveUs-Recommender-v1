@@ -12,6 +12,7 @@ from main.social.validators import (
 from main.user.models import User
 from shared.enums import MemberRole, NotificationKind
 from shared.errors.mu_error import MUError, MUErrorCode
+from shared.utils.pagination import apply_pagination
 
 
 def _annotate_posts(qs: QuerySet[Post], user_id: int | None) -> QuerySet[Post]:
@@ -192,12 +193,16 @@ class PostService:
     def get_user_posts(
         user_id: int, start: int, end: int, viewer_id: int | None = None
     ) -> QuerySet[Post]:
-        return _annotate_posts(
-            Post.objects.filter(author_id=user_id)
-            .select_related("author")
-            .order_by("-time_posted"),
-            viewer_id,
-        )[start:end]
+        return apply_pagination(
+            _annotate_posts(
+                Post.objects.filter(author_id=user_id)
+                .select_related("author")
+                .order_by("-time_posted"),
+                viewer_id,
+            ),
+            start,
+            end,
+        )
 
     @staticmethod
     def create_post(user_id: int, content: str, event_id: int | None = None) -> Post:
@@ -296,20 +301,28 @@ class CommentService:
     def get_comments_for_post(
         post_id: int, start: int, end: int, viewer_id: int | None = None
     ) -> QuerySet[Comment]:
-        return _annotate_comments(
-            Comment.objects.filter(post_id=post_id, parent__isnull=True).order_by(
-                "-time_posted"
+        return apply_pagination(
+            _annotate_comments(
+                Comment.objects.filter(
+                    post_id=post_id, parent__isnull=True
+                ).order_by("-time_posted"),
+                viewer_id,
             ),
-            viewer_id,
-        )[start:end]
+            start,
+            end,
+        )
 
     @staticmethod
     def get_comments_for_event(
         event_id: int, start: int, end: int, viewer_id: int | None = None
     ) -> QuerySet[Comment]:
-        return _annotate_comments(
-            Comment.objects.filter(event_id=event_id, parent__isnull=True).order_by(
-                "-time_posted"
+        return apply_pagination(
+            _annotate_comments(
+                Comment.objects.filter(
+                    event_id=event_id, parent__isnull=True
+                ).order_by("-time_posted"),
+                viewer_id,
             ),
-            viewer_id,
-        )[start:end]
+            start,
+            end,
+        )

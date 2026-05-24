@@ -21,10 +21,14 @@ from django.contrib.auth import get_user_model
 from django.contrib.sessions.models import Session
 from django.http import HttpRequest, HttpResponseForbidden
 from django.urls import include, path
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
+from graphene.validation import depth_limit_validator
 from graphene_django.views import GraphQLView
 
 from .settings import DEBUG
+
+MAX_QUERY_DEPTH = 10
 
 
 class CustomGraphQLView(GraphQLView):
@@ -52,7 +56,9 @@ class CustomGraphQLView(GraphQLView):
         token = self._extract_session_token(request)
         if token:
             try:
-                session = Session.objects.get(session_key=token)
+                session = Session.objects.get(
+                    session_key=token, expire_date__gt=timezone.now()
+                )
                 request.session = session.get_decoded()
                 user_id = request.session.get("_auth_user_id")
                 if user_id:
@@ -91,5 +97,13 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
     path("_allauth/", include("allauth.headless.urls")),
-    path("graphql", csrf_exempt(CustomGraphQLView.as_view(graphiql=DEBUG))),
+    path(
+        "graphql",
+        csrf_exempt(
+            CustomGraphQLView.as_view(
+                graphiql=DEBUG,
+                validation_rules=[depth_limit_validator(max_depth=MAX_QUERY_DEPTH)],
+            )
+        ),
+    ),
 ]

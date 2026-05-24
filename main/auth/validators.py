@@ -28,11 +28,11 @@ def validate_sign_up(username: str, email: str, password: str):
     if not re.match(r"^[0-9A-Za-z_]*$", username):
         raise MUError(MUErrorCode.USERNAME_ALLOWED_CHARACTERS)
 
-    if User.objects.filter(username=username).exists():
+    if User.objects.filter(username__iexact=username).exists():
         raise MUError(MUErrorCode.USERNAME_ALREADY_TAKEN)
 
     if not valid_email_or_none(email):
         raise MUError(MUErrorCode.EMAIL_INVALID)
 
-    if User.objects.filter(email=email).exists():
+    if User.objects.filter(email__iexact=email).exists():
         raise MUError(MUErrorCode.EMAIL_ALREADY_TAKEN)
