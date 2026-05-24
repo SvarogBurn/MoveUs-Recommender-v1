@@ -96,12 +96,6 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
 ]
 
-if DEBUG:
-    # Dev convenience: let the web frontend read the sessionid cookie from JS
-    # and forward it as `Authorization: Session <id>`. Not installed in prod —
-    # there, the browser auto-sends the cookie cross-subdomain under SameSite=Lax.
-    MIDDLEWARE.insert(0, "core.middleware.SessionCookieMiddleware")
-
 ROOT_URLCONF = "core.urls"
 
 TEMPLATES = [
