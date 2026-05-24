@@ -1,9 +1,10 @@
 import graphene
+from django.conf import settings
 
 from api.graphql.chat.types import ChatMemberType, ChatMessageType, ChatType
 from main.chat.services import ChatMemberService, ChatService
 from shared.enums import ChatNotifications
-from shared.utils.decorators import require_auth
+from shared.utils.decorators import rate_limit, require_auth
 
 
 class SetChatNotifications(graphene.Mutation):
@@ -52,6 +53,7 @@ class SendChatMessage(graphene.Mutation):
     chat_message = graphene.Field(ChatMessageType)
 
     @require_auth
+    @rate_limit("send_chat_message", *settings.RATE_LIMIT_SEND_CHAT_MESSAGE, by="user")
     def mutate(
         self,
         info: graphene.ResolveInfo,
@@ -73,6 +75,7 @@ class CreateDirectChat(graphene.Mutation):
     chat = graphene.Field(ChatType)
 
     @require_auth
+    @rate_limit("create_direct_chat", *settings.RATE_LIMIT_CREATE_DIRECT_CHAT, by="user")
     def mutate(self, info: graphene.ResolveInfo, user_id: int):
         chat = ChatService.get_or_create_direct_chat(info.context.user.id, user_id)
         return CreateDirectChat(chat=chat)
@@ -87,6 +90,7 @@ class CreateGroupChat(graphene.Mutation):
     chat = graphene.Field(ChatType)
 
     @require_auth
+    @rate_limit("create_group_chat", *settings.RATE_LIMIT_CREATE_GROUP_CHAT, by="user")
     def mutate(self, info: graphene.ResolveInfo, user_ids: list[int], name: str = ""):
         chat = ChatService.create_group_chat(info.context.user, user_ids, name=name)
         return CreateGroupChat(chat=chat)
@@ -101,6 +105,7 @@ class AddChatMember(graphene.Mutation):
     chat = graphene.Field(ChatType)
 
     @require_auth
+    @rate_limit("add_chat_member", *settings.RATE_LIMIT_ADD_CHAT_MEMBER, by="user")
     def mutate(self, info: graphene.ResolveInfo, chat_id: int, user_id: int):
         chat = ChatMemberService.add_member_to_chat(
             chat_id, info.context.user.id, user_id
