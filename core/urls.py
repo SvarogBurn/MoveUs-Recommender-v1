@@ -37,6 +37,12 @@ class CustomGraphQLView(GraphQLView):
         origin = request.headers.get("origin")
         if origin and origin not in settings.CORS_ALLOWED_ORIGINS:
             return HttpResponseForbidden("Origin not allowed")
+
+        if request.method == "POST" and not (
+            request.content_type or ""
+        ).startswith("application/json"):
+            return HttpResponseForbidden("Content-Type must be application/json")
+
         return super().dispatch(request, *args, **kwargs)
 
     def get_context(self, request: HttpRequest, *args, **kwargs) -> HttpRequest:
