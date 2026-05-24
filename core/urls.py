@@ -35,8 +35,11 @@ class CustomGraphQLView(GraphQLView):
         # header (curl, server-to-server, same-origin GETs in some browsers)
         # are left alone.
         origin = request.headers.get("origin")
-        if origin and origin not in settings.CORS_ALLOWED_ORIGINS:
-            return HttpResponseForbidden("Origin not allowed")
+        if origin:
+            scheme = "https" if request.is_secure() else "http"
+            same_origin = origin == f"{scheme}://{request.get_host()}"
+            if not same_origin and origin not in settings.CORS_ALLOWED_ORIGINS:
+                return HttpResponseForbidden("Origin not allowed")
 
         if request.method == "POST" and not (
             request.content_type or ""
