@@ -123,4 +123,4 @@ class AuthService:
 
     @staticmethod
     def is_logged_in(request: Any) -> bool:
-        return bool(request.user)
+        return request.user.is_authenticated

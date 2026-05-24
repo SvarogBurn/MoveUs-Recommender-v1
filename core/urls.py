@@ -15,10 +15,11 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.sessions.models import Session
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponseForbidden
 from django.urls import include, path
 from django.views.decorators.csrf import csrf_exempt
 from graphene_django.views import GraphQLView
@@ -27,25 +28,41 @@ from .settings import DEBUG
 
 
 class CustomGraphQLView(GraphQLView):
+    def dispatch(self, request: HttpRequest, *args, **kwargs):
+        # CSRF defense-in-depth: with csrf_exempt the GraphQL view doesn't run
+        # Django's CSRF middleware, so reject any cross-origin browser request
+        # whose Origin isn't on our allow-list. Requests without an Origin
+        # header (curl, server-to-server, same-origin GETs in some browsers)
+        # are left alone.
+        origin = request.headers.get("origin")
+        if origin and origin not in settings.CORS_ALLOWED_ORIGINS:
+            return HttpResponseForbidden("Origin not allowed")
+        return super().dispatch(request, *args, **kwargs)
+
     def get_context(self, request: HttpRequest, *args, **kwargs) -> HttpRequest:
-        # Try to get the session token from the header.
-        authorization_header = request.headers.get("authorization")
-        if authorization_header:
-            token = request.headers.get("authorization").split()[1]
-            if token:
-                try:
-                    # Retrieve the session corresponding to the token.
-                    session = Session.objects.get(session_key=token)
-                    # Optionally, set request.session to the decoded session data.
-                    request.session = session.get_decoded()
-                    # If the session contains a user id, fetch the user.
-                    user_id = request.session.get("_auth_user_id")
-                    if user_id:
-                        request.user = get_user_model().objects.get(pk=user_id)
-                except Session.DoesNotExist:
-                    pass
+        token = self._extract_session_token(request)
+        if token:
+            try:
+                session = Session.objects.get(session_key=token)
+                request.session = session.get_decoded()
+                user_id = request.session.get("_auth_user_id")
+                if user_id:
+                    request.user = get_user_model().objects.get(pk=user_id)
+            except Session.DoesNotExist:
+                pass
 
         return super().get_context(request, *args, **kwargs)
+
+    @staticmethod
+    def _extract_session_token(request: HttpRequest) -> str | None:
+        header = request.headers.get("authorization", "")
+        parts = header.split()
+        # Accept "Session <id>" or "Bearer <id>" or bare "<id>".
+        if len(parts) == 2:
+            return parts[1]
+        if len(parts) == 1:
+            return parts[0]
+        return None
 
     @staticmethod
     def format_error(error) -> dict:

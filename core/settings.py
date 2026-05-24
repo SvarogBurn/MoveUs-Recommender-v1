@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/dev/ref/settings/
 """
 
 import os
-import re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -30,17 +29,19 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG") == "True"
 
-web_origin = os.getenv("WEB_ORIGIN", "http://localhost:3000")
-web_host = re.search(r"^(?:https?:\/\/)?([^\/:?#]+)", web_origin).group(1)
+CORS_ALLOWED_ORIGINS = ["https://moveusapp.com"]
 
-CORS_ALLOWED_ORIGINS = [web_origin, "http://localhost:5173"]
+ALLOWED_HOSTS = ["api.moveusapp.com"]
 
-ALLOWED_HOSTS = [
-    web_host,
-    "localhost",
-    "api.moveusapp.com",
-    ".run.app",  # For Google Cloud Run
-]
+# Hostnames allowed to open WebSocket connections (compared against Origin
+# header on the handshake). Distinct from ALLOWED_HOSTS because the web
+# client lives on a different host than the API.
+WEBSOCKET_ALLOWED_ORIGINS = ["moveusapp.com", ".moveusapp.com"]
+
+if DEBUG:
+    CORS_ALLOWED_ORIGINS += ["http://localhost:5173"]
+    ALLOWED_HOSTS += ["localhost", "127.0.0.1"]
+    WEBSOCKET_ALLOWED_ORIGINS += ["localhost", "127.0.0.1"]
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -94,6 +95,12 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
 ]
+
+if DEBUG:
+    # Dev convenience: let the web frontend read the sessionid cookie from JS
+    # and forward it as `Authorization: Session <id>`. Not installed in prod —
+    # there, the browser auto-sends the cookie cross-subdomain under SameSite=Lax.
+    MIDDLEWARE.insert(0, "core.middleware.SessionCookieMiddleware")
 
 ROOT_URLCONF = "core.urls"
 
@@ -229,6 +236,9 @@ ACCOUNT_CONFIRM_EMAIL_ON_GET = True
 ACCOUNT_SESSION_REMEMBER = None
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 90  # 90 days
 SESSION_SAVE_EVERY_REQUEST = False
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 
 # Logging
 LOGGING = {

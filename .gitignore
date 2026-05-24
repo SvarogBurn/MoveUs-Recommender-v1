@@ -92,4 +92,6 @@ db.sqlite3
 /venv
 .venv
 
-robust-builder-457115-r6-a5cde82aac33.json
+# Google Cloud service account keys
+moveus-*.json
+robust-builder-*.json
