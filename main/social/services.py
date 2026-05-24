@@ -15,7 +15,7 @@ from shared.errors.mu_error import MUError, MUErrorCode
 
 
 def _annotate_posts(qs: QuerySet[Post], user_id: int | None) -> QuerySet[Post]:
-    qs = qs.annotate(_like_count=Count("postlike", distinct=True))
+    qs = qs.annotate(_like_count=Count("postlike__user", distinct=True))
     if user_id:
         qs = qs.annotate(
             _is_liked=Exists(
@@ -28,7 +28,7 @@ def _annotate_posts(qs: QuerySet[Post], user_id: int | None) -> QuerySet[Post]:
 def _annotate_comments(
     qs: QuerySet[Comment], user_id: int | None
 ) -> QuerySet[Comment]:
-    qs = qs.annotate(_like_count=Count("commentlike", distinct=True))
+    qs = qs.annotate(_like_count=Count("commentlike__user", distinct=True))
     if user_id:
         qs = qs.annotate(
             _is_liked=Exists(
