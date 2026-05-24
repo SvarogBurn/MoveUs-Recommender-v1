@@ -9,7 +9,7 @@ from shared.enums import EventPhase, EventRating, MemberRole, SkillLevel
 
 class Event(models.Model):
     title = models.CharField(max_length=256)
-    description = models.CharField(max_length=131072, null=True)
+    description = models.CharField(max_length=8192, null=True)
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     location = models.OneToOneField(

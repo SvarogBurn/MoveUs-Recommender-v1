@@ -13,8 +13,21 @@ from graphene.validation import depth_limit_validator
 
 from api.schema import schema as graphql_schema
 from main.chat.subscriptions import ChatSubscriptionHandler
+from shared.errors.mu_error import MUError
 
 MAX_QUERY_DEPTH = 10
+
+
+def _safe_error_payload(exc: Exception) -> dict[str, Any]:
+    """Only echo curated MUError messages; everything else gets a generic
+    label so internal exception strings don't leak over the wire."""
+    if isinstance(exc, MUError):
+        payload: dict[str, Any] = {"message": exc.message}
+        if getattr(exc, "code", None) is not None:
+            payload["error_code"] = int(exc.code)
+        return payload
+    logger.exception("Unhandled WS error")
+    return {"message": "Internal error"}
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +226,9 @@ class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
                 await self.send_message("complete", subscription_id)
 
         except Exception as e:
-            await self.send_message("error", subscription_id, {"message": str(e)})
+            await self.send_message(
+                "error", subscription_id, _safe_error_payload(e)
+            )
 
     def _get_subscription_field(self, document: DocumentNode) -> str | None:
         for definition in document.definitions:
@@ -243,7 +258,9 @@ class GraphQLSubscriptionConsumer(AsyncWebsocketConsumer):
                     )
         except Exception as e:
             if subscription_id in self.subscriptions:
-                await self.send_message("error", subscription_id, {"message": str(e)})
+                await self.send_message(
+                    "error", subscription_id, _safe_error_payload(e)
+                )
         finally:
             if subscription_id in self.subscriptions:
                 await self.cleanup_subscription(subscription_id)

@@ -175,11 +175,14 @@ class PostService:
     @staticmethod
     def get_post(post_id: int, viewer_id: int | None = None) -> Post:
         try:
-            return _annotate_posts(
+            post = _annotate_posts(
                 Post.objects.select_related("author"), viewer_id
             ).get(pk=post_id)
         except Post.DoesNotExist:
             raise MUError(MUErrorCode.POST_DOES_NOT_EXIST)
+        if viewer_id and BlockService.is_blocked(viewer_id, post.author_id):
+            raise MUError(MUErrorCode.POST_DOES_NOT_EXIST)
+        return post
 
     @staticmethod
     def get_like_count(post_id: int) -> int:
@@ -221,6 +224,8 @@ class PostService:
             post = Post.objects.get(pk=post_id)
         except Post.DoesNotExist:
             raise MUError(MUErrorCode.POST_DOES_NOT_EXIST)
+        if BlockService.is_blocked(user_id, post.author_id):
+            raise MUError(MUErrorCode.POST_DOES_NOT_EXIST)
         post.liked_by.add(user_id)
 
     @staticmethod
@@ -251,18 +256,24 @@ class CommentService:
     def comment_on_post(user_id: int, post_id: int, text: str) -> Comment:
         validate_comment_length(text, MUErrorCode.COMMENT_MAX_LENGTH)
         try:
-            Post.objects.get(pk=post_id)
+            post = Post.objects.get(pk=post_id)
         except Post.DoesNotExist:
             raise MUError(MUErrorCode.POST_DOES_NOT_EXIST)
+        if BlockService.is_blocked(user_id, post.author_id):
+            raise MUError(MUErrorCode.BLOCKED_USER)
         return Comment.objects.create(user_id=user_id, post_id=post_id, text=text)
 
     @staticmethod
     def comment_on_event(user_id: int, event_id: int, text: str) -> Comment:
+        from shared.enums import EventPhase
+
         validate_comment_length(text, MUErrorCode.COMMENT_MAX_LENGTH)
         try:
-            Event.objects.get(pk=event_id)
+            event = Event.objects.get(pk=event_id)
         except Event.DoesNotExist:
             raise MUError(MUErrorCode.EVENT_DOES_NOT_EXIST)
+        if event.phase == EventPhase.CANCELLED:
+            raise MUError(MUErrorCode.EVENT_ALREADY_ENDED)
         return Comment.objects.create(user_id=user_id, event_id=event_id, text=text)
 
     @staticmethod
@@ -272,6 +283,8 @@ class CommentService:
             parent = Comment.objects.get(pk=comment_id)
         except Comment.DoesNotExist:
             raise MUError(MUErrorCode.COMMENT_DOES_NOT_EXIST)
+        if BlockService.is_blocked(user_id, parent.user_id):
+            raise MUError(MUErrorCode.BLOCKED_USER)
 
         validate_comment_nesting(parent)
 
@@ -285,7 +298,11 @@ class CommentService:
 
     @staticmethod
     def like_comment(user_id: int, comment_id: int) -> None:
-        if not Comment.objects.filter(pk=comment_id).exists():
+        try:
+            comment = Comment.objects.get(pk=comment_id)
+        except Comment.DoesNotExist:
+            raise MUError(MUErrorCode.COMMENT_DOES_NOT_EXIST)
+        if BlockService.is_blocked(user_id, comment.user_id):
             raise MUError(MUErrorCode.COMMENT_DOES_NOT_EXIST)
         CommentLike.objects.get_or_create(comment_id=comment_id, user_id=user_id)
 

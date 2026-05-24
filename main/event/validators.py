@@ -14,7 +14,7 @@ def validate_event_not_started(event: Event):
 
 
 def validate_event_not_ended(event: Event):
-    if event.end_time <= tz_now():
+    if event.end_time is not None and event.end_time <= tz_now():
         raise MUError(MUErrorCode.EVENT_ALREADY_ENDED)
 
 
@@ -124,7 +124,7 @@ def validate_event(
     if title and len(title) > 256:
         raise MUError(MUErrorCode.EVENT_TITLE_MAX_LENGTH)
 
-    if description and len(description) > 131072:
+    if description and len(description) > 8192:
         raise MUError(MUErrorCode.EVENT_DESCRIPTION_MAX_LENGTH)
 
     now = tz_now()

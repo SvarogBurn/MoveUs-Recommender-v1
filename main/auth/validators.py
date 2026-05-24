@@ -10,6 +10,9 @@ def validate_sign_up(username: str, email: str, password: str):
     if len(password) < 8:
         raise MUError(MUErrorCode.PASSWORD_MIN_LENGTH)
 
+    if len(password) > 128:
+        raise MUError(MUErrorCode.PASSWORD_MAX_LENGTH)
+
     if not re.search(r"[A-Za-z]", password):
         raise MUError(MUErrorCode.PASSWORD_MISSING_LETTER)
 

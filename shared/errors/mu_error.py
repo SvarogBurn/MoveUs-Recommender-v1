@@ -104,6 +104,7 @@ class MUErrorCode(IntEnum):
     PASSWORD_MISSING_LETTER = 721
     PASSWORD_MISSING_NUMBER = 722
     PASSWORD_MISSING_SPECIAL = 723
+    PASSWORD_MAX_LENGTH = 724
 
     FIRSTNAME_MIN_LENGTH = 730
     FIRSTNAME_MAX_LENGTH = 731
@@ -209,6 +210,7 @@ mu_error_code_messages = {
     EC.PASSWORD_MISSING_LETTER: "Password must contain at least one letter.",
     EC.PASSWORD_MISSING_NUMBER: "Password must contain at least one number.",
     EC.PASSWORD_MISSING_SPECIAL: "Password must contain at least one special character.",
+    EC.PASSWORD_MAX_LENGTH: "Password cannot be longer than 128 characters.",
     EC.FIRSTNAME_MIN_LENGTH: "First name has to be at least 2 characters long.",
     EC.FIRSTNAME_MAX_LENGTH: "First name cannot be longer than 32 characters.",
     EC.LASTNAME_MIN_LENGTH: "Last name has to be at least 2 characters long.",
@@ -228,7 +230,7 @@ mu_error_code_messages = {
     EC.LONGITUDE_VALUE: "Longitude must be between -180 and 180 degrees.",
     EC.EVENT_TITLE_MAX_LENGTH: "Event title cannot be longer than 256 characters.",
     EC.EVENT_TITLE_MIN_LENGTH: "Event title cannot be shorter than 4 characters.",
-    EC.EVENT_DESCRIPTION_MAX_LENGTH: "Event description cannot be longer than 131072 characters.",
+    EC.EVENT_DESCRIPTION_MAX_LENGTH: "Event description cannot be longer than 8192 characters.",
     EC.EVENT_MIN_MAX_PARTICIPANTS: "Max participant count cannot be smaller than one or smaller than the number of currently joined participants.",
     EC.REPORT_COMMENT_MAX_LENGTH: "Report comment cannot be longer than 512 characters.",
     EC.INVALID_PAGINATION: "Invalid pagination range.",

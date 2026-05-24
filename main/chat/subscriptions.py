@@ -25,11 +25,13 @@ class ChatSubscriptionHandler:
         self._my_chats_group: str | None = None
 
     async def start_chat_messages(self, sub_id: str, chat_id: int) -> None:
+        from core.consumers import _safe_error_payload
+
         user_id = self.consumer.scope["user_id"]
         try:
             chat_member = await ChatMemberService.get_chat_member_async(chat_id, user_id)
         except Exception as e:
-            await self.consumer.send_message("error", sub_id, {"message": str(e)})
+            await self.consumer.send_message("error", sub_id, _safe_error_payload(e))
             return
 
         group = messages_group(chat_id)
@@ -66,11 +68,13 @@ class ChatSubscriptionHandler:
         )
 
     async def start_chat_last_open(self, sub_id: str, chat_id: int) -> None:
+        from core.consumers import _safe_error_payload
+
         user_id = self.consumer.scope["user_id"]
         try:
             await ChatMemberService.get_chat_member_async(chat_id, user_id)
         except Exception as e:
-            await self.consumer.send_message("error", sub_id, {"message": str(e)})
+            await self.consumer.send_message("error", sub_id, _safe_error_payload(e))
             return
 
         group = last_open_group(chat_id)
