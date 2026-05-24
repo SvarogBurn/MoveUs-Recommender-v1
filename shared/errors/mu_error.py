@@ -176,7 +176,7 @@ mu_error_code_messages = {
     EC.CANNOT_LEAVE_AS_ORGANIZATOR: "You cannot leave an event you organized.",
     EC.CANNOT_KICK_YOURSELF: "You cannot kick yourself from the event.",
     EC.CANNOT_KICK_ORGANIZER: "You cannot kick event organizer from the event.",
-    EC.AGE_RANGE_INVALID: "You are not withing the allowed age range of the event.",
+    EC.AGE_RANGE_INVALID: "You are not within the allowed age range of the event.",
     EC.GENDER_NOT_ALLOWED: "You are not allowed to join this event beacuse of your gender.",
     EC.CANNOT_CONFIRM_NON_PARTICIPATING_MEMBER: "Can only confirm paarticipation of participants.",
     EC.CANNOT_CONFIRM_BEFORE_END: "Cannot confirm pariticipation before the event ends.",
