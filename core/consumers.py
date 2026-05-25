@@ -23,7 +23,7 @@ def _safe_error_payload(exc: Exception) -> dict[str, Any]:
     if isinstance(exc, MUError):
         payload: dict[str, Any] = {"message": exc.message}
         if getattr(exc, "code", None) is not None:
-            payload["error_code"] = int(exc.code)
+            payload["extensions"] = { "code": int(exc.code) }
         return payload
     logger.exception("Unhandled WS error")
     return {"message": "Internal error"}

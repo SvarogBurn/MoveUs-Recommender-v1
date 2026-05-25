@@ -84,7 +84,7 @@ class CustomGraphQLView(GraphQLView):
         )
 
         try:
-            formatted_error["error_code"] = error.original_error.code
+            formatted_error["extensions"] = { "code": error.original_error.code }
         except AttributeError:
             pass
 
