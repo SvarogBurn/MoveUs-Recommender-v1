@@ -48,6 +48,7 @@ class WSLastOpenType(graphene.ObjectType):
 
 class WSChatMemberType(graphene.ObjectType):
     user_id = graphene.Int()
+    username = graphene.String()
     nickname = graphene.String()
     last_open = graphene.DateTime()
 

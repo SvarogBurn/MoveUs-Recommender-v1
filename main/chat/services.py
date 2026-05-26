@@ -118,6 +118,7 @@ def _serialize_chat(
         "members": [
             {
                 "userId": m.user_id,
+                "username": m.user.username,
                 "nickname": m.nickname,
                 "lastOpen": str(m.last_open) if m.last_open else None,
             }
@@ -138,10 +139,7 @@ def _serialize_chat(
 class ChatMemberService:
     @staticmethod
     def create_member(user_id: int, chat_id: int) -> ChatMember:
-        user = User.objects.only("first_name", "last_name", "username").get(pk=user_id)
-        return ChatMember.objects.create(
-            user_id=user_id, chat_id=chat_id, nickname=user.display_name
-        )
+        return ChatMember.objects.create(user_id=user_id, chat_id=chat_id)
 
     @staticmethod
     def get_chat_member(chat_id: int, user_id: int) -> ChatMember:
@@ -164,7 +162,6 @@ class ChatMemberService:
         member, created = ChatMember.objects.get_or_create(
             user_id=user_id,
             chat_id=chat_id,
-            defaults={"nickname": user.display_name},
         )
         if created:
             chat_data = _serialize_chat(chat)
@@ -174,7 +171,13 @@ class ChatMemberService:
             notify_my_chats_update(
                 chat_id,
                 "member_added",
-                {"member": {"userId": user_id, "nickname": user.display_name}},
+                {
+                    "member": {
+                        "userId": user_id,
+                        "username": user.username,
+                        "nickname": None,
+                    }
+                },
             )
         return member
 

@@ -16,7 +16,7 @@ class ChatMember(models.Model):
     pk = CompositePrimaryKey("user", "chat")
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name="members")
-    nickname = models.CharField(max_length=64)
+    nickname = models.CharField(max_length=64, null=True)
     last_open = models.DateTimeField(null=True)
     notifications = models.SmallIntegerField(
         choices=ChatNotifications.choices(), default=ChatNotifications.ALL
