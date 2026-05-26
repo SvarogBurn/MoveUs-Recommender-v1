@@ -105,6 +105,5 @@ class ChatType(MUObjectType):
     ) -> ChatMessage | None:
         return ChatService.get_last_message(self.id)
 
-    @require_auth
     def resolve_members(self: Chat, info: graphene.ResolveInfo):
-        return ChatMemberService.get_other_members(self.id, info.context.user.id)
+        return ChatMemberService.get_members(self.id)

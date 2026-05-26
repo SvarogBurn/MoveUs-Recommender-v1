@@ -82,7 +82,6 @@ def _notify_single_user_my_chats(
 
 def _serialize_chat(
     chat: Chat,
-    exclude_user_id: int | None = None,
     *,
     members: list[ChatMember] | None = None,
     last_msg: ChatMessage | None = None,
@@ -94,8 +93,6 @@ def _serialize_chat(
             chat_id=chat.id
         )
         members = list(members_qs)
-    if exclude_user_id is not None:
-        members = [m for m in members if m.user_id != exclude_user_id]
 
     if last_msg is None:
         last_msg = (
@@ -213,12 +210,8 @@ class ChatMemberService:
         ).notifications
 
     @staticmethod
-    def get_other_members(chat_id: int, user_id: int):
-        return (
-            ChatMember.objects.select_related("user")
-            .filter(chat_id=chat_id)
-            .exclude(user_id=user_id)
-        )
+    def get_members(chat_id: int):
+        return ChatMember.objects.select_related("user").filter(chat_id=chat_id)
 
     @staticmethod
     def remove_chat_member(chat_id: int, user_id: int) -> None:
@@ -482,7 +475,6 @@ class ChatService:
         return [
             _serialize_chat(
                 chat,
-                exclude_user_id=user_id,
                 members=members_by_chat.get(chat.id, []),
                 last_msg=last_msg_by_chat.get(chat.id),
                 is_direct=chat.id in direct_chat_ids,
