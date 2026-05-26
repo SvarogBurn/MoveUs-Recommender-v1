@@ -119,6 +119,8 @@ def _serialize_chat(
             {
                 "userId": m.user_id,
                 "username": m.user.username,
+                "firstName": m.user.first_name,
+                "lastName": m.user.last_name,
                 "nickname": m.nickname,
                 "lastOpen": str(m.last_open) if m.last_open else None,
             }
@@ -175,6 +177,8 @@ class ChatMemberService:
                     "member": {
                         "userId": user_id,
                         "username": user.username,
+                        "firstName": user.first_name,
+                        "lastName": user.last_name,
                         "nickname": None,
                     }
                 },
