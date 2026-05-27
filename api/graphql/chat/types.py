@@ -3,7 +3,7 @@ import graphene
 from api.graphql.object_type import MUObjectType
 from main.chat.models import Chat, ChatMember, ChatMessage, DirectChat, GroupChat
 from main.chat.services import ChatMemberService, ChatService
-from shared.enums import ChatKind, ChatNotifications
+from shared.enums import ChatKind, ChatMessageKind, ChatNotifications
 from shared.storage import storage_backend
 from shared.utils.decorators import require_auth
 
@@ -21,10 +21,14 @@ class ChatMemberType(MUObjectType):
 
 class ChatMessageType(MUObjectType):
     attachment_url = graphene.String()
+    kind = graphene.Field(ChatMessageKind.as_graphene_enum())
 
     class Meta:
         model = ChatMessage
-        fields = ("id", "user", "text_content", "time_sent")
+        fields = ("id", "user", "kind", "target_user", "text_content", "time_sent")
+
+    def resolve_kind(self: ChatMessage, info: graphene.ResolveInfo) -> int:
+        return self.kind
 
     def resolve_attachment_url(
         self: ChatMessage, info: graphene.ResolveInfo
@@ -37,6 +41,8 @@ class WSChatMessageType(graphene.ObjectType):
     id = graphene.Int()
     time_sent = graphene.DateTime()
     user_id = graphene.Int()
+    kind = graphene.String()
+    target_user_id = graphene.Int()
     text_content = graphene.String()
     attachment_url = graphene.String()
 
@@ -78,7 +84,11 @@ class ChatType(MUObjectType):
     group_name = graphene.String()
     notifications = ChatNotifications.as_graphene_enum()()
     last_message = graphene.Field(ChatMessageType)
-    members = graphene.List(ChatMemberType, required=True)
+    members = graphene.List(
+        ChatMemberType,
+        required=True,
+        include_former=graphene.Boolean(required=False, default_value=False),
+    )
 
     class Meta:
         model = Chat
@@ -105,5 +115,7 @@ class ChatType(MUObjectType):
     ) -> ChatMessage | None:
         return ChatService.get_last_message(self.id)
 
-    def resolve_members(self: Chat, info: graphene.ResolveInfo):
-        return ChatMemberService.get_members(self.id)
+    def resolve_members(
+        self: Chat, info: graphene.ResolveInfo, include_former: bool = False
+    ):
+        return ChatMemberService.get_members(self.id, include_former=include_former)

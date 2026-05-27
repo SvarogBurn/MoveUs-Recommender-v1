@@ -2,7 +2,7 @@ from django.db import models
 from django.db.models.fields.composite import CompositePrimaryKey
 
 from main.user.models import User
-from shared.enums import ChatNotifications
+from shared.enums import ChatMessageKind, ChatNotifications
 
 
 class Chat(models.Model):
@@ -18,6 +18,7 @@ class ChatMember(models.Model):
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name="members")
     nickname = models.CharField(max_length=64, null=True)
     last_open = models.DateTimeField(null=True)
+    left_at = models.DateTimeField(null=True, blank=True)
     notifications = models.SmallIntegerField(
         choices=ChatNotifications.choices(), default=ChatNotifications.ALL
     )
@@ -57,7 +58,17 @@ class ChatMessage(models.Model):
         Chat, on_delete=models.CASCADE, null=False, related_name="messages"
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=False)
-    text_content = models.CharField(max_length=512)
+    kind = models.SmallIntegerField(
+        choices=ChatMessageKind.choices(), default=ChatMessageKind.TEXT
+    )
+    target_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    text_content = models.CharField(max_length=512, null=True)
     time_sent = models.DateTimeField(auto_now_add=True, db_index=True)
     attachment = models.CharField(null=True)
 

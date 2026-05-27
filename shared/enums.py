@@ -108,6 +108,13 @@ class ChatNotifications(BaseIntEnum):
     MENTIONS_ONLY = 2
 
 
+class ChatMessageKind(BaseIntEnum):
+    TEXT = 0
+    NICKNAME_CHANGED = 1
+    MEMBER_ADDED = 2
+    MEMBER_REMOVED = 3
+
+
 class EventRating(BaseIntEnum):
     VERY_BAD = 0
     BAD = 1

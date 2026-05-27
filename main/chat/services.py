@@ -13,7 +13,7 @@ from main.chat.models import Chat, ChatMember, ChatMessage, DirectChat, GroupCha
 from main.chat.validators import validate_message, validate_nickname
 from main.social.validators import validate_not_self
 from main.user.models import User
-from shared.enums import ChatNotifications
+from shared.enums import ChatMessageKind, ChatNotifications
 from shared.errors.mu_error import MUError, MUErrorCode
 from shared.storage import storage_backend
 
@@ -33,17 +33,62 @@ def my_chats_group(user_id: int) -> str:
 def serialize_message(
     msg_id: int,
     user_id: int,
-    text_content: str,
+    text_content: str | None,
     time_sent: datetime.datetime,
     attachment: str | None = None,
+    kind: int = ChatMessageKind.TEXT,
+    target_user_id: int | None = None,
 ) -> dict[str, Any]:
     return {
         "id": msg_id,
         "userId": user_id,
+        "kind": ChatMessageKind(kind).name,
+        "targetUserId": target_user_id,
         "textContent": text_content,
         "timeSent": str(time_sent),
         "attachmentUrl": storage_backend.generate_attachment_url(attachment) if attachment else None,
     }
+
+
+def _emit_message(
+    chat_id: int, data: dict[str, Any], *, update_my_chats: bool = True
+) -> None:
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        messages_group(chat_id),
+        {"type": "chat.message", **data},
+    )
+    if update_my_chats:
+        notify_my_chats_update(chat_id, "new_message", {"last_message": data})
+
+
+def _create_system_message(
+    chat_id: int,
+    kind: ChatMessageKind,
+    actor_user_id: int,
+    target_user_id: int | None,
+    text_content: str | None = None,
+    *,
+    update_my_chats: bool = True,
+) -> ChatMessage:
+    msg = ChatMessage.objects.create(
+        chat_id=chat_id,
+        user_id=actor_user_id,
+        kind=kind,
+        target_user_id=target_user_id,
+        text_content=text_content,
+    )
+    data = serialize_message(
+        msg.id,
+        actor_user_id,
+        text_content,
+        msg.time_sent,
+        None,
+        kind=kind,
+        target_user_id=target_user_id,
+    )
+    _emit_message(chat_id, data, update_my_chats=update_my_chats)
+    return msg
 
 
 def _build_my_chats_payload(
@@ -62,9 +107,9 @@ def notify_my_chats_update(
 ) -> None:
     channel_layer = get_channel_layer()
     payload = _build_my_chats_payload(chat_id, event_type, extra_data)
-    member_user_ids = ChatMember.objects.filter(chat_id=chat_id).values_list(
-        "user_id", flat=True
-    )
+    member_user_ids = ChatMember.objects.filter(
+        chat_id=chat_id, left_at__isnull=True
+    ).values_list("user_id", flat=True)
     for uid in member_user_ids:
         async_to_sync(channel_layer.group_send)(my_chats_group(uid), payload)
 
@@ -90,7 +135,7 @@ def _serialize_chat(
 ) -> dict[str, Any]:
     if members is None:
         members_qs = ChatMember.objects.select_related("user").filter(
-            chat_id=chat.id
+            chat_id=chat.id, left_at__isnull=True
         )
         members = list(members_qs)
 
@@ -143,7 +188,9 @@ class ChatMemberService:
     @staticmethod
     def get_chat_member(chat_id: int, user_id: int) -> ChatMember:
         try:
-            return ChatMember.objects.get(user_id=user_id, chat_id=chat_id)
+            return ChatMember.objects.get(
+                user_id=user_id, chat_id=chat_id, left_at__isnull=True
+            )
         except ChatMember.DoesNotExist:
             raise MUError(MUErrorCode.NOT_IN_CHAT)
 
@@ -153,16 +200,32 @@ class ChatMemberService:
         return ChatMemberService.get_chat_member(chat_id, user_id)
 
     @staticmethod
-    def add_chat_member(chat_id: int, user_id: int) -> ChatMember:
+    def add_chat_member(
+        chat_id: int, user_id: int, adder_user_id: int | None = None
+    ) -> ChatMember:
         if DirectChat.objects.filter(chat_id=chat_id).exists():
             raise MUError(MUErrorCode.CANNOT_ADD_TO_DIRECT_CHAT)
         user = User.objects.get(pk=user_id)
         chat = Chat.objects.get(pk=chat_id)
-        member, created = ChatMember.objects.get_or_create(
-            user_id=user_id,
-            chat_id=chat_id,
-        )
+        try:
+            member = ChatMember.objects.get(user_id=user_id, chat_id=chat_id)
+            if member.left_at is None:
+                created = False
+            else:
+                member.left_at = None
+                member.save(update_fields=["left_at"])
+                created = True
+        except ChatMember.DoesNotExist:
+            member = ChatMember.objects.create(user_id=user_id, chat_id=chat_id)
+            created = True
         if created:
+            if adder_user_id is not None:
+                _create_system_message(
+                    chat_id,
+                    ChatMessageKind.MEMBER_ADDED,
+                    adder_user_id,
+                    user_id,
+                )
             chat_data = _serialize_chat(chat)
             _notify_single_user_my_chats(
                 user_id, chat_id, "chat_added", {"chat": chat_data}
@@ -198,7 +261,9 @@ class ChatMemberService:
         except User.DoesNotExist:
             raise MUError(MUErrorCode.USER_DOES_NOT_EXIST)
 
-        ChatMemberService.add_chat_member(chat_id, user_id_to_add)
+        ChatMemberService.add_chat_member(
+            chat_id, user_id_to_add, adder_user_id=adder_user_id
+        )
         return chat
 
     @staticmethod
@@ -210,18 +275,26 @@ class ChatMemberService:
         ).notifications
 
     @staticmethod
-    def get_members(chat_id: int):
-        return ChatMember.objects.select_related("user").filter(chat_id=chat_id)
+    def get_members(chat_id: int, include_former: bool = False):
+        qs = ChatMember.objects.select_related("user").filter(chat_id=chat_id)
+        if not include_former:
+            qs = qs.filter(left_at__isnull=True)
+        return qs
 
     @staticmethod
     def remove_chat_member(chat_id: int, user_id: int) -> None:
         if not ChatMember.objects.filter(
-            user_id=user_id, chat_id=chat_id
+            user_id=user_id, chat_id=chat_id, left_at__isnull=True
         ).exists():
             raise MUError(MUErrorCode.NOT_IN_CHAT)
         if DirectChat.objects.filter(chat_id=chat_id).exists():
             raise MUError(MUErrorCode.CANNOT_LEAVE_DIRECT_CHAT)
-        ChatMember.objects.filter(user_id=user_id, chat_id=chat_id).delete()
+        _create_system_message(
+            chat_id, ChatMessageKind.MEMBER_REMOVED, user_id, user_id
+        )
+        ChatMember.objects.filter(user_id=user_id, chat_id=chat_id).update(
+            left_at=Now()
+        )
         _notify_single_user_my_chats(user_id, chat_id, "chat_removed")
         notify_my_chats_update(
             chat_id, "member_removed", {"removed_user_id": user_id}
@@ -248,8 +321,18 @@ class ChatMemberService:
     @staticmethod
     def set_nickname(chat_member: ChatMember, nickname: str) -> None:
         validate_nickname(nickname)
+        if chat_member.nickname == nickname:
+            return
         chat_member.nickname = nickname
         chat_member.save()
+        _create_system_message(
+            chat_member.chat_id,
+            ChatMessageKind.NICKNAME_CHANGED,
+            chat_member.user_id,
+            chat_member.user_id,
+            text_content=nickname,
+            update_my_chats=False,
+        )
 
 
 class ChatService:
@@ -261,7 +344,9 @@ class ChatService:
         chat = (
             Chat.objects.filter(
                 id=chat_id,
-                id__in=ChatMember.objects.filter(user_id=user_id).values("chat_id"),
+                id__in=ChatMember.objects.filter(
+                    user_id=user_id, left_at__isnull=True
+                ).values("chat_id"),
             )
             .prefetch_related(_members_prefetch)
             .first()
@@ -364,20 +449,10 @@ class ChatService:
             text_content=text_content,
             attachment=attachment,
         )
-        channel_layer = get_channel_layer()
         data = serialize_message(
             msg.id, user_id, text_content, msg.time_sent, attachment
         )
-        async_to_sync(channel_layer.group_send)(
-            messages_group(chat_id),
-            {
-                "type": "chat.message",
-                **data,
-            },
-        )
-        notify_my_chats_update(
-            chat_id, "new_message", {"last_message": data}
-        )
+        _emit_message(chat_id, data)
         return msg
 
     @staticmethod
@@ -402,7 +477,15 @@ class ChatService:
         messages = ChatMessage.objects.filter(
             chat_id=chat_id,
             time_sent__gt=since,
-        ).values("id", "time_sent", "text_content", "user_id", "attachment")
+        ).values(
+            "id",
+            "time_sent",
+            "text_content",
+            "user_id",
+            "attachment",
+            "kind",
+            "target_user_id",
+        )
         return [
             serialize_message(
                 m["id"],
@@ -410,6 +493,8 @@ class ChatService:
                 m["text_content"],
                 m["time_sent"],
                 m["attachment"],
+                kind=m["kind"],
+                target_user_id=m["target_user_id"],
             )
             for m in messages
         ]
@@ -423,6 +508,7 @@ class ChatService:
             ChatMember.objects.filter(
                 chat_id=chat_id,
                 last_open__gt=since,
+                left_at__isnull=True,
             )
             .exclude(user_id=user_id)
             .values("user_id", "last_open")
@@ -439,15 +525,15 @@ class ChatService:
     @database_sync_to_async
     def get_user_chats(user_id: int) -> list[dict[str, Any]]:
         chat_ids = list(
-            ChatMember.objects.filter(user_id=user_id).values_list(
-                "chat_id", flat=True
-            )
+            ChatMember.objects.filter(
+                user_id=user_id, left_at__isnull=True
+            ).values_list("chat_id", flat=True)
         )
         chats = list(Chat.objects.filter(id__in=chat_ids))
 
         members_by_chat: dict[int, list[ChatMember]] = defaultdict(list)
         for m in ChatMember.objects.select_related("user").filter(
-            chat_id__in=chat_ids
+            chat_id__in=chat_ids, left_at__isnull=True
         ):
             members_by_chat[m.chat_id].append(m)
 

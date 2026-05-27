@@ -111,6 +111,8 @@ class ChatSubscriptionHandler:
                     for k in (
                         "id",
                         "userId",
+                        "kind",
+                        "targetUserId",
                         "textContent",
                         "timeSent",
                         "attachmentUrl",
