@@ -2,7 +2,7 @@ import graphene
 
 from api.graphql.object_type import MUObjectType
 from main.activity.models import Activity
-from main.user.models import PreferredActivity
+from main.user.models import UserPreferredActivity
 from shared.enums import ActivityKind
 
 
@@ -24,5 +24,5 @@ class ActivityModelType(MUObjectType):
 
 class PreferredActivityType(MUObjectType):
     class Meta:
-        model = PreferredActivity
+        model = UserPreferredActivity
         fields = ("activity", "skill_level")

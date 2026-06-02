@@ -4,21 +4,28 @@ from api.graphql.user.types import PrivacySettingType, ProfileType
 from main.user.models import User
 from main.user.services import UserService
 from shared.enums import (
-    FormedRelationshipsKind,
-    FrequencyOfPhysicalActivity,
+    AcquaintancePreference,
+    ActivityKind,
+    DayOfWeek,
     Gender,
-    GenderNoPNTS,
-    MainInterest,
-    MatchedParticipationLikelihood,
-    PhysicalActivitySatisfaction,
-    PreferredPartnerCharacteristics,
-    PreferredPartySize,
+    OrganizingOpenness,
+    ParticipationGroupKind,
     PrivacyScope,
     PrivacySetting,
-    SocialInteractionImportance,
+    SkillLevel,
     TimeOfTheDay,
 )
 from shared.utils.decorators import require_auth
+
+
+class AvailabilityInput(graphene.InputObjectType):
+    day_of_week = DayOfWeek.as_graphene_enum()(required=True)
+    time_of_day = TimeOfTheDay.as_graphene_enum()(required=True)
+
+
+class PreferredActivityInput(graphene.InputObjectType):
+    activity = ActivityKind.as_graphene_enum()(required=True)
+    skill_level = SkillLevel.as_graphene_enum()(required=True)
 
 
 class AlterBasicInfoMutation(graphene.Mutation):
@@ -62,85 +69,81 @@ class AlterBasicInfoMutation(graphene.Mutation):
         return AlterBasicInfoMutation(my_profile=user)
 
 
-class AlterSurveyInfoMutation(graphene.Mutation):
+class AlterPreferencesMutation(graphene.Mutation):
 
     class Arguments:
-        frequency_of_physical_activity = FrequencyOfPhysicalActivity.as_graphene_enum()(
+        # scalar / enum answers
+        preferred_session_duration = graphene.Int(required=False)
+        organizing_openness = OrganizingOpenness.as_graphene_enum()(required=False)
+        leadership_inclination = graphene.Int(required=False)
+        max_travel_distance = graphene.Int(required=False)
+        weekly_activity_target = graphene.Int(required=False)
+        preferred_difficulty = SkillLevel.as_graphene_enum()(required=False)
+        pushes_through_discomfort = graphene.Int(required=False)
+        preferred_group_size = graphene.Int(required=False)
+        acquaintance_preference = AcquaintancePreference.as_graphene_enum()(
             required=False
         )
-        social_interaction_importance = SocialInteractionImportance.as_graphene_enum()(
-            required=False
-        )
-        preferred_party_size = PreferredPartySize.as_graphene_enum()(required=False)
-        physical_activity_satisfaction = (
-            PhysicalActivitySatisfaction.as_graphene_enum()(required=False)
-        )
-        matched_participation_likelihood = (
-            MatchedParticipationLikelihood.as_graphene_enum()(required=False)
-        )
-        main_interest = MainInterest.as_graphene_enum()(required=False)
-        preferred_event_duration = graphene.Int(required=False)
-        formed_relationship_kinds = graphene.List(
-            FormedRelationshipsKind.as_graphene_enum(), required=False
-        )
-        preferred_partner_characteristics = graphene.List(
-            PreferredPartnerCharacteristics.as_graphene_enum(), required=False
-        )
-        preferred_time_of_the_day = graphene.List(
-            TimeOfTheDay.as_graphene_enum(), required=False
-        )
-        gender_preference = graphene.List(
-            GenderNoPNTS.as_graphene_enum(), required=False
+        mixed_gender_comfort = graphene.Int(required=False)
+        enjoys_meeting_new_people = graphene.Int(required=False)
+        activity_vs_social = graphene.Int(required=False)
+        motivated_by_competition = graphene.Int(required=False)
+        planning_horizon = graphene.Int(required=False)
+        feels_like_burden = graphene.Int(required=False)
+        # multi-valued answers (full replace when provided)
+        preferred_activities = graphene.List(PreferredActivityInput, required=False)
+        availabilities = graphene.List(AvailabilityInput, required=False)
+        participation_groups = graphene.List(
+            ParticipationGroupKind.as_graphene_enum(), required=False
         )
 
     my_profile = graphene.Field(ProfileType)
+
+    SCALAR_ARGS = (
+        "preferred_session_duration",
+        "organizing_openness",
+        "leadership_inclination",
+        "max_travel_distance",
+        "weekly_activity_target",
+        "preferred_difficulty",
+        "pushes_through_discomfort",
+        "preferred_group_size",
+        "acquaintance_preference",
+        "mixed_gender_comfort",
+        "enjoys_meeting_new_people",
+        "activity_vs_social",
+        "motivated_by_competition",
+        "planning_horizon",
+        "feels_like_burden",
+    )
 
     @require_auth
     def mutate(
         self,
         info: graphene.ResolveInfo,
-        frequency_of_physical_activity: FrequencyOfPhysicalActivity = None,
-        social_interaction_importance: SocialInteractionImportance = None,
-        preferred_party_size: PreferredPartySize = None,
-        physical_activity_satisfaction: PhysicalActivitySatisfaction = None,
-        matched_participation_likelihood: MatchedParticipationLikelihood = None,
-        main_interest: MainInterest = None,
-        preferred_event_duration: int = None,
-        formed_relationship_kinds: list = [],
-        preferred_partner_characteristics: list = [],
-        preferred_time_of_the_day: list = [],
-        gender_preference: list = [],
-        **kwargs
+        preferred_activities: list | None = None,
+        availabilities: list | None = None,
+        participation_groups: list | None = None,
+        **kwargs,
     ):
 
         user: User = info.context.user
 
-        fields = {}
-        if frequency_of_physical_activity is not None:
-            fields["frequency_of_physical_activity"] = frequency_of_physical_activity
-        if social_interaction_importance is not None:
-            fields["social_interaction_importance"] = social_interaction_importance
-        if preferred_party_size is not None:
-            fields["preferred_party_size"] = preferred_party_size
-        if physical_activity_satisfaction is not None:
-            fields["physical_activity_satisfaction"] = physical_activity_satisfaction
-        if matched_participation_likelihood is not None:
-            fields["matched_participation_likelihood"] = matched_participation_likelihood
-        if main_interest is not None:
-            fields["main_interest"] = main_interest
-        if preferred_event_duration is not None:
-            fields["preferred_event_duration"] = preferred_event_duration
+        fields = {
+            name: kwargs[name]
+            for name in AlterPreferencesMutation.SCALAR_ARGS
+            if kwargs.get(name) is not None
+        }
 
-        UserService.alter_survey_info(
+        UserService.alter_preferences(
             user,
-            formed_relationship_kinds=formed_relationship_kinds,
-            preferred_partner_characteristics=preferred_partner_characteristics,
-            preferred_time_of_the_day=preferred_time_of_the_day,
-            gender_preference=gender_preference,
+            preferred_activities=preferred_activities,
+            availabilities=availabilities,
+            participation_groups=participation_groups,
             **fields,
         )
 
-        return AlterSurveyInfoMutation(my_profile=user)
+        return AlterPreferencesMutation(my_profile=user)
 
 
 class AlterMaxTravelDistanceMutation(graphene.Mutation):
@@ -194,7 +197,7 @@ class AlterPrivacySettingMutation(graphene.Mutation):
 
 
 class Mutation(graphene.ObjectType):
-    alter_survey_info = AlterSurveyInfoMutation.Field()
+    alter_survey_info = AlterPreferencesMutation.Field()
     alter_basic_info = AlterBasicInfoMutation.Field()
     alter_max_travel_distance = AlterMaxTravelDistanceMutation.Field()
     alter_all_privacy_settings = AlterAllPrivacySettingsMutation.Field()

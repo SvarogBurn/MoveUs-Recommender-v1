@@ -1,8 +1,18 @@
+from django.db import transaction
+
 from main.social.validators import validate_comment_length, validate_not_self
-from main.user.models import User, UserPrivacySetting, UserReport
+from main.user.models import (
+    User,
+    UserAvailability,
+    UserParticipationGroup,
+    UserPreferences,
+    UserPreferredActivity,
+    UserPrivacySetting,
+    UserReport,
+)
 from main.user.validators import (
     validate_max_travel_distance,
-    validate_preferred_event_duration,
+    validate_preferences,
     validate_profile,
 )
 from shared.enums import PrivacyScope, PrivacySetting
@@ -120,18 +130,75 @@ class UserService:
         user.save()
 
     @staticmethod
-    def alter_survey_info(user: User, **fields) -> None:
-        validate_preferred_event_duration(fields.get("preferred_event_duration"))
-        for field, value in fields.items():
-            if value is not None:
-                setattr(user, field, value)
-        user.save()
+    def get_or_create_preferences(user: User) -> UserPreferences:
+        preferences, _ = UserPreferences.objects.get_or_create(user=user)
+        return preferences
 
     @staticmethod
-    def alter_max_travel_distance(user: User, distance: int = None) -> None:
+    def alter_preferences(
+        user: User,
+        preferred_activities: list[dict] | None = None,
+        availabilities: list[dict] | None = None,
+        participation_groups: list[int] | None = None,
+        **fields,
+    ) -> UserPreferences:
+        validate_preferences(fields)
+
+        with transaction.atomic():
+            preferences = UserService.get_or_create_preferences(user)
+            for field, value in fields.items():
+                if value is not None:
+                    setattr(preferences, field, value)
+            preferences.save()
+
+            # multi-valued answers use full-replace semantics when provided
+            if preferred_activities is not None:
+                UserPreferredActivity.objects.filter(user=user).delete()
+                UserPreferredActivity.objects.bulk_create(
+                    [
+                        UserPreferredActivity(
+                            user=user,
+                            activity_id=item["activity"],
+                            skill_level=item["skill_level"],
+                        )
+                        for item in preferred_activities
+                    ],
+                    ignore_conflicts=True,
+                )
+
+            if availabilities is not None:
+                UserAvailability.objects.filter(user=user).delete()
+                UserAvailability.objects.bulk_create(
+                    [
+                        UserAvailability(
+                            user=user,
+                            day_of_week=slot["day_of_week"],
+                            time_of_day=slot["time_of_day"],
+                        )
+                        for slot in availabilities
+                    ],
+                    ignore_conflicts=True,
+                )
+
+            if participation_groups is not None:
+                UserParticipationGroup.objects.filter(user=user).delete()
+                UserParticipationGroup.objects.bulk_create(
+                    [
+                        UserParticipationGroup(user=user, group_kind=kind)
+                        for kind in participation_groups
+                    ],
+                    ignore_conflicts=True,
+                )
+
+        return preferences
+
+    @staticmethod
+    def alter_max_travel_distance(user: User, distance: int = None) -> UserPreferences:
         validate_max_travel_distance(distance)
-        user.max_travel_distance = distance
-        user.save()
+        preferences = UserService.get_or_create_preferences(user)
+        preferences.max_travel_distance = distance
+        preferences.save()
+        return preferences
 
     @staticmethod
     def alter_all_privacy_settings(user_id: int, scope: PrivacyScope) -> None:

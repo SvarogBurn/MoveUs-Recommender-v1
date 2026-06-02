@@ -7,18 +7,17 @@ from django.db.models.fields.composite import CompositePrimaryKey
 
 from main.activity.models import Activity
 from shared.enums import (
-    FrequencyOfPhysicalActivity,
+    AcquaintancePreference,
+    DayOfWeek,
     Gender,
-    MainInterest,
-    MatchedParticipationLikelihood,
+    OrganizingOpenness,
     OtherOption,
+    ParticipationGroupKind,
     PersonalityTrait,
-    PhysicalActivitySatisfaction,
-    PreferredPartySize,
     PrivacyScope,
     PrivacySetting,
     SkillLevel,
-    SocialInteractionImportance,
+    TimeOfTheDay,
 )
 
 username_validator = RegexValidator(r"^[0-9a-zA-Z_]*$")
@@ -34,28 +33,6 @@ class User(AbstractUser):
     date_of_birth = models.DateField(null=True)
     longitude = models.FloatField(null=True)
     latitude = models.FloatField(null=True)
-    frequency_of_physical_activity = models.SmallIntegerField(
-        choices=FrequencyOfPhysicalActivity.choices(), null=True
-    )
-    social_interaction_importance = models.SmallIntegerField(
-        choices=SocialInteractionImportance.choices(), null=True
-    )
-    preferred_party_size = models.SmallIntegerField(
-        choices=PreferredPartySize.choices(), null=True
-    )
-    formed_relationship_kinds = models.JSONField(null=True)
-    physical_activity_satisfaction = models.SmallIntegerField(
-        choices=PhysicalActivitySatisfaction.choices(), null=True
-    )
-    preferred_partner_characteristics = models.JSONField(null=True)
-    matched_participation_likelihood = models.SmallIntegerField(
-        choices=MatchedParticipationLikelihood.choices(), null=True
-    )
-    preferred_time_of_the_day = models.JSONField(null=True)
-    preferred_event_duration = models.SmallIntegerField(null=True)
-    gender_preference = models.JSONField(null=True)
-    max_travel_distance = models.SmallIntegerField(null=True)
-    main_interest = models.SmallIntegerField(choices=MainInterest.choices(), null=True)
     is_capeable = models.BooleanField(default=False)
     first_name = models.CharField(max_length=32)
     last_name = models.CharField(max_length=32)
@@ -82,7 +59,7 @@ class User(AbstractUser):
         db_table = "main_app_user"
 
 
-class PreferredActivity(models.Model):
+class UserPreferredActivity(models.Model):
     pk = CompositePrimaryKey("user", "activity")
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="preferred_activities"
@@ -92,6 +69,80 @@ class PreferredActivity(models.Model):
 
     class Meta:
         db_table = "main_app_preferredactivity"
+
+
+class UserPreferences(models.Model):
+    """Survey answers used for matchmaking. One row per user, created lazily."""
+
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="preferences"
+    )
+    # Q2 — How long should a typical session be? (minutes)
+    preferred_session_duration = models.SmallIntegerField(null=True)
+    # Q3 — Are you open to organizing events?
+    organizing_openness = models.SmallIntegerField(
+        choices=OrganizingOpenness.choices(), null=True
+    )
+    # Q4 — I often take on the role of leader in group activities (1-5)
+    leadership_inclination = models.SmallIntegerField(null=True)
+    # Q6 — How far are you willing to travel? (km)
+    max_travel_distance = models.SmallIntegerField(null=True)
+    # Q7 — How often do you want to be active per week? (1-7)
+    weekly_activity_target = models.SmallIntegerField(null=True)
+    # Q8 — What is your preferred activity difficulty?
+    preferred_difficulty = models.SmallIntegerField(
+        choices=SkillLevel.choices(), null=True
+    )
+    # Q9 — I push through discomfort to improve (1-5)
+    pushes_through_discomfort = models.SmallIntegerField(null=True)
+    # Q10 — What is your preferred group size? (1-10)
+    preferred_group_size = models.SmallIntegerField(null=True)
+    # Q12 — I like going to events where I know ...
+    acquaintance_preference = models.SmallIntegerField(
+        choices=AcquaintancePreference.choices(), null=True
+    )
+    # Q13 — I would equally enjoy mixed activities as same sex activities (1-5)
+    mixed_gender_comfort = models.SmallIntegerField(null=True)
+    # Q14 — I enjoy meeting new people (1-5)
+    enjoys_meeting_new_people = models.SmallIntegerField(null=True)
+    # Q15 — What matters more: the activity itself (1) vs being with people (5)
+    activity_vs_social = models.SmallIntegerField(null=True)
+    # Q17 — I am additionally motivated by a competitive teammate (1-5)
+    motivated_by_competition = models.SmallIntegerField(null=True)
+    # Q18 — How far ahead do you need plans set? (1-5)
+    planning_horizon = models.SmallIntegerField(null=True)
+    # Q19 — I often feel like a burden to my teammate (1-5)
+    feels_like_burden = models.SmallIntegerField(null=True)
+
+    class Meta:
+        db_table = "main_app_userpreferences"
+
+
+class UserAvailability(models.Model):
+    """Q5 — weekly free time slots, one row per (day, time-of-day) pick."""
+
+    pk = CompositePrimaryKey("user", "day_of_week", "time_of_day")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="availabilities"
+    )
+    day_of_week = models.SmallIntegerField(choices=DayOfWeek.choices())
+    time_of_day = models.SmallIntegerField(choices=TimeOfTheDay.choices())
+
+    class Meta:
+        db_table = "main_app_useravailability"
+
+
+class UserParticipationGroup(models.Model):
+    """Q11 — groups the user is willing to do activities with."""
+
+    pk = CompositePrimaryKey("user", "group_kind")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="participation_groups"
+    )
+    group_kind = models.SmallIntegerField(choices=ParticipationGroupKind.choices())
+
+    class Meta:
+        db_table = "main_app_userparticipationgroup"
 
 
 class UserPersonalityTrait(models.Model):

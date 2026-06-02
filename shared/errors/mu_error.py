@@ -119,6 +119,9 @@ class MUErrorCode(IntEnum):
     TRAVEL_DISTANCE_RANGE = 743
     USER_PREFERRED_GENDERS_CHOICE = 744
     PREFERRED_EVENT_DURATION_RANGE = 745
+    LIKERT_RANGE = 746
+    WEEKLY_ACTIVITY_TARGET_RANGE = 747
+    PREFERRED_GROUP_SIZE_RANGE = 748
 
     # 8xx – Address & Location Validation
     ADDRESS_LINE_MAX_LENGTH = 800
@@ -225,6 +228,9 @@ mu_error_code_messages = {
     EC.TRAVEL_DISTANCE_RANGE: "Max travel distance must be between 1 and 20,000 km.",
     EC.USER_PREFERRED_GENDERS_CHOICE: "Prefer not to say cannot be in preferred genders.",
     EC.PREFERRED_EVENT_DURATION_RANGE: "Preferred event duration must be between 1 and 200 hours.",
+    EC.LIKERT_RANGE: "Survey scale answers must be between 1 and 5.",
+    EC.WEEKLY_ACTIVITY_TARGET_RANGE: "Weekly activity target must be between 1 and 7.",
+    EC.PREFERRED_GROUP_SIZE_RANGE: "Preferred group size must be between 1 and 10.",
     EC.ADDRESS_LINE_MAX_LENGTH: "Address line can be at most 64 characters.",
     EC.ZIP_CODE_VALUE: "Zip code must be a 5 digit number.",
     EC.REGION_MAX_LENGTH: "Region cannot be longer than 32 characters.",

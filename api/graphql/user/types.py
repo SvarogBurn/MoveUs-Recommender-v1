@@ -5,21 +5,22 @@ from main.event.services import EventService
 from main.location.models import Location
 from main.social.services import FollowService, PostService
 from main.user.decorators import owner_only, privacy_gated
-from main.user.models import User, UserPrivacySetting
+from main.user.models import (
+    User,
+    UserAvailability,
+    UserPreferences,
+    UserPrivacySetting,
+)
 from main.user.services import UserService
 from shared.enums import (
-    FormedRelationshipsKind,
-    FrequencyOfPhysicalActivity,
+    AcquaintancePreference,
+    DayOfWeek,
     Gender,
-    GenderNoPNTS,
-    MainInterest,
-    MatchedParticipationLikelihood,
-    PhysicalActivitySatisfaction,
-    PreferredPartnerCharacteristics,
-    PreferredPartySize,
+    OrganizingOpenness,
+    ParticipationGroupKind,
     PrivacyScope,
     PrivacySetting,
-    SocialInteractionImportance,
+    SkillLevel,
     TimeOfTheDay,
 )
 
@@ -76,25 +77,66 @@ class UserTypeMixin:
         return PostService.get_user_posts(self.id, start, end, viewer_id=viewer_id)
 
 
+class UserAvailabilityType(MUObjectType):
+    day_of_week = DayOfWeek.as_graphene_enum()()
+    time_of_day = TimeOfTheDay.as_graphene_enum()()
+
+    class Meta:
+        model = UserAvailability
+        fields = ("day_of_week", "time_of_day")
+        convert_choices_to_enum = False
+
+    def resolve_day_of_week(self: UserAvailability, info: graphene.ResolveInfo) -> int:
+        return self.day_of_week
+
+    def resolve_time_of_day(self: UserAvailability, info: graphene.ResolveInfo) -> int:
+        return self.time_of_day
+
+
+class UserPreferencesType(MUObjectType):
+    organizing_openness = OrganizingOpenness.as_graphene_enum()()
+    preferred_difficulty = SkillLevel.as_graphene_enum()()
+    acquaintance_preference = AcquaintancePreference.as_graphene_enum()()
+    availabilities = graphene.List(UserAvailabilityType)
+    participation_groups = graphene.List(ParticipationGroupKind.as_graphene_enum())
+
+    class Meta:
+        model = UserPreferences
+        exclude = ("user",)
+        convert_choices_to_enum = True
+
+    def resolve_organizing_openness(
+        self: UserPreferences, info: graphene.ResolveInfo
+    ) -> int | None:
+        return self.organizing_openness
+
+    def resolve_preferred_difficulty(
+        self: UserPreferences, info: graphene.ResolveInfo
+    ) -> int | None:
+        return self.preferred_difficulty
+
+    def resolve_acquaintance_preference(
+        self: UserPreferences, info: graphene.ResolveInfo
+    ) -> int | None:
+        return self.acquaintance_preference
+
+    def resolve_availabilities(
+        self: UserPreferences, info: graphene.ResolveInfo
+    ) -> list[UserAvailability]:
+        return list(self.user.availabilities.all())
+
+    def resolve_participation_groups(
+        self: UserPreferences, info: graphene.ResolveInfo
+    ) -> list[str]:
+        return [
+            ParticipationGroupKind(pg.group_kind).name
+            for pg in self.user.participation_groups.all()
+        ]
+
+
 class ProfileType(MUObjectType, UserTypeMixin):
 
-    formed_relationship_kinds = graphene.List(
-        FormedRelationshipsKind.as_graphene_enum()
-    )
-    preferred_partner_characteristics = graphene.List(
-        PreferredPartnerCharacteristics.as_graphene_enum()
-    )
-    preferred_time_of_the_day = graphene.List(TimeOfTheDay.as_graphene_enum())
-    gender_preference = graphene.List(GenderNoPNTS.as_graphene_enum())
-
-    frequency_of_physical_activity = FrequencyOfPhysicalActivity.as_graphene_enum()()
-    social_interaction_importance = SocialInteractionImportance.as_graphene_enum()()
-    preferred_party_size = PreferredPartySize.as_graphene_enum()()
-    physical_activity_satisfaction = PhysicalActivitySatisfaction.as_graphene_enum()()
-    matched_participation_likelihood = (
-        MatchedParticipationLikelihood.as_graphene_enum()()
-    )
-    main_interest = MainInterest.as_graphene_enum()()
+    preferences = graphene.Field(UserPreferencesType)
 
     class Meta:
         model = User
@@ -109,69 +151,15 @@ class ProfileType(MUObjectType, UserTypeMixin):
             "blocked_by_set",
             "direct_chats_as_user_1",
             "direct_chats_as_user_2",
+            "availabilities",
+            "participation_groups",
         )
         convert_choices_to_enum = True
 
-    def resolve_formed_relationship_kinds(
+    def resolve_preferences(
         self: User, info: graphene.ResolveInfo
-    ) -> list[str]:
-        if self.formed_relationship_kinds is None:
-            return []
-        return [FormedRelationshipsKind(x).name for x in self.formed_relationship_kinds]
-
-    def resolve_preferred_partner_characteristics(
-        self: User, info: graphene.ResolveInfo
-    ) -> list[str]:
-        if self.preferred_partner_characteristics is None:
-            return []
-        return [
-            PreferredPartnerCharacteristics(x).name
-            for x in self.preferred_partner_characteristics
-        ]
-
-    def resolve_preferred_time_of_the_day(
-        self: User, info: graphene.ResolveInfo
-    ) -> list[str]:
-        if self.preferred_time_of_the_day is None:
-            return []
-        return [TimeOfTheDay(x).name for x in self.preferred_time_of_the_day]
-
-    def resolve_gender_preference(
-        self: User, info: graphene.ResolveInfo
-    ) -> list[str]:
-        if self.gender_preference is None:
-            return []
-        return [GenderNoPNTS(x).name for x in self.gender_preference]
-
-    def resolve_frequency_of_physical_activity(
-        self: User, info: graphene.ResolveInfo
-    ) -> int | None:
-        return self.frequency_of_physical_activity
-
-    def resolve_social_interaction_importance(
-        self: User, info: graphene.ResolveInfo
-    ) -> int | None:
-        return self.social_interaction_importance
-
-    def resolve_preferred_party_size(
-        self: User, info: graphene.ResolveInfo
-    ) -> int | None:
-        return self.preferred_party_size
-
-    def resolve_physical_activity_satisfaction(
-        self: User, info: graphene.ResolveInfo
-    ) -> int | None:
-        return self.physical_activity_satisfaction
-
-    def resolve_matched_participation_likelihood(
-        self: User, info: graphene.ResolveInfo
-    ) -> int | None:
-        return self.matched_participation_likelihood
-
-    def resolve_main_interest(
-        self: User, info: graphene.ResolveInfo
-    ) -> int | None:
-        return self.main_interest
+    ) -> UserPreferences:
+        return UserService.get_or_create_preferences(self)
 
 
 class UserType(MUObjectType, UserTypeMixin):

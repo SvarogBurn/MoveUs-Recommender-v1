@@ -8,9 +8,8 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from django.conf import settings
 from django.contrib.sessions.models import Session
 from django.utils import timezone
-from graphql import DocumentNode, parse, validate
-
 from graphene.validation import depth_limit_validator
+from graphql import DocumentNode, parse, validate
 
 from api.schema import schema as graphql_schema
 from main.chat.subscriptions import ChatSubscriptionHandler

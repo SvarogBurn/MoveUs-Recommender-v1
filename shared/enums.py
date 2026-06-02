@@ -29,14 +29,6 @@ class PrivacyScope(BaseIntEnum):
     MUTUALS = 3  # mutual follows only
 
 
-class FrequencyOfPhysicalActivity(BaseIntEnum):
-    DAILY = 0
-    FEW_TIMES_A_WEEK = 1
-    ONCE_A_WEEK = 2
-    OCCASIONALLY = 3
-    RARELY = 4
-
-
 class SkillLevel(BaseIntEnum):
     BEGINNER = 0
     INTERMEDIATE = 1
@@ -44,50 +36,36 @@ class SkillLevel(BaseIntEnum):
     EXPERT = 3
 
 
-class SocialInteractionImportance(BaseIntEnum):
-    VERY_IMPORTANT = 0
-    SOMEWHAT_IMPORTANT = 1
-    NEUTRAL = 2
-    NOT_VERY_IMPORTANT = 3
-    NOT_IMPORTANT_AT_ALL = 4
+class OrganizingOpenness(BaseIntEnum):
+    NO = 0
+    SOMETIMES = 1
+    YES = 2
 
 
-class PreferredPartySize(BaseIntEnum):
-    ALONE = 0
-    SMALL_GROUP = 1
-    LARGE_GROUP = 2
+class AcquaintancePreference(BaseIntEnum):
+    NOBODY = 0
+    ONE = 1
+    TWO = 2
+    THREE_PLUS = 3
+    EVERYONE = 4
 
 
-class FormedRelationshipsKind(BaseIntEnum):
-    ACQUAINTANCES = 0
-    FRIENDS = 1
-    ROMANTIC_RELATIONSHIPS = 2
+class ParticipationGroupKind(BaseIntEnum):
+    FIRST_HAND = 0  # friends and family
+    SECOND_HAND = 1  # friends of friends
+    COMMON_INTERESTS = 2  # random people with common interests
+    ROMANTIC_ONE_ON_ONE = 3  # potential romantic partner, 1-on-1
+    ROMANTIC_GROUP = 4  # potential romantic partner, within a group
 
 
-class PhysicalActivitySatisfaction(BaseIntEnum):
-    VERY_SATISFIED = 0
-    SATISFIED = 1
-    NEUTRAL = 2
-    DISSATISFIED = 3
-    VERY_DISSATISFIED = 4
-
-
-class PreferredPartnerCharacteristics(BaseIntEnum):
-    SIMILAR_SKILL_LEVEL = 0
-    SIMILAR_AGE = 1
-    SAME_GENDER = 2
-    SIMILAR_INTERESTS = 3
-    SIMILAR_HEALTH_GOALS = 4
-    PROXIMITY = 5
-    SIMILAR_HOBBIES = 6
-
-
-class MatchedParticipationLikelihood(BaseIntEnum):
-    VERY_LIKELY = 0
-    LIKELY = 1
-    NEUTRAL = 2
-    UNLIKELY = 3
-    VERY_UNLIKELY = 4
+class DayOfWeek(BaseIntEnum):
+    MONDAY = 0
+    TUESDAY = 1
+    WEDNESDAY = 2
+    THURSDAY = 3
+    FRIDAY = 4
+    SATURDAY = 5
+    SUNDAY = 6
 
 
 class MemberRole(BaseIntEnum):
@@ -159,12 +137,6 @@ class TimeOfTheDay(BaseIntEnum):
     AFTERNOON = 1
     EVENING = 2
     NIGHT = 3
-
-
-class MainInterest(BaseIntEnum):
-    SOCIALIZE = 0
-    FUN = 1
-    SPORT = 2
 
 
 class ActivityKind(BaseIntEnum):
