@@ -153,11 +153,11 @@ class UserService:
 
             # multi-valued answers use full-replace semantics when provided
             if preferred_activities is not None:
-                UserPreferredActivity.objects.filter(user=user).delete()
+                UserPreferredActivity.objects.filter(preferences=preferences).delete()
                 UserPreferredActivity.objects.bulk_create(
                     [
                         UserPreferredActivity(
-                            user=user,
+                            preferences=preferences,
                             activity_id=item["activity"],
                             skill_level=item["skill_level"],
                         )
@@ -167,11 +167,11 @@ class UserService:
                 )
 
             if availabilities is not None:
-                UserAvailability.objects.filter(user=user).delete()
+                UserAvailability.objects.filter(preferences=preferences).delete()
                 UserAvailability.objects.bulk_create(
                     [
                         UserAvailability(
-                            user=user,
+                            preferences=preferences,
                             day_of_week=slot["day_of_week"],
                             time_of_day=slot["time_of_day"],
                         )
@@ -181,10 +181,14 @@ class UserService:
                 )
 
             if participation_groups is not None:
-                UserParticipationGroup.objects.filter(user=user).delete()
+                UserParticipationGroup.objects.filter(
+                    preferences=preferences
+                ).delete()
                 UserParticipationGroup.objects.bulk_create(
                     [
-                        UserParticipationGroup(user=user, group_kind=kind)
+                        UserParticipationGroup(
+                            preferences=preferences, group_kind=kind
+                        )
                         for kind in participation_groups
                     ],
                     ignore_conflicts=True,

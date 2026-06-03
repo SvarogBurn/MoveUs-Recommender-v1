@@ -60,9 +60,11 @@ class User(AbstractUser):
 
 
 class UserPreferredActivity(models.Model):
-    pk = CompositePrimaryKey("user", "activity")
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="preferred_activities"
+    pk = CompositePrimaryKey("preferences", "activity")
+    preferences = models.ForeignKey(
+        "UserPreferences",
+        on_delete=models.CASCADE,
+        related_name="preferred_activities",
     )
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE)
     skill_level = models.SmallIntegerField(choices=SkillLevel.choices())
@@ -115,9 +117,9 @@ class UserPreferences(models.Model):
 class UserAvailability(models.Model):
     """Q5 — weekly free time slots, one row per (day, time-of-day) pick."""
 
-    pk = CompositePrimaryKey("user", "day_of_week", "time_of_day")
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="availabilities"
+    pk = CompositePrimaryKey("preferences", "day_of_week", "time_of_day")
+    preferences = models.ForeignKey(
+        UserPreferences, on_delete=models.CASCADE, related_name="availabilities"
     )
     day_of_week = models.SmallIntegerField(choices=DayOfWeek.choices())
     time_of_day = models.SmallIntegerField(choices=TimeOfTheDay.choices())
@@ -129,9 +131,11 @@ class UserAvailability(models.Model):
 class UserParticipationGroup(models.Model):
     """Q11 — groups the user is willing to do activities with."""
 
-    pk = CompositePrimaryKey("user", "group_kind")
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="participation_groups"
+    pk = CompositePrimaryKey("preferences", "group_kind")
+    preferences = models.ForeignKey(
+        UserPreferences,
+        on_delete=models.CASCADE,
+        related_name="participation_groups",
     )
     group_kind = models.SmallIntegerField(choices=ParticipationGroupKind.choices())
 

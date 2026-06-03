@@ -9,6 +9,7 @@ from main.user.models import (
     User,
     UserAvailability,
     UserPreferences,
+    UserPreferredActivity,
     UserPrivacySetting,
 )
 from main.user.services import UserService
@@ -23,6 +24,7 @@ from shared.enums import (
     TimeOfTheDay,
 )
 
+from ..activity.types import PreferredActivityType
 from ..location.types import LocationType
 from ..object_type import MUObjectType
 
@@ -116,20 +118,21 @@ class UserPreferencesType(MUObjectType):
     def resolve_availabilities(
         self: UserPreferences, info: graphene.ResolveInfo
     ) -> list[UserAvailability]:
-        return list(self.user.availabilities.all())
+        return list(self.availabilities.all())
 
     def resolve_participation_groups(
         self: UserPreferences, info: graphene.ResolveInfo
     ) -> list[str]:
         return [
             ParticipationGroupKind(pg.group_kind).name
-            for pg in self.user.participation_groups.all()
+            for pg in self.participation_groups.all()
         ]
 
 
 class ProfileType(MUObjectType, UserTypeMixin):
 
     preferences = graphene.Field(UserPreferencesType)
+    preferred_activities = graphene.List(PreferredActivityType)
 
     class Meta:
         model = User
@@ -144,8 +147,6 @@ class ProfileType(MUObjectType, UserTypeMixin):
             "blocked_by_set",
             "direct_chats_as_user_1",
             "direct_chats_as_user_2",
-            "availabilities",
-            "participation_groups",
         )
         convert_choices_to_enum = True
 
@@ -153,6 +154,13 @@ class ProfileType(MUObjectType, UserTypeMixin):
         self: User, info: graphene.ResolveInfo
     ) -> UserPreferences:
         return UserService.get_or_create_preferences(self)
+
+    def resolve_preferred_activities(
+        self: User, info: graphene.ResolveInfo
+    ) -> list[UserPreferredActivity]:
+        return list(
+            UserPreferredActivity.objects.filter(preferences__user=self)
+        )
 
 
 class UserType(MUObjectType, UserTypeMixin):
@@ -162,6 +170,7 @@ class UserType(MUObjectType, UserTypeMixin):
     gender = Gender.as_graphene_enum()()
     is_following = graphene.Boolean()
     is_followed_by = graphene.Boolean()
+    preferred_activities = graphene.List(PreferredActivityType)
 
     class Meta:
         model = User
@@ -176,7 +185,13 @@ class UserType(MUObjectType, UserTypeMixin):
             "username",
             "is_active",
             "date_joined",
-            "preferred_activities",
+        )
+
+    def resolve_preferred_activities(
+        self: User, info: graphene.ResolveInfo
+    ) -> list[UserPreferredActivity]:
+        return list(
+            UserPreferredActivity.objects.filter(preferences__user=self)
         )
 
     @privacy_gated(PrivacySetting.LOCATION)
