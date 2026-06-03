@@ -14,7 +14,7 @@ def validate_max_travel_distance(distance: int = None):
 
 
 def validate_likert(value: int = None):
-    """Survey scale answers (Q4, Q9, Q13, Q14, Q15, Q17, Q18, Q19)."""
+    """Survey scale answers (Q4, Q9, Q14, Q15, Q17, Q18, Q19)."""
     if value is not None and not 1 <= value <= 5:
         raise MUError(MUErrorCode.LIKERT_RANGE)
 
@@ -33,7 +33,6 @@ def validate_preferred_group_size(value: int = None):
 LIKERT_PREFERENCE_FIELDS = (
     "leadership_inclination",
     "pushes_through_discomfort",
-    "mixed_gender_comfort",
     "enjoys_meeting_new_people",
     "activity_vs_social",
     "motivated_by_competition",

@@ -20,7 +20,6 @@ from shared.enums import (
     ParticipationGroupKind,
     PrivacyScope,
     PrivacySetting,
-    SkillLevel,
     TimeOfTheDay,
 )
 
@@ -95,7 +94,6 @@ class UserAvailabilityType(MUObjectType):
 
 class UserPreferencesType(MUObjectType):
     organizing_openness = OrganizingOpenness.as_graphene_enum()()
-    preferred_difficulty = SkillLevel.as_graphene_enum()()
     acquaintance_preference = AcquaintancePreference.as_graphene_enum()()
     availabilities = graphene.List(UserAvailabilityType)
     participation_groups = graphene.List(ParticipationGroupKind.as_graphene_enum())
@@ -109,11 +107,6 @@ class UserPreferencesType(MUObjectType):
         self: UserPreferences, info: graphene.ResolveInfo
     ) -> int | None:
         return self.organizing_openness
-
-    def resolve_preferred_difficulty(
-        self: UserPreferences, info: graphene.ResolveInfo
-    ) -> int | None:
-        return self.preferred_difficulty
 
     def resolve_acquaintance_preference(
         self: UserPreferences, info: graphene.ResolveInfo

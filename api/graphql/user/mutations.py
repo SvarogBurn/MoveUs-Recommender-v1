@@ -78,13 +78,11 @@ class AlterPreferencesMutation(graphene.Mutation):
         leadership_inclination = graphene.Int(required=False)
         max_travel_distance = graphene.Int(required=False)
         weekly_activity_target = graphene.Int(required=False)
-        preferred_difficulty = SkillLevel.as_graphene_enum()(required=False)
         pushes_through_discomfort = graphene.Int(required=False)
         preferred_group_size = graphene.Int(required=False)
         acquaintance_preference = AcquaintancePreference.as_graphene_enum()(
             required=False
         )
-        mixed_gender_comfort = graphene.Int(required=False)
         enjoys_meeting_new_people = graphene.Int(required=False)
         activity_vs_social = graphene.Int(required=False)
         motivated_by_competition = graphene.Int(required=False)
@@ -105,11 +103,9 @@ class AlterPreferencesMutation(graphene.Mutation):
         "leadership_inclination",
         "max_travel_distance",
         "weekly_activity_target",
-        "preferred_difficulty",
         "pushes_through_discomfort",
         "preferred_group_size",
         "acquaintance_preference",
-        "mixed_gender_comfort",
         "enjoys_meeting_new_people",
         "activity_vs_social",
         "motivated_by_competition",

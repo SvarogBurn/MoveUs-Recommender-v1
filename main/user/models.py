@@ -89,10 +89,6 @@ class UserPreferences(models.Model):
     max_travel_distance = models.SmallIntegerField(null=True)
     # Q7 — How often do you want to be active per week? (1-7)
     weekly_activity_target = models.SmallIntegerField(null=True)
-    # Q8 — What is your preferred activity difficulty?
-    preferred_difficulty = models.SmallIntegerField(
-        choices=SkillLevel.choices(), null=True
-    )
     # Q9 — I push through discomfort to improve (1-5)
     pushes_through_discomfort = models.SmallIntegerField(null=True)
     # Q10 — What is your preferred group size? (1-10)
@@ -101,8 +97,6 @@ class UserPreferences(models.Model):
     acquaintance_preference = models.SmallIntegerField(
         choices=AcquaintancePreference.choices(), null=True
     )
-    # Q13 — I would equally enjoy mixed activities as same sex activities (1-5)
-    mixed_gender_comfort = models.SmallIntegerField(null=True)
     # Q14 — I enjoy meeting new people (1-5)
     enjoys_meeting_new_people = models.SmallIntegerField(null=True)
     # Q15 — What matters more: the activity itself (1) vs being with people (5)
