@@ -17,4 +17,3 @@ if __name__ == "__main__":
     print("ERROR: train_neural.py is deprecated.")
     print("Use: python -m ml.models.run_benchmark")
     sys.exit(1)
-

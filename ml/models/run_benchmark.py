@@ -52,7 +52,32 @@ def run_benchmark(data_dir=None, fast: bool = False) -> dict:
 
 
 def main():
+    import pickle
     res = run_benchmark()
+    
+    # Save best model by NDCG@10 (overall slice)
+    best_model_name = None
+    best_ndcg = -1.0
+    best_model_obj = None
+    
+    for model_name, metrics in res.items():
+        ndcg = metrics.get("overall", {}).get("ndcg@10", 0.0)
+        if ndcg > best_ndcg:
+            best_ndcg = ndcg
+            best_model_name = model_name
+    
+    if best_model_name:
+        # Re-train best model to export it
+        models_store = Path(__file__).resolve().parent.parent / "models_store"
+        models_store.mkdir(parents=True, exist_ok=True)
+        
+        # Note: In production, we'd save the already-trained model
+        # For now, save metadata for the recommender service
+        with open(models_store / "best_model_metadata.txt", "w") as f:
+            f.write(f"{best_model_name}\nNDCG@10: {best_ndcg:.4f}")
+        
+        print(f"\n✓ Best model: {best_model_name} (NDCG@10: {best_ndcg:.4f})")
+    
     print(pd.read_csv(RESULTS_DIR / "benchmark.csv").to_string(index=False))
 
 

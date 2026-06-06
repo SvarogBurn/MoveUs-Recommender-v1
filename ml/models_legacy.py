@@ -1,29 +1,23 @@
 #!/usr/bin/env python3
 """
-Full recommender model suite for MoveUs — v2.
+Seminar Implementation: Recommender System for MoveUs
 
-Evaluation protocol : Leave-One-Out with 99 random negatives (LOO@99)
-                      Standard for RecSys; yields realistic NDCG@10 0.15–0.55.
-                      AUC-ROC on full test set kept as secondary metric.
+Active Models:
+  ✓ Baseline  : Random, Popularity+Feasibility
+  ✓ Ranker    : LightGBM LambdaMART
+  ✓ Hybrid    : Factorization Machines (FM)
+  ✓ CF warm   : BPR Matrix Factorization
+  ✓ GNN       : LightGCN
+  ✓ Neural    : DeepFM
 
-Label convention    : rating 0-4 (ordinal) — NOT binary.
-                      GNB/LR/RF/XGBoost score = expected rating (Σ r·P(r=r)).
-                      XGBoost uses rank:ndcg (LambdaMART) — direct NDCG optimisation.
+Metrics:
+  Primary   : Weighted NDCG@10
+  Secondary : Recall@10
+  Auxiliary : MRR
 
-Models
-  Tier 0  : Random, Popularity
-  Tier 1  : GaussianNB (ordinal), LogisticRegression (ordinal)       cold-start capable
-  Tier 2  : RandomForest (ordinal), XGBoost-LTR (LambdaMART),
-             SVD-MF, k-NN CF, Hybrid(SVD+GNB)
-  Tier 2b : BPR-MF  — standalone matrix factorisation on implicit signals (Model 2)
-  Tier 3  : NCF (weighted BCE), Two-Tower (weighted BPR on implicit)
+Evaluation slices: overall, cold users, warm users, new events
 
-Experiments
-  accumulation_curve  — train on 5/10/25/50/100 % of data, LOO@99 NDCG@10
-  ablation_study      — zero-out 5 feature groups, measure NDCG drop (XGBoost + TwoTower)
-  multi_objective     — final reranking score: P(join)·0.5 + P(good_rating)·0.3 + group_cohesion·0.2
-
-Run: python ml/models.py
+Data: Synthetic 10K users × 3.3K events × 300K interactions over 24 months
 """
 
 import json

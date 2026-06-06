@@ -1,9 +1,12 @@
-"""Ranking metrics with explicit, stated definitions.
+"""Ranking metrics per seminar specification.
 
-Weighted NDCG@k: gain(rel) = 2**rel - 1, discount = log2(rank + 1) (rank 1-indexed).
-Recall@k: fraction of relevant items (rel > 0) that appear in the top k.
-Reciprocal rank (MRR, auxiliary): 1 / (rank of the first relevant item), over the
-full ranking; 0 if no relevant item. Mean over users = MRR.
+Metrics:
+  - Weighted NDCG@10 (primary): gain(rel) = 2**rel - 1, discount = log2(rank + 1)
+  - Recall@10 (secondary): fraction of relevant items (rel > 0) in top 10
+  - MRR (auxiliary): 1 / rank of first relevant item; 0 if none
+
+Evaluation slices: overall, cold users, warm users, new events
+
 Ties in `scores` are broken deterministically by original index (stable sort).
 """
 import numpy as np
