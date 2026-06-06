@@ -1153,6 +1153,7 @@ def run_benchmark(data_dir=None, fast: bool = False) -> dict:
         for sl, m in r.items():
             row[f"{sl}_ndcg@10"] = round(m["ndcg@10"], 4)
             row[f"{sl}_recall@10"] = round(m["recall@10"], 4)
+            row[f"{sl}_mrr"] = round(m["mrr"], 4)
         rows.append(row)
     pd.DataFrame(rows).to_csv(RESULTS_DIR / "benchmark.csv", index=False)
     return results

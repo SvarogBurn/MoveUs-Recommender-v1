@@ -1,5 +1,16 @@
 import numpy as np
-from ml.eval.metrics import ndcg_at_k, recall_at_k
+from ml.eval.metrics import ndcg_at_k, recall_at_k, reciprocal_rank
+
+
+def test_reciprocal_rank_first_relevant():
+    # ranked by score: idx1(score3,rel0), idx0(score2,rel1), idx2(score1,rel1)
+    scores = np.array([2.0, 3.0, 1.0])
+    rels = np.array([1, 0, 1])
+    assert reciprocal_rank(scores, rels) == 0.5     # first relevant at rank 2
+
+
+def test_reciprocal_rank_none_relevant():
+    assert reciprocal_rank(np.array([1.0, 2.0]), np.array([0, 0])) == 0.0
 
 
 def test_ndcg_perfect_ranking():
