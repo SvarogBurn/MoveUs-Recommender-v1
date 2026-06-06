@@ -181,12 +181,18 @@ def test_cold_users_excluded_from_train():
     assert 2 in set(val["user_id"]) | set(test["user_id"])
 
 
-def test_partitions_disjoint_and_complete_for_warm():
+def test_partitions_disjoint_and_drop_only_cold_pretrain():
     users, inter = _toy()
-    train, val, test, _ = temporal_split(inter, users, t1q=0.6, t2q=0.8)
-    warm = inter[~inter["user_id"].isin([2])]
-    n = len(pd.concat([train, val, test]).drop_duplicates(subset=["user_id", "event_id"]))
-    assert n == len(inter.drop_duplicates(subset=["user_id", "event_id"]))
+    train, val, test, (t1, t2) = temporal_split(inter, users, t1q=0.6, t2q=0.8)
+    parts = pd.concat([train, val, test])
+    # partitions are disjoint
+    assert len(parts) == len(parts.drop_duplicates(subset=["user_id", "event_id"]))
+    # the only rows excluded from all partitions are cold users' pre-T1 interactions
+    df = inter.copy()
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    cold = set(users.loc[users["is_cold_user"], "user_id"])
+    dropped = df[(df["timestamp"] < t1) & (df["user_id"].isin(cold))]
+    assert len(parts) == len(inter) - len(dropped)
 ```
 
 - [ ] **Step 2: Run to verify it fails**
