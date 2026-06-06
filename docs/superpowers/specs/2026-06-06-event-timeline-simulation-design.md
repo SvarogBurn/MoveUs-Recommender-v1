@@ -49,6 +49,9 @@ shared history well-defined at each decision point.
 | `acquaintance_preference` semantics | **Target/ideal** count of familiar faces — both too-few and too-many known attendees reduce fit |
 | Survey-field generation | **Decoupled** — drawn from their own broad distributions, independent of the (now-flat) Big Five, so they carry real, learnable variation |
 | Motivation homophily | Same-motivation roster mates stochastically boost U's **rating** and **follow-formation** (same-type positive pairs more likely to become **mutual** follows); applies to all 4 archetypes |
+| Event time window | `events.csv` emits explicit **`end_time`** (= `start_time + duration_hours`), matching the backend `Event` schema |
+| Temporal conflicts | A user **cannot join two time-overlapping events** — booked `[start,end]` intervals are tracked during the sweep |
+| Duration fit | `preferred_session_duration` made causal — `dur_fit` penalises `\|event_duration − preferred\|` |
 
 ## Architecture
 
@@ -79,6 +82,7 @@ sort events by start_time ascending
 for each event E in time order:
     roster        = [organizer(E)]
     candidates    = prefilter(warm + cold users by activity/geo match to E)
+                    minus users already booked in an overlapping [start,end]
     capacity      = max_participants(E)
     repeat passes (until capacity reached OR a pass adds < epsilon new joins):
         for U in shuffle(undecided candidates):
@@ -88,9 +92,11 @@ for each event E in time order:
                        + w_soc(U)  * social_block(U, roster)  # known/unknown + valence
                        + group_fit(U, E, roster)             # group-size / participation
                        + comp_fit(U, E)                      # motivated_by_competition
+                       + dur_fit(U, E)                       # preferred_session_duration
                        + W_ORG     * organizer_rep(U, E) )
             if bernoulli(p):
-                add U to roster, record join order + decision timestamp
+                add U to roster; record join order + decision timestamp;
+                book U for [E.start_time, E.end_time]
     resolve E (ratings / leaves) for all roster members except organiser
     update accumulating state (below)
 ```
@@ -165,6 +171,17 @@ band is in U's `participation_groups` set.
 users get a positive term on higher-`skill_level` / higher-`competitive`-cluster
 events and a mild penalty on very casual ones; low scorers are indifferent. Also
 feeds the rating (Section 4).
+
+**`dur_fit(U, E)`** — from `preferred_session_duration` (minutes): Gaussian-style
+penalty on `|event_duration − preferred_session_duration|`, so users skew toward
+sessions of their preferred length. (`event_duration = end_time − start_time`.)
+
+**Temporal conflict avoidance** — each user carries a list of booked
+`[start, end]` intervals from events they've already joined. A candidate is
+filtered out of an event whose window overlaps any booked interval, so no user is
+ever placed in two simultaneous events. Because the sweep is chronological and a
+user's bookings only grow, this is a cheap interval check at candidate-build
+time.
 
 ### 4. Accumulating state
 
@@ -263,6 +280,8 @@ whole pass at once is the first optimisation.
   with columns `follower_id`, `following_id`, `time_created` (matching the
   backend `Follow.time_created` field). The standalone `generate_follows()`
   pre-pass is removed.
+- **`events.csv` gains `end_time`** = `start_time + duration_hours`, matching the
+  backend `Event(start_time, end_time)` schema. `duration_hours` is retained.
 - **`events.csv` attendance fields are emergent (B1/B2).** `fill_rate`,
   `participant_count`, `social_density_cat`, and `avg_organizer_rating` are
   computed from the **actual final roster / accumulated ratings** in a finalize
@@ -290,10 +309,10 @@ whole pass at once is the first optimisation.
 | Unit | Responsibility | Depends on |
 |---|---|---|
 | `generate_users` | sample users; uniform Big Five; archetype + freq tier; survey-preference fields from own broad distributions | — |
-| `generate_events` | sample events with start_time, organiser, capacity (no pre-baked attendance) | users (organiser ids) |
+| `generate_events` | sample events with start_time, end_time (= start+duration), organiser, capacity (no pre-baked attendance) | users (organiser ids) |
 | `seed_follows` | small pre-timeline seed network (~10–15% of users, incl. some cold) | users |
 | `calibrate_propensity` | per-user intercept from static match | users, events |
-| `social_state` | co-attendance map + follow set + organiser stats (mutable) | seed_follows |
+| `social_state` | co-attendance map + follow set + organiser stats + per-user booked intervals (mutable) | seed_follows |
 | `run_enrollment(E)` | one event's one-by-one join process | match, social_state |
 | `resolve_event(E)` | ratings/leaves for roster; form follows; emit rows | social_state |
 | `finalize_events` | back-fill emergent attendance fields onto `events.csv` | rosters |
@@ -349,6 +368,12 @@ timeline, and dumped to `follows.csv` (seed + grown edges) at the end.
 - **Motivation homophily**: same-motivation roster mates correlate with higher
   ratings and more (and more *mutual*) follows than mixed-motivation rosters,
   holding match/valence constant.
+- **Event time window**: every event has `end_time > start_time` and
+  `end_time − start_time == duration_hours`.
+- **No temporal conflicts**: no user appears in two events whose `[start,end]`
+  windows overlap.
+- **Duration-fit effect**: holding match constant, users join events closer to
+  their `preferred_session_duration` at a higher rate.
 - **Split integrity**: every warm user has exactly one test row; no cold user in
   train/test; no leave row used as a LOO positive.
 - **Schema**: `interactions.csv` has the new columns and not the removed one.
