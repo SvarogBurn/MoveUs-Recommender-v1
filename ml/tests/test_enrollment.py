@@ -23,9 +23,10 @@ def test_enrollment_respects_capacity_and_conflicts(small):
     ev = events.iloc[0]
     roster = run_enrollment(ev, users, state, base, rng)
     assert len(roster) <= int(ev["max_participants"])
-    # book everyone, then the same users must be excluded from an overlapping event
+    # enrollment books every member for the event window (the conflict-avoidance
+    # mechanism), so each is now busy and would be excluded from an overlapping event
     for uid in roster:
-        assert not state.is_busy(uid, ev["start_time"], ev["end_time"])  # not yet booked
+        assert state.is_busy(uid, ev["start_time"], ev["end_time"])
 
 
 def test_resolve_emits_pointintime_rows(small):
