@@ -873,6 +873,7 @@ class LightGCNRec:
     def __init__(self, dim=32, layers=2, epochs=20, lr=0.05, seed=0):
         self.dim, self.layers, self.epochs, self.lr, self.seed = dim, layers, epochs, lr, seed
     def fit(self, ctx):
+        self.U = None   # guard: normal path uses self.final; degenerate path sets fallback
         self.fc = ctx.features
         self.fallback = PopularityRec(); self.fallback.fit(ctx)
         torch.manual_seed(self.seed); rng = np.random.default_rng(self.seed)
@@ -882,7 +883,7 @@ class LightGCNRec:
                for r in ctx.train.itertuples(index=False)
                if r.signal_type != "leave" and int(r.user_id) in uidx and int(r.event_id) in eidx]
         if not pos or nU == 0 or nE == 0:
-            self.U = self.E = None; return
+            self.E = None; return
         pos = np.array(pos)
         n = nU + nE
         # symmetric-normalized adjacency of the bipartite graph
