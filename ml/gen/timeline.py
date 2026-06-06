@@ -7,7 +7,7 @@ from ml.gen.users import generate_users
 from ml.gen.events import generate_events
 from ml.gen.social_state import SocialState, seed_follows
 from ml.gen.calibrate import calibrate_propensity
-from ml.gen.enrollment import run_enrollment, resolve_event
+from ml.gen.enrollment import run_enrollment, resolve_event, build_candidate_index
 
 
 def run_timeline(rng):
@@ -17,9 +17,13 @@ def run_timeline(rng):
     seed_follows(state, users, rng)
     base = calibrate_propensity(users, events)
 
+    # Precompute the activity/cluster -> candidate index and per-user numeric
+    # arrays once; reused across every event (hot-path optimisation).
+    cand_index = build_candidate_index(users)
+
     rows = []
     for _, ev in events.iterrows():
-        roster = run_enrollment(ev, users, state, base, rng)
+        roster = run_enrollment(ev, users, state, base, rng, cand_index=cand_index)
         rows += resolve_event(ev, roster, users, state, rng)
 
     interactions = pd.DataFrame(rows).sort_values("timestamp").reset_index(drop=True)

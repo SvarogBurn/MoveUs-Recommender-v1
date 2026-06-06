@@ -11,18 +11,55 @@ def _sigmoid(x):
     return 1.0 / (1.0 + np.exp(-np.clip(x, -30, 30)))
 
 
-def _candidate_pool(ev, users, state, rng):
-    """Prefilter: matching activity/cluster + within travel + not busy."""
+def build_candidate_index(users):
+    """Precompute fast per-activity / per-cluster candidate arrays plus per-user
+    numeric arrays used by the enrollment logit.
+
+    Returns a dict consumed by ``run_enrollment``. Built once per timeline run in
+    ``run_timeline`` and reused across all events; ``run_enrollment`` builds it
+    lazily when not supplied (slow path for direct test calls).
+    """
+    n = len(users)
+
+    # Parse the comma-separated preferred-activity strings once.
+    pref_lists = [
+        [int(x) for x in s.split(",")] for s in users["preferred_activities"].values
+    ]
+
+    # activity -> sorted np.array of users who directly prefer that activity
+    act_to_users = {a: [] for a in range(31)}
+    # cluster -> set of users who prefer *some* activity in that cluster
+    clu_to_users = {clu: set() for clu in set(c.ACTIVITY_CLUSTER.values())}
+    for u, lst in enumerate(pref_lists):
+        for a in lst:
+            act_to_users[a].append(u)
+            clu_to_users[c.ACTIVITY_CLUSTER[a]].add(u)
+    act_to_users = {a: np.array(sorted(v), dtype=np.int64) for a, v in act_to_users.items()}
+    clu_to_users = {clu: np.array(sorted(v), dtype=np.int64) for clu, v in clu_to_users.items()}
+
+    # Per-user numeric arrays (avoid .iloc per candidate).
+    motivation_type = users["motivation_type"].values
+    social_weight = np.array([c.SOCIAL_WEIGHT[m] for m in motivation_type], dtype=float)
+    return {
+        "act_to_users": act_to_users,
+        "clu_to_users": clu_to_users,
+        "motivation_type": motivation_type,
+        "social_weight": social_weight,
+        "acquaintance_preference": users["acquaintance_preference"].values.astype(float),
+        "preferred_group_size": users["preferred_group_size"].values.astype(float),
+        "preferred_session_duration": users["preferred_session_duration"].values.astype(float),
+        "motivated_by_competition": users["motivated_by_competition"].values.astype(float),
+    }
+
+
+def _candidate_array(ev, idx):
+    """Users matching the event's activity or its sport cluster (vectorized)."""
     act = int(ev["activity_id"]); clu = int(ev["sport_cluster"])
-    pref_acts = users["preferred_activities"].str.split(",")
-    mask = pref_acts.apply(lambda lst: str(act) in lst).values
-    # cluster fallback
-    for i in np.where(~mask)[0]:
-        lst = [int(x) for x in users.iloc[i]["preferred_activities"].split(",")]
-        if any(c.ACTIVITY_CLUSTER[a] == clu for a in lst):
-            mask[i] = True
-    cand = users.index[mask].tolist()
-    return [u for u in cand if not state.is_busy(u, ev["start_time"], ev["end_time"])]
+    direct = idx["act_to_users"].get(act, np.empty(0, dtype=np.int64))
+    cluster = idx["clu_to_users"].get(clu, np.empty(0, dtype=np.int64))
+    # Union of direct-activity and same-cluster preferrers (cluster superset
+    # already includes direct, but union defensively to be safe).
+    return np.union1d(direct, cluster)
 
 
 def _known_terms(u, roster, users, state, as_of):
@@ -38,44 +75,145 @@ def _known_terms(u, roster, users, state, as_of):
     return {"known": known, "first": first, "valence": val}
 
 
-def run_enrollment(ev, users, state, base_propensity, rng, max_passes=3):
+def _known_terms_batch(cand, roster, state, as_of):
+    """Vectorized-ish known/first/valence for many candidates against one roster
+    snapshot. Returns (known[], first[], valence[]) aligned to ``cand``.
+
+    Follow/co-attendance state is dict-based, so we scan the (small, <= capacity)
+    roster per candidate, but avoid pandas ``.iloc`` and avoid materialising
+    defaultdict cells for non-existent pairs (the original ``coattend_valence``
+    auto-created empty cells, bloating memory).
+    """
+    m = len(cand)
+    known = np.zeros(m, dtype=np.int64)
+    first = np.zeros(m, dtype=np.int64)
+    valence = np.zeros(m, dtype=float)
+
+    following = state._following
+    coattend = state._coattend
+    roster_set = roster if isinstance(roster, (set, frozenset)) else set(roster)
+
+    for i in range(m):
+        u = int(cand[i])
+        k = f = 0
+        v = 0.0
+        u_follow = following.get(u)               # {target: time}
+        u_coatt = coattend.get(u)                 # {other: [count, valence_sum]}
+        for r in roster_set:
+            # follow either direction, point-in-time
+            fwd = u_follow.get(r) if u_follow else None
+            mutual = False
+            if fwd is not None and fwd <= as_of:
+                mutual = True
+            else:
+                r_follow = following.get(r)
+                back = r_follow.get(u) if r_follow else None
+                if back is not None and back <= as_of:
+                    mutual = True
+            if mutual:
+                f += 1; k += 1
+            elif u_coatt is not None:
+                cell = u_coatt.get(r)
+                if cell is not None and cell[1] != 0:
+                    k += 1
+                    v += 1.0 if cell[1] > 0 else -1.0
+        known[i] = k; first[i] = f; valence[i] = v
+    return known, first, valence
+
+
+def run_enrollment(ev, users, state, base_propensity, rng, max_passes=3, cand_index=None):
+    if cand_index is None:
+        cand_index = build_candidate_index(users)
+    idx = cand_index
+
     cap = int(ev["max_participants"])
     org = int(ev["organizer_id"])
     roster = [org]
     state.book(org, ev["start_time"], ev["end_time"])
-    cand = [u for u in _candidate_pool(ev, users, state, rng) if u != org]
     as_of = ev["start_time"]
+    s_start, e_end = ev["start_time"], ev["end_time"]
     clu = int(ev["sport_cluster"]); act = int(ev["activity_id"])
     org_score = state.organizer_score(org)
     org_first = 1 if state.organizer_events(org) == 0 else 0
 
+    # Candidate pool: matching users, not the organizer, not already busy.
+    cand_all = _candidate_array(ev, idx)
+    cand = np.array(
+        [u for u in cand_all if u != org and not state.is_busy(u, s_start, e_end)],
+        dtype=np.int64,
+    )
+    if cand.size == 0:
+        return roster
+
+    # ---- per-user static logit terms (fixed across passes for this event) ----
+    pref_dur = idx["preferred_session_duration"][cand]
+    pref_comp = idx["motivated_by_competition"][cand]
+    pref_gsize = idx["preferred_group_size"][cand]
+    social_w = idx["social_weight"][cand]
+    acq_pref = idx["acquaintance_preference"][cand]
+    bp = base_propensity[cand]
+
+    event_hours = float(ev["duration_hours"])
+    skill_level = int(ev["skill_level"])
+    sigma_dur = 45.0
+    dur_term = np.exp(-0.5 * ((np.abs(event_hours * 60.0 - pref_dur)) / sigma_dur) ** 2)
+    comp_centred = (pref_comp - 3.0) / 2.0
+    comp_term = comp_centred * (skill_level - 1.5) / 1.5
+    flexible = c.ACTIVITY_FLEXIBLE_SIZE[act]
+
+    static = (bp
+              + c.W_ACT * 1.0
+              + c.W_DUR * dur_term
+              + c.W_COMP * comp_term
+              + c.W_ORG * (org_score / 4.0 - 0.5 * org_first))
+
+    # decided[i] True once candidate i has been resolved (joined or — implicitly —
+    # not added in any subsequent pass). Joiners are removed from the active mask.
+    active = np.ones(cand.size, dtype=bool)
+    sigma_size = 4.0
+
     for _ in range(max_passes):
         if len(roster) >= cap:
             break
-        rng.shuffle(cand)
-        progressed = False
-        for u in list(cand):
-            if len(roster) >= cap:
-                break
-            urow = users.iloc[u]
-            kt = _known_terms(u, roster, users, state, as_of)
-            acq_gap = abs(kt["known"] - int(urow["acquaintance_preference"]))
-            social = (c.SOCIAL_WEIGHT[urow["motivation_type"]] * kt["valence"]
-                      - 0.3 * acq_gap)
-            logit = (base_propensity[u]
-                     + c.W_ACT * 1.0
-                     + c.W_SIZE * size_fit(int(urow["preferred_group_size"]), len(roster), cap, act)
-                     + c.W_DUR * dur_fit(int(urow["preferred_session_duration"]), float(ev["duration_hours"]))
-                     + c.W_COMP * comp_fit(int(urow["motivated_by_competition"]), int(ev["skill_level"]))
-                     + social
-                     + c.W_ORG * (org_score / 4.0 - 0.5 * org_first))
-            if rng.random() < _sigmoid(logit):
-                roster.append(u)
-                state.book(u, ev["start_time"], ev["end_time"])
-                cand.remove(u)
-                progressed = True
-        if not progressed:
+        live = np.where(active)[0]
+        if live.size == 0:
             break
+
+        roster_size = len(roster)
+        # size_fit (roster_size constant across all candidates within this pass)
+        if flexible:
+            size_term = -(np.abs(roster_size - pref_gsize[live]) / sigma_size)
+        else:
+            size_term = np.zeros(live.size)
+
+        known, first, valence = _known_terms_batch(cand[live], roster, state, as_of)
+        acq_gap = np.abs(known - acq_pref[live])
+        social = social_w[live] * valence - 0.3 * acq_gap
+
+        logit = static[live] + c.W_SIZE * size_term + social
+        p = _sigmoid(logit)
+        draws = rng.random(live.size)
+        joiners_mask = draws < p
+
+        join_local = live[joiners_mask]
+        if join_local.size == 0:
+            break
+
+        # Respect remaining capacity: take joiners in array order (deterministic
+        # given the rng draws above) until the roster is full.
+        remaining = cap - len(roster)
+        if join_local.size > remaining:
+            join_local = join_local[:remaining]
+
+        for li in join_local:
+            u = int(cand[li])
+            roster.append(u)
+            state.book(u, s_start, e_end)
+        active[join_local] = False
+
+        if len(roster) >= cap:
+            break
+
     return roster
 
 
