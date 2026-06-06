@@ -52,6 +52,10 @@ shared history well-defined at each decision point.
 | Event time window | `events.csv` emits explicit **`end_time`** (= `start_time + duration_hours`), matching the backend `Event` schema |
 | Temporal conflicts | A user **cannot join two time-overlapping events** — booked `[start,end]` intervals are tracked during the sweep |
 | Duration fit | `preferred_session_duration` made causal — `dur_fit` penalises `\|event_duration − preferred\|` |
+| **`participation_groups` bug fix** | Currently mismodeled as size bands (SOLO/PAIR/…). Correct meaning is **social-circle tier** (`FIRST_HAND`, `SECOND_HAND`, `COMMON_INTERESTS`); ROMANTIC_ONE_ON_ONE is **dropped** from generation |
+| `group_fit` split | Into **`size_fit`** (from `preferred_group_size`, **gated to flexible-size sports only**) and **`tier_fit`** (roster's social-circle composition vs preferred tiers) |
+| Flexible-size sports | Per-activity **`is_flexible_size`** flag (all 31). Fixed-format sports (soccer, tennis, basketball…) ignore `preferred_group_size`; flexible ones (hiking, running, gym…) honour it |
+| Rating satisfaction | Rating gets a bump when the **realized roster matches** U's social prefs: members from U's preferred tier(s) present, and acquaintance count ≈ `acquaintance_preference` |
 
 ## Architecture
 
@@ -74,6 +78,14 @@ shared history well-defined at each decision point.
   `generate_users`, giving genuine per-user spread. These mirror the frontend
   survey (`moveus-web/src/surveys/preferences-survey.ts`) so the simulator's
   causal inputs match what the real app actually collects.
+- **`participation_groups` is regenerated correctly** as a multi-hot over the real
+  `ParticipationGroupKind` tiers — `FIRST_HAND` (friends/family), `SECOND_HAND`
+  (friends-of-friends), `COMMON_INTERESTS` (strangers) — replacing the current
+  size-band misinterpretation. `ROMANTIC_ONE_ON_ONE` is omitted. The old
+  `_participation_groups()` helper (extraversion → size bands) is rewritten.
+- **`is_flexible_size`** is a per-activity flag (all 31 activities) marking
+  whether the sport has a flexible headcount (hiking, running, gym, yoga…) versus
+  a fixed format (soccer, tennis, basketball, volleyball…). It gates `size_fit`.
 
 ### 2. Main loop — chronological sweep
 
@@ -90,7 +102,8 @@ for each event E in time order:
             p = sigmoid( base_propensity(U)
                        + w_act(U)  * match(U, E)              # activity-vs-social blend
                        + w_soc(U)  * social_block(U, roster)  # known/unknown + valence
-                       + group_fit(U, E, roster)             # group-size / participation
+                       + size_fit(U, E, roster)             # preferred_group_size (flexible sports only)
+                       + tier_fit(U, E, roster)             # participation social-circle tiers
                        + comp_fit(U, E)                      # motivated_by_competition
                        + dur_fit(U, E)                       # preferred_session_duration
                        + W_ORG     * organizer_rep(U, E) )
@@ -159,13 +172,23 @@ tunable constant). One knob, two opposing pulls. *(Direction of the 1–5 scale 
 be confirmed against the `scaleActivitySocial` translation strings at
 implementation time.)*
 
-**`group_fit(U, E, roster)`** — from `preferred_group_size` and the multi-hot
-`participation_groups` (SOLO / PAIR / SMALL / LARGE). Compares U's preferred
-size/format against the event's **capacity and current roster size**: a
-small-group preferrer is penalised for large events and vice-versa; a SOLO-only
-user is penalised for big rosters. Gaussian-style penalty on
-`|current_or_expected_size − preferred_group_size|`, zeroed when the event's size
-band is in U's `participation_groups` set.
+**`size_fit(U, E, roster)`** — from `preferred_group_size`, **only for
+flexible-size activities** (`is_flexible_size` flag; fixed-format sports like
+soccer/tennis ignore it entirely, since the sport dictates the size). Gaussian
+penalty on `|expected_or_current_size − preferred_group_size|`.
+
+**`tier_fit(U, E, roster)`** — from the corrected `participation_groups` multi-hot
+over social-circle tiers (`FIRST_HAND`, `SECOND_HAND`, `COMMON_INTERESTS`;
+ROMANTIC dropped). Maps each tier onto the follow graph at decision time:
+- **FIRST_HAND** = roster members U directly follows (friends/family)
+- **SECOND_HAND** = friends-of-friends (2-hop in the follow graph, not direct)
+- **COMMON_INTERESTS** = strangers in the roster who share U's activity interest
+
+`tier_fit` is positive when the roster contains members of U's **preferred**
+tier(s) and mildly negative when it's dominated by tiers U did *not* select (e.g.
+a FIRST_HAND-only user faced with an all-stranger roster). 2-hop membership is
+computed from a per-user friends-of-friends set, refreshed periodically as the
+follow graph grows (exact refresh cadence a tunable implementation detail).
 
 **`comp_fit(U, E)`** — from `motivated_by_competition` (1–5): competition-hungry
 users get a positive term on higher-`skill_level` / higher-`competitive`-cluster
@@ -233,6 +256,20 @@ U). Like-minded company improves the experience:
 This reinforces, but does not replace, the valence-driven follow rule: a positive
 shared experience is still the precondition; homophily only amplifies it.
 
+**Social-preference satisfaction (rating)** — beyond influencing whether U joins,
+a roster that *matches* U's social preferences makes the event more enjoyable, so
+it nudges U's rating upward at `resolve_event`:
+- **Tier satisfaction** — if the roster contains members of U's **preferred
+  participation tier(s)** (e.g. a FIRST_HAND user actually attends with friends),
+  add a small positive increment.
+- **Acquaintance-count satisfaction** — if the number of acquaintances present is
+  **close to U's `acquaintance_preference`** target, add a small bump; far off
+  (too few or too many) gives no bump. This mirrors the join-time `acq_fit` so
+  preference satisfaction shows up in *both* the decision and the rating.
+
+These are modest, stochastic increments applied before clipping to 0–4 — they
+shade ratings, they don't dominate the personality/activity-fit base.
+
 ### 5. Frequency as soft propensity
 
 Each user gets a per-user intercept `base_propensity(U)` (replacing the global
@@ -248,8 +285,10 @@ their tier midpoint:
 
 Calibration: over the **same prefiltered candidate set** used in enrollment
 (Section 6), compute each user's **static** logit terms once — `w_act·match`,
-`comp_fit`, and the roster-size-independent part of `group_fit` — then solve
+`comp_fit`, and `dur_fit` (the roster-independent terms) — then solve
 `base_propensity(U)` so `Σ sigmoid(static + base + δ) ≈ target` via bisection.
+The roster-dependent terms (`social_block`, `size_fit`, `tier_fit`,
+`organizer_rep`) are dynamic and folded into `δ`.
 `δ` is a **small constant expected-social offset** (the social/organizer terms
 are net-positive on average, so omitting them entirely biases counts upward —
 `δ` absorbs the bulk of that drift). Residual social pull still tips marginal
@@ -292,7 +331,8 @@ whole pass at once is the first optimisation.
 - `interactions.csv` gains/keeps: `signal_type`, `rating`, `label`,
   `implicit_label`, `signal_weight`, `timestamp`, plus **new** social/roster
   features (`n_known_in_roster`, `n_unknown_in_roster`, `known_valence`,
-  `n_same_motivation`, `acquaintance_target_gap`, `organizer_score`,
+  `n_first_hand_in_roster`, `n_second_hand_in_roster`, `n_same_motivation`,
+  `acquaintance_target_gap`, `pref_tier_match`, `organizer_score`,
   `organizer_first_time`, `join_order`). These are **snapshotted at U's decision
   moment** (the partial roster as U joined), not the final roster. The old
   `organizer_is_followed` column is removed.
@@ -362,7 +402,16 @@ timeline, and dumped to `follows.csv` (seed + grown edges) at the end.
   (penalty in both directions, not monotonic).
 - **New-people effect**: high `enjoys_meeting_new_people` users join
   stranger-heavy events at a higher rate.
-- **Group-size fit**: small-group preferrers under-join large-capacity events.
+- **Group-size fit (gated)**: small-group preferrers under-join large-capacity
+  events **only for flexible-size sports**; for fixed-format sports (soccer,
+  tennis) `preferred_group_size` has no effect.
+- **Participation tiers**: `participation_groups` is a multi-hot over
+  FIRST_HAND/SECOND_HAND/COMMON_INTERESTS (never ROMANTIC); FIRST_HAND-preferring
+  users join/rate friend-containing rosters higher; COMMON_INTERESTS users are
+  fine with strangers.
+- **Social-preference satisfaction (rating)**: holding base fit constant, ratings
+  are higher when the roster includes preferred-tier members and when the
+  acquaintance count is near `acquaintance_preference`.
 - **Competition fit**: high `motivated_by_competition` users skew toward
   higher-`skill_level` events.
 - **Motivation homophily**: same-motivation roster mates correlate with higher
