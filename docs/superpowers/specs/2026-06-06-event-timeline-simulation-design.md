@@ -56,6 +56,9 @@ shared history well-defined at each decision point.
 | `group_fit` split | Into **`size_fit`** (from `preferred_group_size`, **gated to flexible-size sports only**) and **`tier_fit`** (roster's social-circle composition vs preferred tiers) |
 | Flexible-size sports | Per-activity **`is_flexible_size`** flag (all 31). Fixed-format sports (soccer, tennis, basketball…) ignore `preferred_group_size`; flexible ones (hiking, running, gym…) honour it |
 | Rating satisfaction | Rating gets a bump when the **realized roster matches** U's social prefs: members from U's preferred tier(s) present, and acquaintance count ≈ `acquaintance_preference` |
+| Gender distribution | **Weighted categorical** (not uniform): Male ≈ 48%, Female ≈ 48%, Non-binary ≈ 2%, Prefer-not-to-say ≈ 2% |
+| Organiser selection | Organisers drawn only from users reporting high `organizing_openness` ("would organise") or high `leadership_inclination`; **≈ 1 in 12** users is host-eligible, so organisers are rare |
+| Fit coefficients | Re-aligned to **Table 17** of `syntheticdata.txt` (see §1a): `0.42·O·risk`, `0.42·E·social`, `0.75·H·risk`, `−0.47·N·risk` are verbatim; conscientiousness·consistency is **theoretical** (no empirical value); the old `−0.47·N·injury` and `0.38·H·risk` were misattributed and are corrected |
 
 ## Architecture
 
@@ -86,6 +89,44 @@ shared history well-defined at each decision point.
 - **`is_flexible_size`** is a per-activity flag (all 31 activities) marking
   whether the sport has a flexible headcount (hiking, running, gym, yoga…) versus
   a fixed format (soccer, tennis, basketball, volleyball…). It gates `size_fit`.
+- **Gender** is sampled from a **weighted** categorical (`Gender` enum:
+  MALE / FEMALE / NON_BINARY / PREFER_NOT_TO_SAY) with probabilities
+  ≈ `[0.48, 0.48, 0.02, 0.02]` — two majority groups and two small minority
+  groups — replacing the current uniform `rng.integers(0,4)`.
+
+### 1a. Personality–activity fit (coefficient provenance)
+
+The fit between a user and a sport cluster is a weighted sum over four cluster
+attributes — `risk` (= `risk_tolerance`), `consistency` (= `consistency_demand`),
+`social` (= `social_interaction`), `injury` (= `injury_risk`). These four attribute
+**names** are real sport-dataset attributes, but the **per-cluster values** in
+`CLUSTER_ATTRS` are hand-authored representative numbers, **not** computed from the
+dataset's per-cluster means (see Out of scope).
+
+The **coefficients** must be corrected. The current code
+(`0.42·O·risk + 0.45·C·consistency + 0.42·E·social − 0.47·N·injury + 0.38·H·risk`)
+only partly matches Table 17 of `syntheticdata.txt`:
+
+| Current term | Table 17 (verbatim) | Status |
+|---|---|---|
+| `0.42 · O · risk` | "Openness … Risk tolerance **0.42** [84]" | ✅ keep |
+| `0.42 · E · social` | "Extraversion … Social interaction **0.42** [96]" | ✅ keep |
+| `−0.47 · N · injury` | "Neuroticism Risk tolerance **−0.47** [84]" | ⚠️ retarget to **risk**, not injury |
+| `0.38 · H · risk` | "Hardiness Risk tolerance **0.75** [103]" | ❌ wrong value (0.38 is Extraversion's risk); use **0.75** |
+| `0.45 · C · consistency` | "Consistency demand — **strong theoretical link**, no number" | ❌ no empirical value; mark theoretical |
+
+**Corrected formula to implement:**
+```
+fit = 0.42·O·risk + 0.42·E·social + 0.75·H·risk − 0.47·N·risk + w_C·C·consistency
+```
+- The four risk/social terms are **verbatim** from Table 17.
+- `w_C` (conscientiousness · consistency) has **no empirical estimate** in the source;
+  set it by theoretical reasoning and label it as such in the paper. Suggested modest
+  value `w_C ≈ 0.30` (tunable), explicitly non-empirical.
+- Consequence: `injury` drops out of the fit. `injury_risk` may be removed from
+  `CLUSTER_ATTRS` or retained for other uses; document either way.
+- The base-rating rescale (`fit·3 + 1`) should be re-checked after this change, since
+  the coefficient magnitudes shift (esp. hardiness 0.38 → 0.75).
 
 ### 2. Main loop — chronological sweep
 
@@ -349,7 +390,7 @@ whole pass at once is the first optimisation.
 | Unit | Responsibility | Depends on |
 |---|---|---|
 | `generate_users` | sample users; uniform Big Five; archetype + freq tier; survey-preference fields from own broad distributions | — |
-| `generate_events` | sample events with start_time, end_time (= start+duration), organiser, capacity (no pre-baked attendance) | users (organiser ids) |
+| `generate_events` | sample events with start_time, end_time (= start+duration), capacity; organiser drawn from host-eligible users (≈1/12) (no pre-baked attendance) | users (organiser ids) |
 | `seed_follows` | small pre-timeline seed network (~10–15% of users, incl. some cold) | users |
 | `calibrate_propensity` | per-user intercept from static match | users, events |
 | `social_state` | co-attendance map + follow set + organiser stats + per-user booked intervals (mutable) | seed_follows |
@@ -367,11 +408,17 @@ timeline, and dumped to `follows.csv` (seed + grown edges) at the end.
 
 ## Out of scope (noted, not fixed here)
 
-- **`CLUSTER_EFA` / `CLUSTER_ATTRS` provenance.** These are hand-authored values
-  that do **not** match the thesis's actual EFA/HDBSCAN output (different cluster
-  taxonomy; clean `[0,1]` values vs. the thesis's z-scored centroids). This
-  redesign does not touch them, but for thesis integrity they should later be
-  either regenerated from the real pipeline or explicitly disclaimed.
+- **`CLUSTER_ATTRS` per-cluster values.** The four attribute *names* (`risk` =
+  risk_tolerance, `consistency` = consistency_demand, `social` = social_interaction,
+  `injury` = injury_risk) are real sport-dataset attributes, but the per-cluster
+  numbers are **hand-authored representative values**, not computed from the
+  dataset's per-cluster means. For full rigor they should be derived from the
+  sport dataset; until then they must be disclaimed as representative. (The fit
+  *coefficients* that multiply these attributes **are** corrected here — see §1a.)
+- **`CLUSTER_EFA` is removed.** The per-event EFA factors `f1..f8` (generated from
+  `CLUSTER_EFA`) are dropped entirely — see the
+  [feature-pipeline spec](2026-06-06-feature-pipeline-redesign-design.md); the
+  cluster one-hot is retained instead.
 
 ## Testing
 
@@ -423,6 +470,13 @@ timeline, and dumped to `follows.csv` (seed + grown edges) at the end.
   windows overlap.
 - **Duration-fit effect**: holding match constant, users join events closer to
   their `preferred_session_duration` at a higher rate.
+- **Gender distribution**: the four categories appear at ≈ 48/48/2/2%, not uniform.
+- **Organiser eligibility**: every event's organiser is a host-eligible user (high
+  `organizing_openness` or `leadership_inclination`); host-eligible users are
+  ≈ 1/12 of the population.
+- **Fit coefficients**: the implemented fit uses `0.42·O·risk`, `0.42·E·social`,
+  `0.75·H·risk`, `−0.47·N·risk` (Table-17 verbatim) and a flagged-theoretical
+  conscientiousness·consistency term; no `N·injury` or `0.38·H` terms remain.
 - **Split integrity**: every warm user has exactly one test row; no cold user in
   train/test; no leave row used as a LOO positive.
 - **Schema**: `interactions.csv` has the new columns and not the removed one.
