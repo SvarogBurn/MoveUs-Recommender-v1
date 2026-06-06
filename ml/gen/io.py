@@ -4,14 +4,13 @@ from pathlib import Path
 import pandas as pd
 
 from ml.gen import config as c
-from ml.gen.splits import finalize_events, ensure_min_joins, build_splits
+from ml.gen.splits import finalize_events
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 
 def write_all(users, events, interactions, state):
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    interactions = ensure_min_joins(interactions, users, events, state)
     events = finalize_events(events, interactions)
 
     users.to_csv(DATA_DIR / "users.csv", index=False)
@@ -22,9 +21,3 @@ def write_all(users, events, interactions, state):
     follows.to_csv(DATA_DIR / "follows.csv", index=False)
     likes = pd.DataFrame(state.like_rows, columns=["liker_id", "liked_id", "event_id", "time_created"])
     likes.to_csv(DATA_DIR / "likes.csv", index=False)
-
-    train, test, train_imp, cold = build_splits(interactions)
-    train.to_csv(DATA_DIR / "train.csv", index=False)
-    test.to_csv(DATA_DIR / "test.csv", index=False)
-    train_imp.to_csv(DATA_DIR / "train_implicit.csv", index=False)
-    cold.to_csv(DATA_DIR / "cold_start_users.csv", index=False)

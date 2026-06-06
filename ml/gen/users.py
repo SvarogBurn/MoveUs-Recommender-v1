@@ -89,8 +89,12 @@ def generate_users(rng: np.random.Generator) -> pd.DataFrame:
         pick = rng.choice(elig_idx, size=min(n_target, len(elig_idx)), replace=False)
         host_eligible[pick] = True
 
+    user_ids = np.arange(n)
+    is_cold_user = user_ids >= (c.N_USERS - c.N_COLD_USERS)
+
     return pd.DataFrame({
         "user_id": np.arange(n),
+        "is_cold_user": is_cold_user,
         "motivation_type": motivation_type,
         "frequency_tier": frequency_tier,
         "openness": O.round(4), "conscientiousness": C.round(4),
