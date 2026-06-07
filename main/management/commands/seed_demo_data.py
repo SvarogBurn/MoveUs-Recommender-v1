@@ -21,6 +21,7 @@ from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import Q
 
 from main.activity.models import Activity
 from main.event.models import Event, EventMember
@@ -79,48 +80,41 @@ def _activity_label(activity_id: int) -> str:
 def _event_title(activity_label: str, skill_level: int) -> str:
     skill = _SKILL_LABELS.get(skill_level, "Open Level")
     venue = random.choice(_ZAGREB_VENUES)
-    time_word = random.choice(["Morning", "Afternoon", "Evening", "Weekend", "Saturday", "Sunday"])
-    templates = [
-        f"{time_word} {activity_label} at {venue}",
-        f"{activity_label} Session — {skill}",
-        f"Weekly {activity_label} Meetup",
-        f"{activity_label} at {venue}",
-        f"Open {activity_label} — {skill}",
-        f"{skill} {activity_label} Training",
-        f"{activity_label} Group — {venue}",
-    ]
     if _FAKER_AVAILABLE:
-        templates += [
-            f"{_fake.first_name()}'s {activity_label} Group",
-            f"{activity_label} near {_fake.street_name()}",
+        options = [
+            f"{_fake.first_name()}'s {activity_label} Crew — {venue}",
+            f"{activity_label} @ {_fake.street_name()}, Zagreb",
+            f"{_fake.day_of_week()} {activity_label} — {skill}",
+            f"Open {activity_label} with {_fake.first_name()}",
+            f"{skill} {activity_label} in Zagreb",
+            f"{activity_label} @ {venue}",
+            f"Weekly {activity_label} — {venue}",
+            f"{_fake.first_name()} organises {activity_label}",
         ]
-    return random.choice(templates)
+    else:
+        options = [
+            f"{activity_label} at {venue}",
+            f"Weekly {activity_label} — {skill}",
+            f"{skill} {activity_label} at {venue}",
+        ]
+    return random.choice(options)
 
 
 def _event_description(activity_label: str, skill_level: int, max_participants: int) -> str:
     skill_desc = _SKILL_DESC.get(skill_level, "all levels")
-    intros = [
-        f"We're looking for people to join our {activity_label.lower()} session in Zagreb.",
-        f"Come join us for a great {activity_label.lower()} meetup!",
-        f"Organising a {activity_label.lower()} session — everyone is welcome.",
-        f"Join our {activity_label.lower()} group for a fun and active session.",
-        f"A {activity_label.lower()} session open to {skill_desc}.",
-    ]
-    middles = [
-        f"Suitable for {skill_desc}.",
-        f"We welcome {skill_desc}.",
-        f"Open to {skill_desc} — no judgement, just sport.",
-    ]
-    outros = [
-        f"Limited to {max_participants} participants, so sign up early!",
-        f"Max {max_participants} spots — first come, first served.",
-        f"Bring water and appropriate gear. {max_participants} spots available.",
-        f"Equipment can be shared. Maximum {max_participants} people.",
-    ]
-    extra = ""
     if _FAKER_AVAILABLE:
-        extra = f" {_fake.sentence()}"
-    desc = f"{random.choice(intros)} {random.choice(middles)}{extra} {random.choice(outros)}"
+        opening = _fake.sentence()
+        body = _fake.paragraph(nb_sentences=2)
+        desc = (
+            f"{opening} Come join us for a {activity_label.lower()} session "
+            f"suitable for {skill_desc}. {body} "
+            f"Max {max_participants} participants — sign up while spots last!"
+        )
+    else:
+        desc = (
+            f"Join us for a {activity_label.lower()} session suitable for {skill_desc}. "
+            f"Max {max_participants} participants."
+        )
     return desc + _DEMO_MARKER
 
 
@@ -176,8 +170,10 @@ class Command(BaseCommand):
     def _clear(self):
         from django.db import connection
 
-        # --- demo events ---
-        demo_events = Event.objects.filter(description__endswith=_DEMO_MARKER)
+        # --- demo events (both current marker format and legacy [Demo] title prefix) ---
+        demo_events = Event.objects.filter(
+            Q(description__endswith=_DEMO_MARKER) | Q(title__startswith="[Demo] ")
+        )
         location_ids = list(demo_events.values_list("location_id", flat=True))
         n_ev, _ = demo_events.delete()
         Location.objects.filter(id__in=location_ids).delete()
