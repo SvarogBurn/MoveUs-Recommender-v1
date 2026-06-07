@@ -1,5 +1,6 @@
 """End-to-end benchmark: load data -> temporal split -> context -> models -> harness."""
 import json
+import pickle
 from pathlib import Path
 
 import numpy as np
@@ -55,10 +56,30 @@ def run_benchmark(data_dir=None, results_dir=None, fast: bool = False) -> dict:
     ctx = TrainContext(users=users, events=events, train=train, features=fc, follows=follows)
     data = EvalData(users=users, events=events, train=train, val=val, test=test)
 
+    trained = {}
     results = {}
     for model in all_models(fast=fast):
         model.fit(ctx)
         results[model.name] = evaluate(model, data)
+        trained[model.name] = model
+
+    best_name = max(results, key=lambda m: results[m].get("overall", {}).get("ndcg@10", 0.0))
+    best_model = trained[best_name]
+
+    # Move any GPU tensors to CPU so the pickle is portable
+    if hasattr(best_model, "to"):
+        try:
+            best_model.to("cpu")
+        except Exception:
+            pass
+
+    models_store = Path(__file__).resolve().parent.parent / "models_store"
+    models_store.mkdir(parents=True, exist_ok=True)
+    with open(models_store / "best_model.pkl", "wb") as fh:
+        pickle.dump(best_model, fh)
+    with open(models_store / "best_model_metadata.txt", "w") as fh:
+        fh.write(f"{best_name}\nndcg@10={results[best_name]['overall']['ndcg@10']:.4f}\n")
+    print(f"[benchmark] saved {best_name} -> ml/models_store/best_model.pkl")
 
     out_dir.mkdir(parents=True, exist_ok=True)
     with open(out_dir / "benchmark.json", "w") as fh:
@@ -94,11 +115,8 @@ def main():
     out_dir = Path(args.results_dir) if args.results_dir else RESULTS_DIR
     res = run_benchmark(data_dir=args.data_dir, results_dir=args.results_dir, fast=args.fast)
 
-    best_model_name = max(
-        res, key=lambda m: res[m].get("overall", {}).get("ndcg@10", 0.0)
-    )
-    best_ndcg = res[best_model_name]["overall"]["ndcg@10"]
-    print(f"\nBest model: {best_model_name} (NDCG@10: {best_ndcg:.4f})")
+    best_name = max(res, key=lambda m: res[m].get("overall", {}).get("ndcg@10", 0.0))
+    print(f"\nBest model: {best_name} (NDCG@10: {res[best_name]['overall']['ndcg@10']:.4f})")
     print(pd.read_csv(out_dir / "benchmark.csv").to_string(index=False))
 
 
