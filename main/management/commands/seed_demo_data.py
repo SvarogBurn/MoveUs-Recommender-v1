@@ -176,26 +176,38 @@ class Command(BaseCommand):
     def _clear(self):
         from django.db import connection
 
+        # --- demo events ---
         demo_events = Event.objects.filter(description__endswith=_DEMO_MARKER)
         location_ids = list(demo_events.values_list("location_id", flat=True))
         n_ev, _ = demo_events.delete()
         Location.objects.filter(id__in=location_ids).delete()
 
-        demo_qs = User.objects.filter(username__startswith=DEMO_USERNAME_PREFIX)
-        if "main_app_directchat" in connection.introspection.table_names():
-            n_usr, _ = demo_qs.delete()
-        else:
-            # Django ORM collector fails when main_app_directchat is absent (legacy table).
-            # Raw SQL respects DB-level ON DELETE CASCADE on all migrated tables.
-            user_ids = list(demo_qs.values_list("id", flat=True))
-            if user_ids:
-                placeholders = ",".join(["%s"] * len(user_ids))
-                with connection.cursor() as cursor:
-                    cursor.execute(
-                        f'DELETE FROM "{User._meta.db_table}" WHERE "id" IN ({placeholders})',
-                        user_ids,
-                    )
-            n_usr = len(user_ids)
+        # --- demo users ---
+        # We delete related objects explicitly rather than letting Django's ORM
+        # cascade collector run, because main_app_directchat (a legacy table) does
+        # not exist on a fresh demo DB and causes the collector to fail.
+        demo_user_ids = list(
+            User.objects.filter(username__startswith=DEMO_USERNAME_PREFIX)
+            .values_list("id", flat=True)
+        )
+        n_usr = len(demo_user_ids)
+        if demo_user_ids:
+            # 1. social graph
+            Follow.objects.filter(follower_id__in=demo_user_ids).delete()
+            Follow.objects.filter(following_id__in=demo_user_ids).delete()
+            # 2. event memberships (EventMember cascade from Event already deleted above,
+            #    but users may have memberships on non-demo events too)
+            EventMember.objects.filter(user_id__in=demo_user_ids).delete()
+            # 3. preferences (UserAvailability / UserPreferredActivity / UserParticipationGroup
+            #    cascade from UserPreferences via DB FK)
+            UserPreferences.objects.filter(user_id__in=demo_user_ids).delete()
+            # 4. user rows — no remaining FKs pointing at them from migrated tables
+            with connection.cursor() as cursor:
+                placeholders = ",".join(["%s"] * len(demo_user_ids))
+                cursor.execute(
+                    f'DELETE FROM "{User._meta.db_table}" WHERE "id" IN ({placeholders})',
+                    demo_user_ids,
+                )
 
         self.stdout.write(f"Cleared {n_usr} demo users and {n_ev} demo events.")
 
