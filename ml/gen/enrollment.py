@@ -199,11 +199,12 @@ def run_enrollment(ev, users, state, base_propensity, rng, max_passes=3, cand_in
         if join_local.size == 0:
             break
 
-        # Respect remaining capacity: take joiners in array order (deterministic
-        # given the rng draws above) until the roster is full.
+        # Respect remaining capacity: pick randomly among all willing joiners so
+        # that high-indexed users are not systematically excluded.
         remaining = cap - len(roster)
         if join_local.size > remaining:
-            join_local = join_local[:remaining]
+            chosen = rng.choice(join_local.size, size=remaining, replace=False)
+            join_local = join_local[np.sort(chosen)]
 
         for li in join_local:
             u = int(cand[li])
