@@ -40,3 +40,7 @@ def main():
     rng = np.random.default_rng(args.seed)
     users, events, interactions, state = run_timeline(rng)
     write_all(users, events, interactions, state, out_dir=args.out_dir)
+
+
+if __name__ == "__main__":
+    main()
