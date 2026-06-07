@@ -31,7 +31,12 @@ def run_timeline(rng):
 
 
 def main():
+    import argparse
     from ml.gen.io import write_all
-    rng = np.random.default_rng(c.SEED)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--out-dir", default=None, help="Output directory (default: ml/data)")
+    parser.add_argument("--seed", type=int, default=c.SEED)
+    args = parser.parse_args()
+    rng = np.random.default_rng(args.seed)
     users, events, interactions, state = run_timeline(rng)
-    write_all(users, events, interactions, state)
+    write_all(users, events, interactions, state, out_dir=args.out_dir)
