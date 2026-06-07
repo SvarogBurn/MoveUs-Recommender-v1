@@ -15,8 +15,9 @@ DATA_DIR_DEFAULT = Path(__file__).resolve().parent.parent / "data"
 RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 
 
-def run_benchmark(data_dir=None, fast: bool = False) -> dict:
+def run_benchmark(data_dir=None, results_dir=None, fast: bool = False) -> dict:
     data_dir = Path(data_dir) if data_dir else DATA_DIR_DEFAULT
+    out_dir = Path(results_dir) if results_dir else RESULTS_DIR
     users = pd.read_csv(data_dir / "users.csv")
     # Ensure `is_cold_user` exists (some datasets omit it). If a separate
     # cold_start_users.csv file exists, use it; otherwise default to False.
@@ -59,8 +60,8 @@ def run_benchmark(data_dir=None, fast: bool = False) -> dict:
         model.fit(ctx)
         results[model.name] = evaluate(model, data)
 
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    with open(RESULTS_DIR / "benchmark.json", "w") as fh:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with open(out_dir / "benchmark.json", "w") as fh:
         json.dump(results, fh, indent=2)
     rows = []
     for name, r in results.items():
@@ -71,45 +72,34 @@ def run_benchmark(data_dir=None, fast: bool = False) -> dict:
             row[f"{sl}_mrr"] = round(m["mrr"], 4)
             row[f"{sl}_pool"] = round(m.get("pool_size", 0.0), 1)
         rows.append(row)
-    pd.DataFrame(rows).to_csv(RESULTS_DIR / "benchmark.csv", index=False)
+    pd.DataFrame(rows).to_csv(out_dir / "benchmark.csv", index=False)
 
     # benchmark charts (headless-safe); never let plotting break a run
     try:
         from ml.eval.plots import plot_benchmark
-        plot_benchmark(results, RESULTS_DIR)
+        plot_benchmark(results, out_dir)
     except Exception as exc:  # pragma: no cover - visualisation is best-effort
         print(f"[warn] could not render benchmark plots: {exc}")
     return results
 
 
 def main():
-    import pickle
-    res = run_benchmark()
-    
-    # Save best model by NDCG@10 (overall slice)
-    best_model_name = None
-    best_ndcg = -1.0
-    best_model_obj = None
-    
-    for model_name, metrics in res.items():
-        ndcg = metrics.get("overall", {}).get("ndcg@10", 0.0)
-        if ndcg > best_ndcg:
-            best_ndcg = ndcg
-            best_model_name = model_name
-    
-    if best_model_name:
-        # Re-train best model to export it
-        models_store = Path(__file__).resolve().parent.parent / "models_store"
-        models_store.mkdir(parents=True, exist_ok=True)
-        
-        # Note: In production, we'd save the already-trained model
-        # For now, save metadata for the recommender service
-        with open(models_store / "best_model_metadata.txt", "w") as f:
-            f.write(f"{best_model_name}\nNDCG@10: {best_ndcg:.4f}")
-        
-        print(f"\n✓ Best model: {best_model_name} (NDCG@10: {best_ndcg:.4f})")
-    
-    print(pd.read_csv(RESULTS_DIR / "benchmark.csv").to_string(index=False))
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data-dir", default=None, help="Path to dataset directory")
+    parser.add_argument("--results-dir", default=None, help="Where to write results")
+    parser.add_argument("--fast", action="store_true", help="Skip slow models")
+    args = parser.parse_args()
+
+    out_dir = Path(args.results_dir) if args.results_dir else RESULTS_DIR
+    res = run_benchmark(data_dir=args.data_dir, results_dir=args.results_dir, fast=args.fast)
+
+    best_model_name = max(
+        res, key=lambda m: res[m].get("overall", {}).get("ndcg@10", 0.0)
+    )
+    best_ndcg = res[best_model_name]["overall"]["ndcg@10"]
+    print(f"\nBest model: {best_model_name} (NDCG@10: {best_ndcg:.4f})")
+    print(pd.read_csv(out_dir / "benchmark.csv").to_string(index=False))
 
 
 if __name__ == "__main__":
