@@ -174,12 +174,29 @@ class Command(BaseCommand):
 
     # ------------------------------------------------------------------
     def _clear(self):
+        from django.db import connection
+
         demo_events = Event.objects.filter(description__endswith=_DEMO_MARKER)
         location_ids = list(demo_events.values_list("location_id", flat=True))
         n_ev, _ = demo_events.delete()
         Location.objects.filter(id__in=location_ids).delete()
 
-        n_usr, _ = User.objects.filter(username__startswith=DEMO_USERNAME_PREFIX).delete()
+        demo_qs = User.objects.filter(username__startswith=DEMO_USERNAME_PREFIX)
+        if "main_app_directchat" in connection.introspection.table_names():
+            n_usr, _ = demo_qs.delete()
+        else:
+            # Django ORM collector fails when main_app_directchat is absent (legacy table).
+            # Raw SQL respects DB-level ON DELETE CASCADE on all migrated tables.
+            user_ids = list(demo_qs.values_list("id", flat=True))
+            if user_ids:
+                placeholders = ",".join(["%s"] * len(user_ids))
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        f'DELETE FROM "{User._meta.db_table}" WHERE "id" IN ({placeholders})',
+                        user_ids,
+                    )
+            n_usr = len(user_ids)
+
         self.stdout.write(f"Cleared {n_usr} demo users and {n_ev} demo events.")
 
     # ------------------------------------------------------------------
