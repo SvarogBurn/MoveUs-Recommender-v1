@@ -56,7 +56,7 @@ class RecommenderService:
         self._load_best_model()
 
     def _load_best_model(self):
-        """Load best trained model from ml/models_store/."""
+        """Load best trained model from ml/models_store/. Called once at startup."""
         models_dir = Path(__file__).parent / "models_store"
         best_model_path = models_dir / "best_model.pkl"
         metadata_path = models_dir / "best_model_metadata.txt"
@@ -87,13 +87,15 @@ class RecommenderService:
             .preferred_activities (or None if not set).
           - each event prefetched with .location and .activity.
 
-        All live users are cold-start: interaction history defaults to zero.
+        History features are computed from the live Django DB so that joining
+        events immediately influences future rankings.
         Returns np.ndarray of scores (higher = more relevant), len == len(events).
         """
         if self.model is None or not events:
             return np.zeros(len(events))
 
         try:
+            from django.db.models import Avg, Count
             from ml.models.context import ACTIVITY_CLUSTER
 
             prefs = getattr(user, "preferences", None)
@@ -117,6 +119,46 @@ class RecommenderService:
                 for pa in prefs.preferred_activities.all():
                     pref_acts.add(int(pa.activity_id))
             pref_clusters = {ACTIVITY_CLUSTER.get(a, 0) for a in pref_acts}
+
+            # --- compute live history from Django DB ---
+            from main.event.models import EventMember
+            memberships = list(
+                EventMember.objects
+                .filter(user_id=user.pk)
+                .select_related("event__activity")
+                .values("event__activity_id", "score", "has_participated")
+            )
+            total_joins = len(memberships)
+            rated = [m["score"] for m in memberships if m["score"] is not None]
+            avg_rating = float(sum(rated) / len(rated)) if rated else 0.0
+            no_show = (
+                sum(1 for m in memberships if not m["has_participated"]) / total_joins
+                if total_joins else 0.0
+            )
+            # per-activity and per-cluster accumulators
+            act_joins: dict[int, int] = {}
+            act_ratings: dict[int, list] = {}
+            clu_joins: dict[int, int] = {}
+            clu_ratings: dict[int, list] = {}
+            for m in memberships:
+                aid = int(m["event__activity_id"])
+                clu = ACTIVITY_CLUSTER.get(aid, 0)
+                act_joins[aid] = act_joins.get(aid, 0) + 1
+                if m["score"] is not None:
+                    act_ratings.setdefault(aid, []).append(m["score"])
+                    clu_ratings.setdefault(clu, []).append(m["score"])
+                clu_joins[clu] = clu_joins.get(clu, 0) + 1
+
+            # per-event participant counts (single batch query)
+            event_ids = [e.pk for e in events]
+            pop_qs = (
+                EventMember.objects
+                .filter(event_id__in=event_ids, participates=True)
+                .values("event_id")
+                .annotate(cnt=Count("event_id"))
+            )
+            event_pop_map = {row["event_id"]: row["cnt"] for row in pop_qs}
+            # --- end history ---
 
             raw_rows = []
             for event in events:
@@ -146,12 +188,19 @@ class RecommenderService:
                 size_gap = abs(float(event.max_participants or 10) - pref_group)
                 skill = float(event.skill_level)
 
+                a_ratings = act_ratings.get(act_id, [])
+                c_ratings = clu_ratings.get(clu, [])
                 raw_rows.append([
                     act_match, dist_score, avail, dur_gap, size_gap,
                     skill, motivated,
-                    0.0, 0.0, 0.0,       # total_joins, avg_rating, no_show
-                    0.0, 0.0, 0.0, 0.0,  # act_aff, act_seen, clu_aff, clu_seen
-                    0.0,                 # event_pop (new events = 0)
+                    float(total_joins),
+                    avg_rating,
+                    no_show,
+                    float(sum(a_ratings) / len(a_ratings)) if a_ratings else 0.0,
+                    float(act_joins.get(act_id, 0)),
+                    float(sum(c_ratings) / len(c_ratings)) if c_ratings else 0.0,
+                    float(clu_joins.get(clu, 0)),
+                    float(event_pop_map.get(event.pk, 0)),
                 ])
 
             raw = np.array(raw_rows, dtype=float)

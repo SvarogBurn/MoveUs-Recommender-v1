@@ -4,6 +4,12 @@ from django.db import migrations
 
 
 def backfill_groupchat(apps, schema_editor):
+    # On a fresh database DirectChat table does not exist (removed in a later
+    # schema migration), so there is nothing to backfill — skip safely.
+    from django.db import connection
+    if "main_app_directchat" not in connection.introspection.table_names():
+        return
+
     Chat = apps.get_model("main", "Chat")
     DirectChat = apps.get_model("main", "DirectChat")
     GroupChat = apps.get_model("main", "GroupChat")
