@@ -5,7 +5,7 @@ SEED = 42
 
 # Scale
 N_USERS = 10_000
-N_EVENTS = 3_333
+N_EVENTS = 25_000
 N_COLD_USERS = 1_000
 
 # Temporal window (24 months)
