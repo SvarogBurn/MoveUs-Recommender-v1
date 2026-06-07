@@ -11,6 +11,13 @@ ACTIVITY_CLUSTER = {
     24: 3, 25: 3, 26: 7, 27: 7, 28: 0, 29: 1, 30: 5,
 }
 
+# Column order produced by FeatureContext._raw_pair / pair_dense (length == dense_dim).
+FEATURE_NAMES = [
+    "act_match", "dist_score", "avail", "dur_gap", "size_gap", "skill_level",
+    "motivated_by_competition", "total_joins", "avg_rating", "no_show",
+    "act_aff", "act_seen", "clu_aff", "clu_seen", "event_pop",
+]
+
 
 def _haversine_km(lat1, lon1, lat2, lon2):
     R = 6371.0

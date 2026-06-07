@@ -17,3 +17,4 @@ class TrainContext(NamedTuple):
     events: pd.DataFrame
     train: pd.DataFrame          # interactions with ts < T1, non-cold users
     features: object             # FeatureContext (built in context.py); None in unit tests
+    follows: object = None       # DataFrame[follower_id, following_id]; optional social graph

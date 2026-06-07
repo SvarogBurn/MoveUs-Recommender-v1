@@ -45,9 +45,13 @@ def run_benchmark(data_dir=None, fast: bool = False) -> dict:
         ev_meta = events[["event_id", "activity_id", "sport_cluster"]]
         inter = inter.merge(ev_meta, on="event_id", how="left")
 
+    # optional social graph for the graph-based collaborative model
+    follows_path = data_dir / "follows.csv"
+    follows = pd.read_csv(follows_path) if follows_path.exists() else None
+
     train, val, test, _ = temporal_split(inter, users)
     fc = build_feature_context(train, users, events)
-    ctx = TrainContext(users=users, events=events, train=train, features=fc)
+    ctx = TrainContext(users=users, events=events, train=train, features=fc, follows=follows)
     data = EvalData(users=users, events=events, train=train, val=val, test=test)
 
     results = {}
