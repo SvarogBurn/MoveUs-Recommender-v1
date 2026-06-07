@@ -38,7 +38,7 @@ def _user_positives(test: pd.DataFrame) -> dict:
     return pos
 
 
-def evaluate(model, data: EvalData, k: int = 10, horizon_days: int = 14) -> dict:
+def evaluate(model, data: EvalData, k: int = 10, horizon_days: int = 7) -> dict:
     """Per-target, time-windowed full-catalog evaluation.
 
     One ranking instance per positive test interaction. The candidate pool is the
