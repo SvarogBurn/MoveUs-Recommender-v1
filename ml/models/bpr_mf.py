@@ -24,6 +24,7 @@ class BPRMFRec:
         self.act_index = {a: i for i, a in enumerate(acts)}
 
         torch.manual_seed(self.seed); rng = np.random.default_rng(self.seed)
+        self.dev = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         uidx = self.fc.user_index
         nU, nA = len(uidx), len(self.act_index)
         pos = [(uidx[int(r.user_id)], self.act_index[self.event_activity[int(r.event_id)]])
@@ -33,14 +34,16 @@ class BPRMFRec:
         if not pos or nU == 0 or nA == 0:
             self.U = self.E = None; return
         pos = np.array(pos)
-        self.U = torch.nn.Parameter(torch.randn(nU, self.dim) * 0.01)
-        self.E = torch.nn.Parameter(torch.randn(nA, self.dim) * 0.01)
+        self.U = torch.nn.Parameter(torch.randn(nU, self.dim, device=self.dev) * 0.01)
+        self.E = torch.nn.Parameter(torch.randn(nA, self.dim, device=self.dev) * 0.01)
         opt = torch.optim.Adam([self.U, self.E], lr=self.lr)
         for _ in range(self.epochs):
             idx = rng.integers(0, len(pos), size=len(pos))
             u = pos[idx, 0]; i = pos[idx, 1]
             j = rng.integers(0, nA, size=len(pos))
-            ut = torch.tensor(u); it = torch.tensor(i); jt = torch.tensor(j)
+            ut = torch.tensor(u, device=self.dev)
+            it = torch.tensor(i, device=self.dev)
+            jt = torch.tensor(j, device=self.dev)
             opt.zero_grad()
             xui = (self.U[ut] * self.E[it]).sum(1)
             xuj = (self.U[ut] * self.E[jt]).sum(1)
@@ -58,7 +61,7 @@ class BPRMFRec:
             for k, e in enumerate(cand):
                 a = self.event_activity.get(int(e))
                 if a is not None and a in self.act_index:
-                    out[k] = float((uvec * self.E[self.act_index[a]]).sum())
+                    out[k] = float((uvec * self.E[self.act_index[a]]).sum().cpu())
                 else:
                     out[k] = float(self.fallback.score(user_id, np.array([e]))[0])
         return out

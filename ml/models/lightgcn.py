@@ -24,6 +24,7 @@ class LightGCNRec:
         self.act_index = {a: i for i, a in enumerate(acts)}
 
         torch.manual_seed(self.seed); rng = np.random.default_rng(self.seed)
+        self.dev = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         uidx = self.fc.user_index
         nU, nA = len(uidx), len(self.act_index)
         # user -> activity edges from train attendances
@@ -55,8 +56,8 @@ class LightGCNRec:
         with torch.sparse.check_sparse_tensor_invariants(False):
             A = torch.sparse_coo_tensor(np.vstack([rows, cols]),
                                         torch.tensor(vals, dtype=torch.float32),
-                                        (n, n)).coalesce()
-        emb = torch.nn.Parameter(torch.randn(n, self.dim) * 0.01)
+                                        (n, n)).coalesce().to(self.dev)
+        emb = torch.nn.Parameter(torch.randn(n, self.dim, device=self.dev) * 0.01)
         opt = torch.optim.Adam([emb], lr=self.lr)
 
         def propagate(e):
@@ -68,8 +69,9 @@ class LightGCNRec:
         for _ in range(self.epochs):
             allemb = propagate(emb)
             idx = rng.integers(0, len(pos), size=len(pos))
-            u = torch.tensor(pos[idx, 0]); i = torch.tensor(nU + pos[idx, 1])
-            j = torch.tensor(nU + rng.integers(0, nA, size=len(pos)))
+            u = torch.tensor(pos[idx, 0], device=self.dev)
+            i = torch.tensor(nU + pos[idx, 1], device=self.dev)
+            j = torch.tensor(nU + rng.integers(0, nA, size=len(pos)), device=self.dev)
             opt.zero_grad()
             xui = (allemb[u] * allemb[i]).sum(1)
             xuj = (allemb[u] * allemb[j]).sum(1)
@@ -90,7 +92,7 @@ class LightGCNRec:
             for k, e in enumerate(cand):
                 a = self.event_activity.get(int(e))
                 if a is not None and a in self.act_index:
-                    out[k] = float((uvec * self.final[self.nU + self.act_index[a]]).sum())
+                    out[k] = float((uvec * self.final[self.nU + self.act_index[a]]).sum().cpu())
                 else:
                     out[k] = float(self.fallback.score(user_id, np.array([e]))[0])
         return out

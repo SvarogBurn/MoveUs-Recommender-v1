@@ -31,17 +31,18 @@ class DeepFMRec:
     def fit(self, ctx):
         self.fc = ctx.features
         torch.manual_seed(self.seed)
+        self.dev = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         Xp, Xn = build_pos_neg_pairs(ctx, self.fc, seed=self.seed)
         d = Xp.shape[1]
-        self.model = _DeepFM(d, self.k)
+        self.model = _DeepFM(d, self.k).to(self.dev)
         opt = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         bce = nn.BCEWithLogitsLoss()
-        X = torch.tensor(np.vstack([Xp, Xn]), dtype=torch.float32)
-        y = torch.tensor(np.concatenate([np.ones(len(Xp)), np.zeros(len(Xn))]), dtype=torch.float32)
+        X = torch.tensor(np.vstack([Xp, Xn]), dtype=torch.float32).to(self.dev)
+        y = torch.tensor(np.concatenate([np.ones(len(Xp)), np.zeros(len(Xn))]), dtype=torch.float32).to(self.dev)
         for _ in range(self.epochs):
             opt.zero_grad(); loss = bce(self.model(X), y); loss.backward(); opt.step()
     def score(self, user_id, candidate_event_ids):
         X = torch.tensor(self.fc.pair_dense(int(user_id), np.asarray(candidate_event_ids)),
-                         dtype=torch.float32)
+                         dtype=torch.float32).to(self.dev)
         with torch.no_grad():
-            return self.model(X).numpy()
+            return self.model(X).cpu().numpy()
