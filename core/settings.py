@@ -205,7 +205,7 @@ GRAPHENE = {
     "SCHEMA": "api.schema.schema",
 }
 
-FEED_RECOMMENDER = "main.feed.recommender.ChronologicalFeedRecommender"
+FEED_RECOMMENDER = "main.feed.ml_recommender.MLFeedRecommender"
 
 STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "gcs")
 

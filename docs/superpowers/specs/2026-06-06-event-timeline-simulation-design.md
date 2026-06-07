@@ -1,0 +1,482 @@
+# Event-Timeline Interaction Simulation — Design
+
+**Date:** 2026-06-06
+**Component:** `ml/generate_data.py`
+**Status:** Approved — ready for implementation planning
+
+## Motivation
+
+The current generator (`ml/generate_data.py`) samples each user's events
+independently in a single batch. This has three problems the thesis work wants
+to fix:
+
+1. **The social signal is wrong.** It boosts an event when the user *follows the
+   organiser* (`organizer_is_followed`, `W_SOCIAL`). In reality, what pulls a
+   person in is **how many people they already know are signed up** — and whether
+   past experiences with those people were good or bad.
+2. **No notion of who joined before whom.** Without temporal join order you
+   cannot compute "known attendees already in the event" or "past interactions
+   with people in this event."
+3. **Per-archetype Big Five is unsupported.** `ARCHETYPE_PERSONALITY` assigns
+   each motivation archetype its own Beta-distributed personality. There is no
+   research backing these distributions; the thesis itself used a single
+   `Normal(0.5, 0.1)` for all Big Five traits (`syntheticdata.txt` §2.1.2).
+
+This redesign moves the generator to a **chronological event-timeline
+simulation** where users join events one-by-one, making the roster and all
+shared history well-defined at each decision point.
+
+## Decisions (from brainstorming)
+
+| Decision | Choice |
+|---|---|
+| Architecture | Full event-timeline sim (chronological sweep, one-by-one joins) |
+| "Known attendee" sources | Follow relationship **∪** co-attendance history |
+| History sentiment | Valence-weighted (good shared history attracts, bad repels) |
+| Locality as "knowing" | **No** |
+| Follow network timing | **Seed + growth** — a small seed network pre-exists; the rest form over the timeline from positive co-attendance. `follows.csv` is a timestamped sim **output** (seed edges + grown edges) |
+| Follow seed | ~10–15% of **all** users start with 1–3 follows, including a small slice of cold users (models "joined because a friend invited me"). Plain `Follow` edges, no pending/request state |
+| Cold-user participation (I2) | Cold users join events and **feed warm users' social state** like anyone else (single realistic timeline). Evaluation-purity caveat noted in thesis |
+| Event attendance fields (B1/B2) | **Emergent** — `fill_rate`, `participant_count`, `social_density_cat`, `avg_organizer_rating` computed from the actual roster after the sweep, not pre-baked |
+| Zero-join warm users (B3) | **Force ≥1 join** — any warm user with no rated interaction gets one synthesized join to their best-matching event, preserving the LOO guarantee |
+| Frequency tier semantics | Soft propensity (expected count ≈ old tier, not exact) |
+| Organizer reputation ingredients | Past valence + global organizer score + first-time penalty |
+| Old `organizer_is_followed` boost | **Removed** |
+| Big Five | Single `Normal(0.5, 0.1)` for all users; per-archetype Beta deleted |
+| Motivation archetypes | Keep all 4 as **behavioral-only** profiles |
+| Candidate pool | Prefiltered by activity/geo match (cost control) |
+| Survey fields made causal | `acquaintance_preference`, `preferred_group_size`, `participation_groups`, `enjoys_meeting_new_people`, `activity_vs_social`, `motivated_by_competition` now drive matching/rating (today they're generated but inert) |
+| `acquaintance_preference` semantics | **Target/ideal** count of familiar faces — both too-few and too-many known attendees reduce fit |
+| Survey-field generation | **Decoupled** — drawn from their own broad distributions, independent of the (now-flat) Big Five, so they carry real, learnable variation |
+| Motivation homophily | Same-motivation roster mates stochastically boost U's **rating** and **follow-formation** (same-type positive pairs more likely to become **mutual** follows); applies to all 4 archetypes |
+| Event time window | `events.csv` emits explicit **`end_time`** (= `start_time + duration_hours`), matching the backend `Event` schema |
+| Temporal conflicts | A user **cannot join two time-overlapping events** — booked `[start,end]` intervals are tracked during the sweep |
+| Duration fit | `preferred_session_duration` made causal — `dur_fit` penalises `\|event_duration − preferred\|` |
+| **`participation_groups` bug fix** | Currently mismodeled as size bands (SOLO/PAIR/…). Correct meaning is **social-circle tier** (`FIRST_HAND`, `SECOND_HAND`, `COMMON_INTERESTS`); ROMANTIC_ONE_ON_ONE is **dropped** from generation |
+| `group_fit` split | Into **`size_fit`** (from `preferred_group_size`, **gated to flexible-size sports only**) and **`tier_fit`** (roster's social-circle composition vs preferred tiers) |
+| Flexible-size sports | Per-activity **`is_flexible_size`** flag (all 31). Fixed-format sports (soccer, tennis, basketball…) ignore `preferred_group_size`; flexible ones (hiking, running, gym…) honour it |
+| Rating satisfaction | Rating gets a bump when the **realized roster matches** U's social prefs: members from U's preferred tier(s) present, and acquaintance count ≈ `acquaintance_preference` |
+| Gender distribution | **Weighted categorical** (not uniform): Male ≈ 48%, Female ≈ 48%, Non-binary ≈ 2%, Prefer-not-to-say ≈ 2% |
+| Organiser selection | Organisers drawn only from users reporting high `organizing_openness` ("would organise") or high `leadership_inclination`; **≈ 1 in 12** users is host-eligible, so organisers are rare |
+| Fit coefficients | Re-aligned to **Table 17** of `syntheticdata.txt` (see §1a): `0.42·O·risk`, `0.42·E·social`, `0.75·H·risk`, `−0.47·N·risk` are verbatim; conscientiousness·consistency is **theoretical** (no empirical value); the old `−0.47·N·injury` and `0.38·H·risk` were misattributed and are corrected |
+
+## Architecture
+
+### 1. Personality & archetypes
+
+- **Big Five (`O,C,E,A,N,H`)**: one `Normal(0.5, 0.1)` clipped to `[0,1]`,
+  identical distribution for every user. Delete `ARCHETYPE_PERSONALITY` and the
+  per-archetype Beta sampling loop in `generate_users`.
+- **Motivation archetypes** remain (`competitive`, `casual_recreational`,
+  `social`, `unmotivated`) and continue to drive **behavioral** parameters only:
+  `RATE_PROB`, `LEAVE_PROB`, `FREQ_TIER_DIST`, and `SOCIAL_WEIGHT`. Personality
+  and motivation are now independent axes.
+- `SOCIAL_WEIGHT[archetype]` now scales the **known-attendees** signal instead of
+  the organiser-follow signal.
+- **Survey-preference fields are decoupled from Big Five.** Because Big Five is
+  now flat, fields previously derived from it (`acquaintance_preference`,
+  `preferred_group_size`, `participation_groups`, `enjoys_meeting_new_people`,
+  `activity_vs_social`, `motivated_by_competition`) would collapse toward
+  constants. Instead each is drawn from its **own broad distribution** in
+  `generate_users`, giving genuine per-user spread. These mirror the frontend
+  survey (`moveus-web/src/surveys/preferences-survey.ts`) so the simulator's
+  causal inputs match what the real app actually collects.
+- **`participation_groups` is regenerated correctly** as a multi-hot over the real
+  `ParticipationGroupKind` tiers — `FIRST_HAND` (friends/family), `SECOND_HAND`
+  (friends-of-friends), `COMMON_INTERESTS` (strangers) — replacing the current
+  size-band misinterpretation. `ROMANTIC_ONE_ON_ONE` is omitted. The old
+  `_participation_groups()` helper (extraversion → size bands) is rewritten.
+- **`is_flexible_size`** is a per-activity flag (all 31 activities) marking
+  whether the sport has a flexible headcount (hiking, running, gym, yoga…) versus
+  a fixed format (soccer, tennis, basketball, volleyball…). It gates `size_fit`.
+- **Gender** is sampled from a **weighted** categorical (`Gender` enum:
+  MALE / FEMALE / NON_BINARY / PREFER_NOT_TO_SAY) with probabilities
+  ≈ `[0.48, 0.48, 0.02, 0.02]` — two majority groups and two small minority
+  groups — replacing the current uniform `rng.integers(0,4)`.
+
+### 1a. Personality–activity fit (coefficient provenance)
+
+The fit between a user and a sport cluster is a weighted sum over four cluster
+attributes — `risk` (= `risk_tolerance`), `consistency` (= `consistency_demand`),
+`social` (= `social_interaction`), `injury` (= `injury_risk`). These four attribute
+**names** are real sport-dataset attributes, but the **per-cluster values** in
+`CLUSTER_ATTRS` are hand-authored representative numbers, **not** computed from the
+dataset's per-cluster means (see Out of scope).
+
+The **coefficients** must be corrected. The current code
+(`0.42·O·risk + 0.45·C·consistency + 0.42·E·social − 0.47·N·injury + 0.38·H·risk`)
+only partly matches Table 17 of `syntheticdata.txt`:
+
+| Current term | Table 17 (verbatim) | Status |
+|---|---|---|
+| `0.42 · O · risk` | "Openness … Risk tolerance **0.42** [84]" | ✅ keep |
+| `0.42 · E · social` | "Extraversion … Social interaction **0.42** [96]" | ✅ keep |
+| `−0.47 · N · injury` | "Neuroticism Risk tolerance **−0.47** [84]" | ⚠️ retarget to **risk**, not injury |
+| `0.38 · H · risk` | "Hardiness Risk tolerance **0.75** [103]" | ❌ wrong value (0.38 is Extraversion's risk); use **0.75** |
+| `0.45 · C · consistency` | "Consistency demand — **strong theoretical link**, no number" | ❌ no empirical value; mark theoretical |
+
+**Corrected formula to implement:**
+```
+fit = 0.42·O·risk + 0.42·E·social + 0.75·H·risk − 0.47·N·risk + w_C·C·consistency
+```
+- The four risk/social terms are **verbatim** from Table 17.
+- `w_C` (conscientiousness · consistency) has **no empirical estimate** in the source;
+  set it by theoretical reasoning and label it as such in the paper. Suggested modest
+  value `w_C ≈ 0.30` (tunable), explicitly non-empirical.
+- Consequence: `injury` drops out of the fit. `injury_risk` may be removed from
+  `CLUSTER_ATTRS` or retained for other uses; document either way.
+- The base-rating rescale (`fit·3 + 1`) should be re-checked after this change, since
+  the coefficient magnitudes shift (esp. hardiness 0.38 → 0.75).
+
+### 2. Main loop — chronological sweep
+
+```
+sort events by start_time ascending
+for each event E in time order:
+    roster        = [organizer(E)]
+    candidates    = prefilter(warm + cold users by activity/geo match to E)
+                    minus users already booked in an overlapping [start,end]
+    capacity      = max_participants(E)
+    repeat passes (until capacity reached OR a pass adds < epsilon new joins):
+        for U in shuffle(undecided candidates):
+            if len(roster) >= capacity: break
+            p = sigmoid( base_propensity(U)
+                       + w_act(U)  * match(U, E)              # activity-vs-social blend
+                       + w_soc(U)  * social_block(U, roster)  # known/unknown + valence
+                       + size_fit(U, E, roster)             # preferred_group_size (flexible sports only)
+                       + tier_fit(U, E, roster)             # participation social-circle tiers
+                       + comp_fit(U, E)                      # motivated_by_competition
+                       + dur_fit(U, E)                       # preferred_session_duration
+                       + W_ORG     * organizer_rep(U, E) )
+            if bernoulli(p):
+                add U to roster; record join order + decision timestamp;
+                book U for [E.start_time, E.end_time]
+    resolve E (ratings / leaves) for all roster members except organiser
+    update accumulating state (below)
+```
+
+Joins update the roster **mid-pass**, so a friend joining earlier in a pass can
+trigger later joins → social cascades emerge naturally.
+
+### 3. Signals
+
+**`match(U, E)`** — unchanged components from today's `_join_probs`: activity/
+cluster match, skill compatibility, distance, availability, personality-fit.
+(`W_ACT, W_SKILL, W_DIST, W_AVAIL, W_PERS` retained.)
+
+**`social_block(U, roster)`** — combines familiarity, acquaintance-preference fit,
+the new-people pull, and `SOCIAL_WEIGHT`. Built from three counts over the
+already-joined members `m`:
+
+- **`known(U, m)`** = `1` if `U` follows `m` **as of the current event's time**
+  (or `m` follows `U`), else a `co_attend_valence(U, m)` term for prior
+  co-attendees (positive if shared history was good, negative if bad). Only
+  follow edges created *before* this event's `start_time` count — the signal
+  respects follow-time.
+- **`known_count`** = number of roster members U knows (follow or prior
+  co-attendance); **`unknown_count`** = the rest.
+
+These feed:
+- **Acquaintance-target fit** — `acquaintance_preference` maps to a target count
+  of familiar faces (`Nobody→0, One→1, Two→2, ThreePlus→~3–4, Everyone→whole
+  roster`). Fit **peaks at the target and falls off in BOTH directions**:
+  `acq_fit = −β · |known_count − target(U)|`. A "Nobody" user is actively
+  repelled by a friend-packed event; an "Everyone" user is unsatisfied by
+  strangers.
+- **New-people pull** — `+ γ · enjoys_meeting_new_people(U) · f(unknown_count)`:
+  high scorers are drawn to events full of strangers.
+- **Valence familiarity** — `SOCIAL_WEIGHT[archetype(U)] · Σ_m known(U, m)`: the
+  running quality of who U knows in the room.
+
+`social_block = acq_fit + new_people_pull + valence_familiarity`.
+
+Note on overlap: a follow edge and positive co-attendance can both apply to the
+same pair — intended. The follow is the stronger, persistent tie; valence is the
+running quality of shared history.
+
+**`organizer_rep(U, E)`** — secondary, smaller weight `W_ORG` (≪ social weight):
+- `past_valence(U, organizer(E))` — U's personal history with this organiser
+- `global_organizer_score(organizer)` — running mean of ratings this organiser's
+  past events received (centred so neutral ≈ 0)
+- `first_time_penalty` — small negative if organiser has run 0 prior events
+
+The organiser also sits in the roster as `roster[0]`, so a joiner's history with
+them additionally surfaces through `social_block`. This overlap is intended and
+mild given `W_ORG ≪ SOCIAL_WEIGHT`; `organizer_rep` adds the *public-reputation*
+and *first-time* signals that co-attendance alone doesn't carry.
+
+**`w_act(U)` / `w_soc(U)`** — the activity-vs-social blend from
+`activity_vs_social` (1–5). It is normalised to `s ∈ [0,1]` and split so an
+activity-driven user weights `match` more and a socially-driven user weights
+`social_block` more (`w_act = 1 − λ·s`, `w_soc = λ·s`, with the exact slope a
+tunable constant). One knob, two opposing pulls. *(Direction of the 1–5 scale to
+be confirmed against the `scaleActivitySocial` translation strings at
+implementation time.)*
+
+**`size_fit(U, E, roster)`** — from `preferred_group_size`, **only for
+flexible-size activities** (`is_flexible_size` flag; fixed-format sports like
+soccer/tennis ignore it entirely, since the sport dictates the size). Gaussian
+penalty on `|expected_or_current_size − preferred_group_size|`.
+
+**`tier_fit(U, E, roster)`** — from the corrected `participation_groups` multi-hot
+over social-circle tiers (`FIRST_HAND`, `SECOND_HAND`, `COMMON_INTERESTS`;
+ROMANTIC dropped). Maps each tier onto the follow graph at decision time:
+- **FIRST_HAND** = roster members U directly follows (friends/family)
+- **SECOND_HAND** = friends-of-friends (2-hop in the follow graph, not direct)
+- **COMMON_INTERESTS** = strangers in the roster who share U's activity interest
+
+`tier_fit` is positive when the roster contains members of U's **preferred**
+tier(s) and mildly negative when it's dominated by tiers U did *not* select (e.g.
+a FIRST_HAND-only user faced with an all-stranger roster). 2-hop membership is
+computed from a per-user friends-of-friends set, refreshed periodically as the
+follow graph grows (exact refresh cadence a tunable implementation detail).
+
+**`comp_fit(U, E)`** — from `motivated_by_competition` (1–5): competition-hungry
+users get a positive term on higher-`skill_level` / higher-`competitive`-cluster
+events and a mild penalty on very casual ones; low scorers are indifferent. Also
+feeds the rating (Section 4).
+
+**`dur_fit(U, E)`** — from `preferred_session_duration` (minutes): Gaussian-style
+penalty on `|event_duration − preferred_session_duration|`, so users skew toward
+sessions of their preferred length. (`event_duration = end_time − start_time`.)
+
+**Temporal conflict avoidance** — each user carries a list of booked
+`[start, end]` intervals from events they've already joined. A candidate is
+filtered out of an event whose window overlaps any booked interval, so no user is
+ever placed in two simultaneous events. Because the sweep is chronological and a
+user's bookings only grow, this is a cheap interval check at candidate-build
+time.
+
+### 4. Accumulating state
+
+- **Co-attendance map**: sparse `{(u, other) -> [count, valence_sum]}`, updated
+  after each event resolves. Only materialised for pairs that actually co-attend.
+- **Follow set**: directed `{u -> set(following)}` plus an append log of
+  `(follower, following, time_created)` rows. **Pre-seeded** by
+  `seed_follows` (below); additional edges are earned over the timeline.
+- **Organizer stats**: `{organizer -> [events_run, rating_sum]}`.
+- **Per-user join count**: for telemetry / split logic.
+
+**Follow-formation rule** (runs inside `resolve_event`, after valence is known):
+for each ordered pair `(U, V)` who shared a **positive** experience at this event
+and where `U` does not already follow `V`, `U` follows `V` with probability
+`p_follow = clip(base · extraversion(U) · (0.5 + 0.5·agreeableness(U)), 0, 1)`,
+weighted up by the strength of the positive valence. New edges are timestamped at
+the event's end time and only affect events that start later.
+
+**Seed network** (`seed_follows`, runs once before the timeline starts):
+~10–15% of **all** users are chosen as "socially pre-connected" and each given
+1–3 follows, biased toward same-geo / higher-extraversion targets. A small slice
+of the **cold** users is deliberately included, so some held-out users enter the
+timeline with a tiny social graph but still zero interaction history (the
+"invited by a friend" cold-start case). Seed edges are plain `Follow` rows
+timestamped at `START_DATE` (i.e. before any event), so they count for every
+event under the follow-time gate. No pending/request state — matches the backend
+`Follow` schema.
+
+**Valence rule** for a pair sharing an event:
+- **Positive** if both members stayed and (rated ≥ 3, or did not rate but did not
+  leave).
+- **Negative** if either member left, or rated ≤ 1.
+- Otherwise neutral (no valence update).
+
+Organizer valence for `U` follows the same rule against U's own rating/leave for
+that organiser's event.
+
+**Motivation homophily** (applied at `resolve_event`, all 4 archetypes): for each
+member `U`, let `same = #roster members sharing U's motivation_type` (excluding
+U). Like-minded company improves the experience:
+- **Rating bump** — with probability rising in `same / roster_size`, add a small
+  positive increment to U's rating before clipping (competitive thrives among
+  competitors, social among social, etc.). It's stochastic ("sometimes"), not
+  deterministic.
+- **Follow boost** — in the follow-formation step, a positive pair `(U, V)` that
+  **shares a motivation_type** gets a higher `p_follow`, and a raised chance the
+  edge is **mutual** (both follow each other) rather than one-directional.
+
+This reinforces, but does not replace, the valence-driven follow rule: a positive
+shared experience is still the precondition; homophily only amplifies it.
+
+**Social-preference satisfaction (rating)** — beyond influencing whether U joins,
+a roster that *matches* U's social preferences makes the event more enjoyable, so
+it nudges U's rating upward at `resolve_event`:
+- **Tier satisfaction** — if the roster contains members of U's **preferred
+  participation tier(s)** (e.g. a FIRST_HAND user actually attends with friends),
+  add a small positive increment.
+- **Acquaintance-count satisfaction** — if the number of acquaintances present is
+  **close to U's `acquaintance_preference`** target, add a small bump; far off
+  (too few or too many) gives no bump. This mirrors the join-time `acq_fit` so
+  preference satisfaction shows up in *both* the decision and the rating.
+
+These are modest, stochastic increments applied before clipping to 0–4 — they
+shade ratings, they don't dominate the personality/activity-fit base.
+
+### 5. Frequency as soft propensity
+
+Each user gets a per-user intercept `base_propensity(U)` (replacing the global
+`LOGIT_BIAS`) tuned so the user's **expected** total joins over the timeline ≈
+their tier midpoint:
+
+| Tier | Old (lo, hi) | Target midpoint |
+|---|---|---|
+| sparse | (2, 6) | 4 |
+| occasional | (12, 22) | 17 |
+| regular | (28, 45) | 36 |
+| frequent | (70, 120) | 95 |
+
+Calibration: over the **same prefiltered candidate set** used in enrollment
+(Section 6), compute each user's **static** logit terms once — `w_act·match`,
+`comp_fit`, and `dur_fit` (the roster-independent terms) — then solve
+`base_propensity(U)` so `Σ sigmoid(static + base + δ) ≈ target` via bisection.
+The roster-dependent terms (`social_block`, `size_fit`, `tier_fit`,
+`organizer_rep`) are dynamic and folded into `δ`.
+`δ` is a **small constant expected-social offset** (the social/organizer terms
+are net-positive on average, so omitting them entirely biases counts upward —
+`δ` absorbs the bulk of that drift). Residual social pull still tips marginal
+joins, so actual counts vary around the target. **Tiers are no longer exact
+counts** — this is intended.
+
+### 6. Candidate prefiltering
+
+For each event, candidates = warm **and cold** users whose activity OR
+sport-cluster matches the event and who fall within a generous geo radius. Keeps
+evaluation count low. Accepted loss: a user cannot randomly stumble into a
+far-off, off-preference event.
+
+**Performance honesty:** today's batch sampling is fully vectorised; this design
+replaces it with a multi-pass, per-candidate Bernoulli loop in Python, which is
+materially slower. Mitigations: keep candidate pools tight, cap passes (≈2–3),
+and vectorise the per-pass logit/probability computation across undecided
+candidates (only the join-or-not draw and roster update are sequential). Expect a
+slower run than the current generator; if it becomes a bottleneck, vectorising a
+whole pass at once is the first optimisation.
+
+### 7. Outputs & splits (unchanged contract)
+
+- Same CSV outputs: `users.csv`, `events.csv`, `follows.csv`,
+  `interactions.csv`, `train.csv`, `test.csv`, `train_implicit.csv`,
+  `cold_start_users.csv`.
+- **`follows.csv` is now a sim output**, written after the timeline completes,
+  with columns `follower_id`, `following_id`, `time_created` (matching the
+  backend `Follow.time_created` field). The standalone `generate_follows()`
+  pre-pass is removed.
+- **`events.csv` gains `end_time`** = `start_time + duration_hours`, matching the
+  backend `Event(start_time, end_time)` schema. `duration_hours` is retained.
+- **`events.csv` attendance fields are emergent (B1/B2).** `fill_rate`,
+  `participant_count`, `social_density_cat`, and `avg_organizer_rating` are
+  computed from the **actual final roster / accumulated ratings** in a finalize
+  pass after the timeline, replacing the pre-baked Beta draws in
+  `generate_events`. There is one source of truth for who attended.
+  (`skill_diversity` stays a pre-baked approximation — it isn't derived from
+  roster identities, so the timeline doesn't make it stale.)
+- `interactions.csv` gains/keeps: `signal_type`, `rating`, `label`,
+  `implicit_label`, `signal_weight`, `timestamp`, plus **new** social/roster
+  features (`n_known_in_roster`, `n_unknown_in_roster`, `known_valence`,
+  `n_first_hand_in_roster`, `n_second_hand_in_roster`, `n_same_motivation`,
+  `acquaintance_target_gap`, `pref_tier_match`, `organizer_score`,
+  `organizer_first_time`, `join_order`). These are **snapshotted at U's decision
+  moment** (the partial roster as U joined), not the final roster. The old
+  `organizer_is_followed` column is removed.
+- **Zero-join warm users (B3).** After the sweep, any warm user with no rated
+  interaction is given one synthesized `join_rated` to their best-matching event,
+  so the LOO split's "one test row per warm user" guarantee holds. Count of such
+  fallbacks is reported.
+- Leave-one-out per warm user and held-out 1000 cold users: unchanged.
+- Early-timeline events naturally carry weak social/reputation signal (only the
+  seed follows exist) — realistic warm-up, no special handling.
+
+## Components & responsibilities
+
+| Unit | Responsibility | Depends on |
+|---|---|---|
+| `generate_users` | sample users; uniform Big Five; archetype + freq tier; survey-preference fields from own broad distributions | — |
+| `generate_events` | sample events with start_time, end_time (= start+duration), capacity; organiser drawn from host-eligible users (≈1/12) (no pre-baked attendance) | users (organiser ids) |
+| `seed_follows` | small pre-timeline seed network (~10–15% of users, incl. some cold) | users |
+| `calibrate_propensity` | per-user intercept from static match | users, events |
+| `social_state` | co-attendance map + follow set + organiser stats + per-user booked intervals (mutable) | seed_follows |
+| `run_enrollment(E)` | one event's one-by-one join process | match, social_state |
+| `resolve_event(E)` | ratings/leaves for roster; form follows; emit rows | social_state |
+| `finalize_events` | back-fill emergent attendance fields onto `events.csv` | rosters |
+| `ensure_min_joins` | synth fallback join for zero-join warm users (B3) | interactions |
+| `build_splits` | LOO + cold split | interactions |
+
+`social_state` is the one stateful unit; everything else reads it through a
+narrow interface (`social_block(u, roster, t)`, `organizer_rep(u, org)`,
+`update_after_event(...)` which also forms new follow edges). The follow network
+is initialised from `seed_follows`, then grown by `social_state` over the
+timeline, and dumped to `follows.csv` (seed + grown edges) at the end.
+
+## Out of scope (noted, not fixed here)
+
+- **`CLUSTER_ATTRS` per-cluster values.** The four attribute *names* (`risk` =
+  risk_tolerance, `consistency` = consistency_demand, `social` = social_interaction,
+  `injury` = injury_risk) are real sport-dataset attributes, but the per-cluster
+  numbers are **hand-authored representative values**, not computed from the
+  dataset's per-cluster means. For full rigor they should be derived from the
+  sport dataset; until then they must be disclaimed as representative. (The fit
+  *coefficients* that multiply these attributes **are** corrected here — see §1a.)
+- **`CLUSTER_EFA` is removed.** The per-event EFA factors `f1..f8` (generated from
+  `CLUSTER_EFA`) are dropped entirely — see the
+  [feature-pipeline spec](2026-06-06-feature-pipeline-redesign-design.md); the
+  cluster one-hot is retained instead.
+
+## Testing
+
+- **Determinism**: same `SEED` → identical outputs.
+- **Frequency calibration**: per-tier mean join count within ±15% of target
+  midpoints over the full run.
+- **Social cascade sanity**: events should show join_order correlation between
+  followed/known pairs (followed users cluster in roster order more than chance).
+- **Valence effect**: holding match constant, users with prior positive history
+  toward roster members join at higher rate than those with negative history.
+- **Follow seed + growth**: `follows.csv` starts at the seed size (~10–15% of
+  users with 1–3 follows each, seed edges timestamped at `START_DATE`) and grows
+  monotonically over time; every `time_created` falls within the window; no
+  follow edge is referenced by a join decision before its `time_created`.
+- **Cold-user seed**: a small, non-zero number of cold users appear as followers
+  in the seed; cold users still have zero interaction rows before the timeline.
+- **Follow homophily**: extraverted users accumulate more follows on average; new
+  (grown) follows correlate with prior positive co-attendance.
+- **Emergent event fields**: `participant_count` in `events.csv` equals the
+  actual roster size; `avg_organizer_rating` matches ratings accumulated for that
+  organiser. No event reports a fill it didn't have.
+- **Min-join guarantee (B3)**: every warm user has ≥1 rated interaction, so
+  `test.csv` has exactly one row per warm user.
+- **Survey-field spread**: the decoupled survey fields show wide, non-degenerate
+  distributions across users (not collapsed near a single value).
+- **Acquaintance-target effect**: holding match constant, a low-`acquaintance_pref`
+  user joins friend-packed events *less* than a high-`acquaintance_pref` user
+  (penalty in both directions, not monotonic).
+- **New-people effect**: high `enjoys_meeting_new_people` users join
+  stranger-heavy events at a higher rate.
+- **Group-size fit (gated)**: small-group preferrers under-join large-capacity
+  events **only for flexible-size sports**; for fixed-format sports (soccer,
+  tennis) `preferred_group_size` has no effect.
+- **Participation tiers**: `participation_groups` is a multi-hot over
+  FIRST_HAND/SECOND_HAND/COMMON_INTERESTS (never ROMANTIC); FIRST_HAND-preferring
+  users join/rate friend-containing rosters higher; COMMON_INTERESTS users are
+  fine with strangers.
+- **Social-preference satisfaction (rating)**: holding base fit constant, ratings
+  are higher when the roster includes preferred-tier members and when the
+  acquaintance count is near `acquaintance_preference`.
+- **Competition fit**: high `motivated_by_competition` users skew toward
+  higher-`skill_level` events.
+- **Motivation homophily**: same-motivation roster mates correlate with higher
+  ratings and more (and more *mutual*) follows than mixed-motivation rosters,
+  holding match/valence constant.
+- **Event time window**: every event has `end_time > start_time` and
+  `end_time − start_time == duration_hours`.
+- **No temporal conflicts**: no user appears in two events whose `[start,end]`
+  windows overlap.
+- **Duration-fit effect**: holding match constant, users join events closer to
+  their `preferred_session_duration` at a higher rate.
+- **Gender distribution**: the four categories appear at ≈ 48/48/2/2%, not uniform.
+- **Organiser eligibility**: every event's organiser is a host-eligible user (high
+  `organizing_openness` or `leadership_inclination`); host-eligible users are
+  ≈ 1/12 of the population.
+- **Fit coefficients**: the implemented fit uses `0.42·O·risk`, `0.42·E·social`,
+  `0.75·H·risk`, `−0.47·N·risk` (Table-17 verbatim) and a flagged-theoretical
+  conscientiousness·consistency term; no `N·injury` or `0.38·H` terms remain.
+- **Split integrity**: every warm user has exactly one test row; no cold user in
+  train/test; no leave row used as a LOO positive.
+- **Schema**: `interactions.csv` has the new columns and not the removed one.
