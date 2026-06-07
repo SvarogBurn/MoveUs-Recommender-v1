@@ -1,14 +1,6 @@
-import sys
-from pathlib import Path
-
-import numpy as np
-
-# Add ml module to path for imports
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "ml"))
-
-from main.feed.recommender import FeedRecommender, FeedItem
-from main.event.models import Event
 from main.event.services import EventService
+from main.feed.recommender import FeedItem, FeedRecommender
+from main.user.models import User
 from shared.enums import EventPhase
 from shared.utils.pagination import validate_pagination
 
@@ -20,44 +12,42 @@ except ImportError:
 
 
 class MLFeedRecommender(FeedRecommender):
-    """ML-based event recommender using trained model."""
-    
+    """ML-based event recommender using the trained DeepFM model."""
+
     def __init__(self):
-        self.recommender = None
-        if ML_AVAILABLE:
-            self.recommender = get_recommender()
-    
+        self.recommender = get_recommender() if ML_AVAILABLE else None
+
     def recommend(self, user_id: int, start: int, end: int) -> list[FeedItem]:
-        """Get recommended events for user using ML model.
-        
-        Falls back to popularity if model unavailable.
-        """
         validate_pagination(start, end)
-        
-        # Get candidate events (upcoming/scheduled only)
-        events = EventService._queryset().filter(phase=EventPhase.SCHEDULED)
-        if not events.exists():
+
+        events = list(
+            EventService._queryset()
+            .filter(phase=EventPhase.SCHEDULED)
+            .select_related("location", "activity")
+        )
+        if not events:
             return []
-        
-        event_ids = list(events.values_list("id", flat=True))
-        
-        # Score with ML model
+
         if self.recommender and self.recommender.is_ready():
             try:
-                scores = self.recommender.score(user_id, event_ids)
-                scored_events = list(zip(events, scores))
-                scored_events.sort(key=lambda x: -x[1])  # descending by score
-                items = [FeedItem(obj=e, rank_key=score) for e, score in scored_events]
+                user = (
+                    User.objects
+                    .prefetch_related(
+                        "preferences__availabilities",
+                        "preferences__preferred_activities",
+                    )
+                    .get(pk=user_id)
+                )
+                scores = self.recommender.score_live(user, events)
+                scored = sorted(zip(events, scores), key=lambda x: -x[1])
+                return [FeedItem(obj=e, rank_key=float(s)) for e, s in scored][start:end]
             except Exception as e:
-                print(f"ML recommender error: {e}, falling back to popularity")
-                items = self._fallback_recommend(events)
-        else:
-            items = self._fallback_recommend(events)
-        
-        return items[start:end]
-    
+                print(f"ML recommender error: {e}, falling back to chronological")
+
+        return self._fallback_recommend(events)[start:end]
+
     def _fallback_recommend(self, events) -> list[FeedItem]:
-        """Fallback: rank by event start time (soonest first)."""
-        items = [FeedItem(obj=e, rank_key=e.start_time) for e in events]
-        items.sort(key=lambda item: item.rank_key)
-        return items
+        return sorted(
+            [FeedItem(obj=e, rank_key=e.start_time) for e in events],
+            key=lambda x: x.rank_key,
+        )
