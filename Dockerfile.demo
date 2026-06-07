@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y
 
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir numpy pandas scikit-learn
+RUN pip install --no-cache-dir numpy pandas scikit-learn faker
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 
 RUN groupadd --system app \

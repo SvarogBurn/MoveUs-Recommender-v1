@@ -1,12 +1,15 @@
 """Seed demo users and events from ml/data/ CSVs for local algorithm demonstrations.
 
 Usage:
-    python manage.py seed_demo_data                          # 20 users, 100 events, 10 history, follows
-    python manage.py seed_demo_data --users 50 --events 200
+    python manage.py seed_demo_data                          # 20 users, 25 events
+    python manage.py seed_demo_data --users 20 --events 25
     python manage.py seed_demo_data --clear                  # wipe then re-seed
     python manage.py seed_demo_data --clear --users 0 --events 0  # wipe only
 
 Demo credentials: demo_<id>@moveus.demo / demo123
+
+Events are identified for cleanup by a hidden marker at the end of their description
+(\\n#demo), so titles can be fully realistic faker-generated strings.
 """
 
 import csv
@@ -32,16 +35,37 @@ from main.user.models import (
 )
 from shared.enums import ActivityKind, EventPhase, EventRating, MemberRole
 
+try:
+    from faker import Faker
+    _fake = Faker("en_US")
+    _fake.seed_instance(42)
+    _FAKER_AVAILABLE = True
+except ImportError:
+    _FAKER_AVAILABLE = False
+
 DEMO_USERNAME_PREFIX = "demo_"
-DEMO_TITLE_PREFIX = "[Demo] "
+# Hidden marker appended to every demo event description — used for cleanup.
+_DEMO_MARKER = "\n#demo"
 
 # Shift synthetic 2023-era events into the future so the UI shows them as upcoming.
-# 2023-01-01 + 1278 days ≈ 2026-07-04.
-_TIME_OFFSET = timedelta(days=1278)
+_TIME_OFFSET = timedelta(days=1278)  # 2023-01-01 + 1278 d ≈ 2026-07-04
+
+_ZAGREB_VENUES = [
+    "Maksimir Park", "Bundek Lake", "Jarun Lake", "Sava Embankment",
+    "Medvednica Mountain", "Salata Sports Centre", "Dom Sportova",
+    "Šalata Recreation Area", "Bundek Sports Complex", "City Park Zagreb",
+]
+
+_SKILL_LABELS = {0: "Beginner", 1: "Open Level", 2: "Intermediate", 3: "Advanced"}
+_SKILL_DESC   = {
+    0: "complete beginners and newcomers",
+    1: "all levels — everyone welcome",
+    2: "intermediate players looking to improve",
+    3: "advanced athletes who want a serious workout",
+}
 
 
 def _parse_list(raw: str) -> list[int]:
-    """Parse a CSV field that may be a single int or a comma-separated list."""
     return [int(x) for x in raw.split(",") if x.strip()]
 
 
@@ -52,28 +76,80 @@ def _activity_label(activity_id: int) -> str:
         return f"Activity {activity_id}"
 
 
+def _event_title(activity_label: str, skill_level: int) -> str:
+    skill = _SKILL_LABELS.get(skill_level, "Open Level")
+    venue = random.choice(_ZAGREB_VENUES)
+    time_word = random.choice(["Morning", "Afternoon", "Evening", "Weekend", "Saturday", "Sunday"])
+    templates = [
+        f"{time_word} {activity_label} at {venue}",
+        f"{activity_label} Session — {skill}",
+        f"Weekly {activity_label} Meetup",
+        f"{activity_label} at {venue}",
+        f"Open {activity_label} — {skill}",
+        f"{skill} {activity_label} Training",
+        f"{activity_label} Group — {venue}",
+    ]
+    if _FAKER_AVAILABLE:
+        templates += [
+            f"{_fake.first_name()}'s {activity_label} Group",
+            f"{activity_label} near {_fake.street_name()}",
+        ]
+    return random.choice(templates)
+
+
+def _event_description(activity_label: str, skill_level: int, max_participants: int) -> str:
+    skill_desc = _SKILL_DESC.get(skill_level, "all levels")
+    intros = [
+        f"We're looking for people to join our {activity_label.lower()} session in Zagreb.",
+        f"Come join us for a great {activity_label.lower()} meetup!",
+        f"Organising a {activity_label.lower()} session — everyone is welcome.",
+        f"Join our {activity_label.lower()} group for a fun and active session.",
+        f"A {activity_label.lower()} session open to {skill_desc}.",
+    ]
+    middles = [
+        f"Suitable for {skill_desc}.",
+        f"We welcome {skill_desc}.",
+        f"Open to {skill_desc} — no judgement, just sport.",
+    ]
+    outros = [
+        f"Limited to {max_participants} participants, so sign up early!",
+        f"Max {max_participants} spots — first come, first served.",
+        f"Bring water and appropriate gear. {max_participants} spots available.",
+        f"Equipment can be shared. Maximum {max_participants} people.",
+    ]
+    extra = ""
+    if _FAKER_AVAILABLE:
+        extra = f" {_fake.sentence()}"
+    desc = f"{random.choice(intros)} {random.choice(middles)}{extra} {random.choice(outros)}"
+    return desc + _DEMO_MARKER
+
+
 class Command(BaseCommand):
     help = "Seed demo users and events from ml/data/ CSVs for local demonstrations."
 
     def add_arguments(self, parser):
         parser.add_argument("--users", type=int, default=20,
                             help="Number of users to seed (default 20)")
-        parser.add_argument("--events", type=int, default=100,
-                            help="Number of events to seed (default 100)")
-        parser.add_argument("--history", type=int, default=10,
-                            help="Past attendances per user for ML history features (default 10)")
+        parser.add_argument("--events", type=int, default=25,
+                            help="Number of scheduled events to seed (default 25)")
+        parser.add_argument("--history", type=int, default=12,
+                            help="Past attendances per user for ML history features (default 12)")
         parser.add_argument("--no-follows", action="store_true",
-                            help="Skip seeding follow relationships between demo users")
+                            help="Skip seeding follow relationships")
         parser.add_argument("--clear", action="store_true",
                             help="Delete existing demo data before seeding")
 
     def handle(self, *args, **options):
+        if not _FAKER_AVAILABLE:
+            self.stdout.write(self.style.WARNING(
+                "faker not installed — using template-based titles/descriptions."
+            ))
+
         if options["clear"]:
             self._clear()
 
         n_users = options["users"]
         n_events = options["events"]
-
         if n_users == 0 and n_events == 0:
             return
 
@@ -83,28 +159,27 @@ class Command(BaseCommand):
             self._ensure_activities()
             created_users = self._seed_users(data_dir, n_users)
             created_events = self._seed_events(data_dir, n_events)
+            created_members = self._seed_event_members()
             created_history = self._seed_history(options["history"])
             created_follows = 0 if options["no_follows"] else self._seed_follows()
 
         self.stdout.write(self.style.SUCCESS(
             f"Done.\n"
-            f"  {created_users} users, {created_events} scheduled events\n"
-            f"  {created_history} past attendances (history features)\n"
+            f"  {created_users} users,  {created_events} scheduled events\n"
+            f"  {created_members} event sign-ups (events now partially filled)\n"
+            f"  {created_history} past attendances (history features populated)\n"
             f"  {created_follows} follow relationships\n"
             f"Login: demo_<id>@moveus.demo / demo123  (e.g. demo_0@moveus.demo)"
         ))
 
     # ------------------------------------------------------------------
     def _clear(self):
-        demo_events = Event.objects.filter(title__startswith=DEMO_TITLE_PREFIX)
+        demo_events = Event.objects.filter(description__endswith=_DEMO_MARKER)
         location_ids = list(demo_events.values_list("location_id", flat=True))
         n_ev, _ = demo_events.delete()
         Location.objects.filter(id__in=location_ids).delete()
 
-        n_usr, _ = User.objects.filter(
-            username__startswith=DEMO_USERNAME_PREFIX
-        ).delete()
-
+        n_usr, _ = User.objects.filter(username__startswith=DEMO_USERNAME_PREFIX).delete()
         self.stdout.write(f"Cleared {n_usr} demo users and {n_ev} demo events.")
 
     # ------------------------------------------------------------------
@@ -125,9 +200,9 @@ class Command(BaseCommand):
 
         csv_path = data_dir / "users.csv"
         if not csv_path.exists():
-            self.stderr.write(
-                self.style.ERROR(f"Missing {csv_path}. Run: python -m ml.gen.timeline")
-            )
+            self.stderr.write(self.style.ERROR(
+                f"Missing {csv_path}. Run: python -m ml.gen.timeline"
+            ))
             return 0
 
         hashed_pw = make_password("demo123")
@@ -181,9 +256,7 @@ class Command(BaseCommand):
                 for act_id, skill in zip(pref_acts, pref_skills):
                     if act_id in valid_activity_ids:
                         UserPreferredActivity.objects.create(
-                            preferences=prefs,
-                            activity_id=act_id,
-                            skill_level=skill,
+                            preferences=prefs, activity_id=act_id, skill_level=skill,
                         )
 
                 avail_days = _parse_list(row["availability_days"])
@@ -191,8 +264,7 @@ class Command(BaseCommand):
                 UserAvailability.objects.bulk_create(
                     [
                         UserAvailability(preferences=prefs, day_of_week=d, time_of_day=t)
-                        for d in avail_days
-                        for t in avail_times
+                        for d in avail_days for t in avail_times
                     ],
                     ignore_conflicts=True,
                 )
@@ -214,9 +286,9 @@ class Command(BaseCommand):
 
         csv_path = data_dir / "events.csv"
         if not csv_path.exists():
-            self.stderr.write(
-                self.style.ERROR(f"Missing {csv_path}. Run: python -m ml.gen.timeline")
-            )
+            self.stderr.write(self.style.ERROR(
+                f"Missing {csv_path}. Run: python -m ml.gen.timeline"
+            ))
             return 0
 
         valid_activity_ids = set(Activity.objects.values_list("id", flat=True))
@@ -246,21 +318,23 @@ class Command(BaseCommand):
 
                 raw_max = row.get("max_participants", "").strip()
                 max_participants = int(float(raw_max)) if raw_max else 10
+                act_label = _activity_label(act_id)
+                skill_level = int(float(row["skill_level"]))
 
                 location = Location.objects.create(
                     latitude=float(row["latitude"]),
                     longitude=float(row["longitude"]),
-                    name=f"{_activity_label(act_id)} venue",
+                    name=random.choice(_ZAGREB_VENUES),
                     city="Zagreb",
                 )
-
                 Event.objects.create(
-                    title=f"{DEMO_TITLE_PREFIX}{_activity_label(act_id)} Session",
+                    title=_event_title(act_label, skill_level),
+                    description=_event_description(act_label, skill_level, max_participants),
                     start_time=start_dt,
                     end_time=end_dt,
                     location=location,
                     activity_id=act_id,
-                    skill_level=int(float(row["skill_level"])),
+                    skill_level=skill_level,
                     max_participants=max_participants,
                     phase=EventPhase.SCHEDULED,
                 )
@@ -269,13 +343,47 @@ class Command(BaseCommand):
         return created
 
     # ------------------------------------------------------------------
-    def _seed_history(self, n_per_user: int) -> int:
-        """Create finished past events + attendance records so history features are non-zero.
+    def _seed_event_members(self) -> int:
+        """Sign demo users up for scheduled events so events look populated (40–80% fill)."""
+        demo_users = list(User.objects.filter(username__startswith=DEMO_USERNAME_PREFIX))
+        demo_events = list(
+            Event.objects.filter(
+                description__endswith=_DEMO_MARKER, phase=EventPhase.SCHEDULED
+            )
+        )
+        if not demo_users or not demo_events:
+            return 0
 
-        Each demo user gets n_per_user attendances distributed across their preferred
-        activities. This populates act_aff, act_seen, clu_aff, clu_seen, total_joins,
-        avg_rating — the features that drive strong personalisation.
-        """
+        existing = set(
+            EventMember.objects.filter(event__in=demo_events, user__in=demo_users)
+            .values_list("event_id", "user_id")
+        )
+        to_create = []
+        for event in demo_events:
+            max_p = event.max_participants or 10
+            low  = max(2, int(max_p * 0.40))
+            high = min(len(demo_users), max(low + 1, int(max_p * 0.80)))
+            n_members = random.randint(low, high)
+            participants = random.sample(demo_users, min(n_members, len(demo_users)))
+
+            for j, user in enumerate(participants):
+                if (event.pk, user.pk) in existing:
+                    continue
+                role = MemberRole.ORGANIZER if j == 0 else MemberRole.PARTICIPANT
+                to_create.append(EventMember(
+                    user=user,
+                    event=event,
+                    role=role,
+                    has_participated=True,
+                    participates=True,
+                ))
+
+        EventMember.objects.bulk_create(to_create, ignore_conflicts=True)
+        return len(to_create)
+
+    # ------------------------------------------------------------------
+    def _seed_history(self, n_per_user: int) -> int:
+        """Create finished past events + attendance records so history features are non-zero."""
         if n_per_user == 0:
             return 0
 
@@ -296,23 +404,24 @@ class Command(BaseCommand):
                 )
             except Exception:
                 pref_acts = []
-
             if not pref_acts:
                 continue
 
             for i in range(n_per_user):
                 act_id = pref_acts[i % len(pref_acts)]
-                # Spread attendances over the last 6 months, most recent first
+                act_label = _activity_label(act_id)
                 start_dt = now - timedelta(days=(i + 1) * 10)
                 end_dt = start_dt + timedelta(hours=1, minutes=30)
 
                 location = Location.objects.create(
                     latitude=user.latitude + random.uniform(-0.01, 0.01),
                     longitude=user.longitude + random.uniform(-0.01, 0.01),
+                    name=random.choice(_ZAGREB_VENUES),
                     city="Zagreb",
                 )
                 event = Event.objects.create(
-                    title=f"{DEMO_TITLE_PREFIX}{_activity_label(act_id)} Session",
+                    title=_event_title(act_label, 1),
+                    description=_event_description(act_label, 1, 10),
                     start_time=start_dt,
                     end_time=end_dt,
                     location=location,
@@ -335,32 +444,24 @@ class Command(BaseCommand):
 
     # ------------------------------------------------------------------
     def _seed_follows(self) -> int:
-        """Have demo users follow each other in a ring + a few random cross-links.
-
-        Follows don't affect the ML ranking directly but make the social graph
-        non-empty so the app UI (profiles, activity feeds) looks populated.
-        """
+        """Each demo user follows the next 7 others (ring), giving everyone ≥ 7 followers."""
         demo_users = list(
             User.objects.filter(username__startswith=DEMO_USERNAME_PREFIX).order_by("id")
         )
-        if len(demo_users) < 2:
+        n = len(demo_users)
+        if n < 2:
             return 0
 
+        steps = min(7, n - 1)
         existing = set(
-            Follow.objects.filter(
-                follower__in=demo_users, following__in=demo_users
-            ).values_list("follower_id", "following_id")
+            Follow.objects.filter(follower__in=demo_users, following__in=demo_users)
+            .values_list("follower_id", "following_id")
         )
-
-        to_create = []
-        n = len(demo_users)
-
-        # Ring: each user follows the next 3 (wraps around)
-        for i, user in enumerate(demo_users):
-            for step in range(1, min(4, n)):
-                target = demo_users[(i + step) % n]
-                if (user.pk, target.pk) not in existing:
-                    to_create.append(Follow(follower=user, following=target))
-
+        to_create = [
+            Follow(follower=demo_users[i], following=demo_users[(i + step) % n])
+            for i in range(n)
+            for step in range(1, steps + 1)
+            if (demo_users[i].pk, demo_users[(i + step) % n].pk) not in existing
+        ]
         Follow.objects.bulk_create(to_create, ignore_conflicts=True)
         return len(to_create)
