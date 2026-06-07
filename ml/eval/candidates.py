@@ -30,8 +30,19 @@ def relevant_set(user_id: int, test_df: pd.DataFrame) -> dict:
 
 
 def feasible_candidates(user: pd.Series, events: pd.DataFrame,
-                        already_seen: set) -> np.ndarray:
-    """All events that pass the hard feasibility filter for this user."""
+                        already_seen: set,
+                        decision_time: pd.Timestamp = None,
+                        horizon: pd.Timedelta = None) -> np.ndarray:
+    """Events that pass the hard feasibility filter for this user.
+
+    Static feasibility: availability (day/time), travel distance, and not
+    already attended. Capacity is intentionally NOT a filter: ``participant_count``
+    is the final roster size, so using it at decision time would leak the future.
+
+    When ``decision_time`` and ``horizon`` are given, candidates are restricted to
+    events starting in ``[decision_time, decision_time + horizon]`` — the set of
+    upcoming events competing for the user's attention at that moment.
+    """
     days = set(int(x) for x in str(user["availability_days"]).split(","))
     times = set(int(x) for x in str(user["availability_times"]).split(","))
     max_km = max(float(user["max_travel_distance"]), 1.0)
@@ -42,7 +53,11 @@ def feasible_candidates(user: pd.Series, events: pd.DataFrame,
         events["day_of_week"].isin(days).values
         & events["time_of_day"].isin(times).values
         & (dist <= max_km)
-        & (events["participant_count"].values < events["max_participants"].values)
         & (~events["event_id"].isin(already_seen).values)
     )
+    if decision_time is not None and horizon is not None:
+        starts = events["start_time"].values
+        lo = np.datetime64(decision_time)
+        hi = np.datetime64(decision_time + horizon)
+        ok = ok & (starts >= lo) & (starts <= hi)
     return events.loc[ok, "event_id"].values.astype(int)

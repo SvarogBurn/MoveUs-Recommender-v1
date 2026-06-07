@@ -38,8 +38,24 @@ def test_relevant_set_uses_test_positives():
     assert rel == {0: 4, 2: 1}                  # leave (event 3) excluded
 
 
-def test_feasible_filters_full_and_unavailable():
+def test_feasible_excludes_unavailable_day():
+    # _user is available on days {0,1}; event 1 is on day 1, event 0 on day 0 -> both kept.
     cand = feasible_candidates(_user(), _events(), already_seen=set())
-    # event 3 is full -> excluded; event 2 is on an available day/time but different activity is allowed
-    assert 3 not in cand
     assert 0 in cand and 1 in cand
+
+
+def test_capacity_is_not_a_feasibility_filter():
+    # event 3 has participant_count == max_participants (full at the END of the sim).
+    # Final-roster capacity is a point-in-time leak, so it must NOT remove a candidate.
+    cand = feasible_candidates(_user(), _events(), already_seen=set())
+    assert 3 in cand
+
+
+def test_feasible_time_window_restricts_to_horizon():
+    # decision window [2023-06-01, 2023-06-02] keeps only events starting inside it.
+    cand = feasible_candidates(
+        _user(), _events(), already_seen=set(),
+        decision_time=pd.Timestamp("2023-06-01"),
+        horizon=pd.Timedelta(days=1),
+    )
+    assert set(cand) == {0, 1}            # events 2 (06-03) and 3 (06-04) are out of window

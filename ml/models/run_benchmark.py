@@ -18,7 +18,26 @@ RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 def run_benchmark(data_dir=None, fast: bool = False) -> dict:
     data_dir = Path(data_dir) if data_dir else DATA_DIR_DEFAULT
     users = pd.read_csv(data_dir / "users.csv")
-    events = pd.read_csv(data_dir / "events.csv", parse_dates=["start_time", "end_time"])
+    # Ensure `is_cold_user` exists (some datasets omit it). If a separate
+    # cold_start_users.csv file exists, use it; otherwise default to False.
+    if "is_cold_user" not in users.columns:
+        cold_path = data_dir / "cold_start_users.csv"
+        if cold_path.exists():
+            try:
+                cold_df = pd.read_csv(cold_path)
+                cold_set = set(cold_df["user_id"].astype(int))
+                users["is_cold_user"] = users["user_id"].isin(cold_set)
+            except Exception:
+                users["is_cold_user"] = False
+        else:
+            users["is_cold_user"] = False
+    # Some datasets may omit `end_time`; read flexibly and ensure column exists
+    try:
+        events = pd.read_csv(data_dir / "events.csv", parse_dates=["start_time", "end_time"])
+    except ValueError:
+        events = pd.read_csv(data_dir / "events.csv", parse_dates=["start_time"]) 
+        if "end_time" not in events.columns:
+            events["end_time"] = pd.NaT
     inter = pd.read_csv(data_dir / "interactions.csv", parse_dates=["timestamp"])
 
     # enrich interactions with event activity/cluster metadata needed by context.py
@@ -46,8 +65,16 @@ def run_benchmark(data_dir=None, fast: bool = False) -> dict:
             row[f"{sl}_ndcg@10"] = round(m["ndcg@10"], 4)
             row[f"{sl}_recall@10"] = round(m["recall@10"], 4)
             row[f"{sl}_mrr"] = round(m["mrr"], 4)
+            row[f"{sl}_pool"] = round(m.get("pool_size", 0.0), 1)
         rows.append(row)
     pd.DataFrame(rows).to_csv(RESULTS_DIR / "benchmark.csv", index=False)
+
+    # benchmark charts (headless-safe); never let plotting break a run
+    try:
+        from ml.eval.plots import plot_benchmark
+        plot_benchmark(results, RESULTS_DIR)
+    except Exception as exc:  # pragma: no cover - visualisation is best-effort
+        print(f"[warn] could not render benchmark plots: {exc}")
     return results
 
 
