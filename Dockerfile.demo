@@ -5,14 +5,19 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
-COPY . /app/
-
 RUN apt-get update && apt-get install -y
 
+# Copy only requirements first so pip layers are cached independently of code changes.
+COPY requirements.txt /app/
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir numpy pandas scikit-learn faker
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+# Copy application code last. Pass --build-arg CACHEBUST=$(date +%s) to force
+# a fresh copy when Docker's content hash misses a change (e.g. CRLF/LF drift).
+ARG CACHEBUST=1
+COPY . /app/
 
 RUN groupadd --system app \
     && useradd --system --gid app --home /app app \
