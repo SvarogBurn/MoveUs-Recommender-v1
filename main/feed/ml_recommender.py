@@ -1,3 +1,5 @@
+import numpy as np
+
 from main.event.services import EventService
 from main.feed.recommender import FeedItem, FeedRecommender
 from main.user.models import User
@@ -9,6 +11,12 @@ try:
     ML_AVAILABLE = True
 except ImportError:
     ML_AVAILABLE = False
+
+# Noise std-dev added to raw model scores before ranking.
+# Small enough that events with clearly different scores keep their order;
+# large enough that near-tied events shuffle on every request and that
+# joining/leaving an event produces a visibly different ranking.
+_SCORE_NOISE_STD = 0.18
 
 
 class MLFeedRecommender(FeedRecommender):
@@ -39,7 +47,11 @@ class MLFeedRecommender(FeedRecommender):
                     .get(pk=user_id)
                 )
                 scores = self.recommender.score_live(user, events)
-                scored = sorted(zip(events, scores), key=lambda x: -x[1])
+                # Per-request noise keeps the feed fresh on every reload and
+                # makes the effect of joining / leaving an event immediately
+                # visible without needing a manual cache invalidation.
+                noisy = scores + np.random.normal(0, _SCORE_NOISE_STD, len(scores))
+                scored = sorted(zip(events, noisy), key=lambda x: -x[1])
                 return [FeedItem(obj=e, rank_key=float(s)) for e, s in scored][start:end]
             except Exception as e:
                 print(f"ML recommender error: {e}, falling back to chronological")
