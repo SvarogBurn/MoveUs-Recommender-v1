@@ -1,5 +1,6 @@
 import numpy as np
 
+from main.event.models import EventMember
 from main.event.services import EventService
 from main.feed.recommender import FeedItem, FeedRecommender
 from main.user.models import User
@@ -28,9 +29,15 @@ class MLFeedRecommender(FeedRecommender):
     def recommend(self, user_id: int, start: int, end: int) -> list[FeedItem]:
         validate_pagination(start, end)
 
+        joined_ids = set(
+            EventMember.objects
+            .filter(user_id=user_id, participates=True)
+            .values_list("event_id", flat=True)
+        )
         events = list(
             EventService._queryset()
             .filter(phase=EventPhase.SCHEDULED)
+            .exclude(pk__in=joined_ids)
             .select_related("location", "activity")
         )
         if not events:
